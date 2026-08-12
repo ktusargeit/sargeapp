@@ -20,6 +20,13 @@ service firebase.storage {
       allow write: if isSignedIn() && photoFile == request.auth.uid + '.jpg';
     }
 
+    // Users can upload their own cover photos. Readable by anyone.
+    // Upload path is always cover_photos/{uid}.jpg — match exactly.
+    match /cover_photos/{photoFile} {
+      allow read: if true;
+      allow write: if isSignedIn() && photoFile == request.auth.uid + '.jpg';
+    }
+
     // Depo products - any signed-in user can upload product images. Readable by anyone.
     match /depo_urunler/{allPaths=**} {
       allow read: if true;

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'user_profile_models.dart';
 
 /// Represents the current authenticated user's Firestore profile.
 class AppUser {
@@ -10,6 +11,7 @@ class AppUser {
   final int weeklyPoints;
   final int prevWeeklyPoints;
   final String? photoUrl;
+  final String? coverPhotoUrl;
   final String? bio;
   final String? department;
   final String? className;
@@ -19,6 +21,7 @@ class AppUser {
   final List<Map<String, dynamic>> clubRoles;
   final List<String> unitResponsibilities;
   final List<Map<String, dynamic>> awards;
+  final List<UserTitle> titles;
   final bool inWorkshop;
 
   const AppUser({
@@ -30,6 +33,7 @@ class AppUser {
     this.weeklyPoints = 0,
     this.prevWeeklyPoints = 0,
     this.photoUrl,
+    this.coverPhotoUrl,
     this.bio,
     this.department,
     this.className,
@@ -39,6 +43,7 @@ class AppUser {
     this.clubRoles = const [],
     this.unitResponsibilities = const [],
     this.awards = const [],
+    this.titles = const [],
     this.inWorkshop = false,
   });
 
@@ -54,6 +59,20 @@ class AppUser {
       default:
         return 'Üye';
     }
+  }
+
+  /// Currently active (non-retired) titles, newest first.
+  List<UserTitle> get activeTitles {
+    final active = titles.where((t) => t.isActive).toList();
+    active.sort((a, b) => b.startDate.compareTo(a.startDate));
+    return active;
+  }
+
+  /// Retired/former titles, newest first.
+  List<UserTitle> get formerTitles {
+    final former = titles.where((t) => !t.isActive).toList();
+    former.sort((a, b) => b.startDate.compareTo(a.startDate));
+    return former;
   }
 
   String? get activeTeamName {
@@ -72,6 +91,7 @@ class AppUser {
       weeklyPoints: (data['weeklyPoints'] as num?)?.toInt() ?? 0,
       prevWeeklyPoints: (data['prevWeeklyPoints'] as num?)?.toInt() ?? 0,
       photoUrl: data['photoUrl'] as String?,
+      coverPhotoUrl: data['coverPhotoUrl'] as String?,
       bio: data['bio'] as String?,
       department: data['department'] as String?,
       className: data['className'] as String?,
@@ -92,6 +112,10 @@ class AppUser {
           (data['unitResponsibilities'] as List?)?.map((e) => e.toString()).toList() ?? const [],
       awards: (data['awards'] as List?)
               ?.map((e) => Map<String, dynamic>.from(e as Map))
+              .toList() ??
+          const [],
+      titles: (data['titles'] as List?)
+              ?.map((e) => UserTitle.fromMap(Map<String, dynamic>.from(e as Map)))
               .toList() ??
           const [],
       inWorkshop: data['inWorkshop'] as bool? ?? false,

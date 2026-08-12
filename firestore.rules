@@ -17,6 +17,14 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    // Board members (Yönetim Kurulu) are identified by their primary role field.
+    // They are allowed to manage the `titles` array but nothing else on a profile.
+    function isBoardMember() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['board_president', 'board_member'];
+    }
+
     // ---------- USERS ----------
     match /users/{uid} {
       allow read: if true; // Public profiles - anyone can view
@@ -28,6 +36,10 @@ service cloud.firestore {
                     'teamIds', 'pastTeams', 'links', 'activeTeamId', 'activeTeamName',
                     'unitResponsibilities', 'clubRoles', 'awards', 'inWorkshop',
                     'weeklyPoints', 'prevWeeklyPoints', 'points'])
+      ) || (
+        // Board members may only manage the `titles` array.
+        isBoardMember() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['titles'])
       );
       allow delete: if isAdmin();
     }

@@ -11,6 +11,7 @@ import '../../../core/models/app_user.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/utils/image_utils.dart';
 import '../../../core/widgets/safe_network_image.dart';
+import '../../admin/screens/user_title_management_sheet.dart';
 import '../providers/team_providers.dart';
 import '../models/team_models.dart';
 
@@ -973,6 +974,11 @@ class _MemberRow extends ConsumerWidget {
                         value: 'make_unit_lead',
                         child: Text('Birim Sorumlusu Yap'),
                       ),
+                      if (isAdmin)
+                        const PopupMenuItem(
+                          value: 'manage_titles',
+                          child: Text('Ünvanları Yönet'),
+                        ),
                       const PopupMenuItem(
                         value: 'remove_member',
                         child: Text('Takımdan Çıkar',
@@ -1008,8 +1014,13 @@ class _MemberRow extends ConsumerWidget {
               content: Text(
                   '${user.displayName} takım kaptanı yapıldı.'),
               backgroundColor: AppColors.success));
+        break;
       case 'make_unit_lead':
         _showUnitPicker(context, ref);
+        break;
+      case 'manage_titles':
+        showUserTitleManagementSheet(context, ref, user);
+        break;
       case 'remove_member':
         await firestore
             .collection('teams')
@@ -1022,6 +1033,7 @@ class _MemberRow extends ConsumerWidget {
               content: Text(
                   '${user.displayName} takımdan çıkarıldı.'),
               backgroundColor: AppColors.success));
+        break;
     }
   }
 

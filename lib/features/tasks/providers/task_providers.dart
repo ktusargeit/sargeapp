@@ -59,3 +59,16 @@ final taskDocProvider =
       .snapshots()
       .map((doc) => TaskModel.fromDoc(doc));
 });
+
+/// Stream of a user's completed (onaylanmış) task count, for profile stats.
+/// Uses equality filters only, so no composite index is required.
+final completedTaskCountProvider =
+    StreamProvider.family<int, String>((ref, uid) {
+  final firestore = ref.watch(firestoreProvider);
+  return firestore
+      .collection('tasks')
+      .where('assignedTo', isEqualTo: uid)
+      .where('status', isEqualTo: 'completed')
+      .snapshots()
+      .map((snap) => snap.docs.length);
+});
