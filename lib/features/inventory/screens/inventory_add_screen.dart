@@ -1,0 +1,757 @@
+import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../../core/providers/auth_providers.dart';
+import '../../../core/utils/image_utils.dart';
+import '../../../core/widgets/platform_image.dart';
+import '../models/depo_models.dart';
+import '../providers/depo_providers.dart';
+
+class InventoryAddScreen extends ConsumerStatefulWidget {
+  final String? editItemId;
+  const InventoryAddScreen({super.key, this.editItemId});
+
+  @override
+  ConsumerState<InventoryAddScreen> createState() => _InventoryAddScreenState();
+}
+
+class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
+  final _formKey = GlobalKey<FormState>();
+  int _currentStep = 0;
+
+  // Stage 1: Product info
+  late final TextEditingController _nameCtrl = TextEditingController();
+  late final TextEditingController _descCtrl = TextEditingController();
+  late final TextEditingController _serialCtrl = TextEditingController();
+  late final TextEditingController _modelCtrl = TextEditingController();
+  late final TextEditingController _brandCtrl = TextEditingController();
+  late final TextEditingController _quantityCtrl = TextEditingController();
+
+  String? _selectedTeamId;
+  String? _selectedUnitId;
+  String? _selectedCategoryId;
+  String _selectedStatus = 'available';
+  PickedImage? _pickedImage;
+  bool _loading = false;
+  bool _editLoaded = false;
+
+  // Stage 2: Location info
+  String? _selectedLocationId;
+  String? _selectedLocationName;
+  late final TextEditingController _shelfCtrl = TextEditingController();
+  late final TextEditingController _drawerCtrl = TextEditingController();
+  PickedImage? _pickedLocationImage;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.editItemId != null) {
+      _loadExistingItem();
+    }
+  }
+
+  Future<void> _loadExistingItem() async {
+    try {
+      final doc = await ref
+          .read(firestoreProvider)
+          .collection('depo_urunler')
+          .doc(widget.editItemId!)
+          .get();
+      if (doc.exists) {
+        final data = doc.data()!;
+        setState(() {
+          _nameCtrl.text = data['name'] as String? ?? '';
+          _descCtrl.text = data['description'] as String? ?? '';
+          _serialCtrl.text = data['serialNumber'] as String? ?? '';
+          _modelCtrl.text = data['model'] as String? ?? '';
+          _brandCtrl.text = data['brand'] as String? ?? '';
+          _quantityCtrl.text = (data['quantity'] as num?)?.toString() ?? '';
+          _selectedTeamId = data['teamId'] as String?;
+          _selectedUnitId = data['unitId'] as String?;
+          _selectedCategoryId = data['categoryId'] as String?;
+          _selectedStatus = data['status'] as String? ?? 'available';
+          _selectedLocationId = data['locationId'] as String?;
+          _selectedLocationName = data['locationName'] as String?;
+          _shelfCtrl.text = data['shelfName'] as String? ?? '';
+          _drawerCtrl.text = data['drawerName'] as String? ?? '';
+          _editLoaded = true;
+        });
+      }
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _descCtrl.dispose();
+    _serialCtrl.dispose();
+    _modelCtrl.dispose();
+    _brandCtrl.dispose();
+    _quantityCtrl.dispose();
+    _shelfCtrl.dispose();
+    _drawerCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final picked = await PickedImage.pick(ImageSource.gallery);
+    if (picked != null) setState(() => _pickedImage = picked);
+  }
+
+  Future<void> _pickLocationImage(ImageSource source) async {
+    final picked = await PickedImage.pick(source);
+    if (picked != null) setState(() => _pickedLocationImage = picked);
+  }
+
+  Future<void> _pickLocation() async {
+    final selected = await showModalBottomSheet<Map<String, String>>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final locationsAsync = ref.watch(locationsProvider);
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('Lokasyon Seç',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary)),
+              ),
+              const Divider(color: AppColors.border, height: 1),
+              Flexible(
+                child: locationsAsync.when(
+                  data: (locations) => ListView(
+                    shrinkWrap: true,
+                    children: locations
+                        .map((loc) => ListTile(
+                              leading: const Icon(Icons.location_on_outlined,
+                                  color: AppColors.depoAccent),
+                              title: Text(loc.name,
+                                  style: const TextStyle(
+                                      color: AppColors.textPrimary)),
+                              onTap: () => Navigator.pop(ctx, {
+                                'id': loc.id,
+                                'name': loc.name,
+                              }),
+                            ))
+                        .toList(),
+                  ),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(child: Text('Hata: $e')),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (selected != null) {
+      setState(() {
+        _selectedLocationId = selected['id'];
+        _selectedLocationName = selected['name'];
+      });
+    }
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_nameCtrl.text.trim().isEmpty) return;
+    setState(() => _loading = true);
+    try {
+      final user = ref.read(authStateProvider).value;
+      final repo = ref.read(depoRepositoryProvider);
+      String? categoryName;
+      if (_selectedCategoryId != null) {
+        final catDoc = await ref
+            .read(firestoreProvider)
+            .collection('inventory_categories')
+            .doc(_selectedCategoryId)
+            .get();
+        categoryName = catDoc.data()?['name'] as String?;
+      }
+
+      final data = <String, dynamic>{
+        'name': _nameCtrl.text.trim(),
+        'description':
+            _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+        'teamId': _selectedTeamId,
+        'unitId': _selectedUnitId,
+        'categoryId': _selectedCategoryId,
+        'categoryName': categoryName,
+        'serialNumber':
+            _serialCtrl.text.trim().isEmpty ? null : _serialCtrl.text.trim(),
+        'model': _modelCtrl.text.trim().isEmpty ? null : _modelCtrl.text.trim(),
+        'brand': _brandCtrl.text.trim().isEmpty ? null : _brandCtrl.text.trim(),
+        'quantity': int.tryParse(_quantityCtrl.text.trim()),
+        'status': _selectedStatus,
+        'locationId': _selectedLocationId,
+        'locationName': _selectedLocationName,
+        'shelfName': _shelfCtrl.text.trim().isEmpty ? null : _shelfCtrl.text.trim(),
+        'drawerName': _drawerCtrl.text.trim().isEmpty ? null : _drawerCtrl.text.trim(),
+        'createdBy': user?.uid,
+      };
+
+      if (widget.editItemId != null) {
+        // Update existing item
+        await repo.updateItem(
+          widget.editItemId!,
+          data,
+          imageBytes: _pickedImage?.bytes,
+          imageFile: _pickedImage?.dartFile,
+          locationBytes: _pickedLocationImage?.bytes,
+          locationFile: _pickedLocationImage?.dartFile,
+        );
+      } else {
+        // Add new item
+        await repo.addItem(
+          data,
+          imageBytes: _pickedImage?.bytes,
+          imageFile: _pickedImage?.dartFile,
+          locationBytes: _pickedLocationImage?.bytes,
+          locationFile: _pickedLocationImage?.dartFile,
+        );
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.editItemId != null
+                ? 'Ürün güncellendi.'
+                : 'Ürün eklendi.'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        context.pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Hata: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEditing = widget.editItemId != null;
+    final statusesAsync = ref.watch(inventoryStatusesProvider);
+    final teamsAsync = ref.watch(teamListProvider);
+    final unitsAsync = ref.watch(unitsByTeamProvider(_selectedTeamId));
+    final categoriesAsync = ref.watch(inventoryCategoriesProvider);
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text(isEditing ? 'Ürün Düzenle' : 'Yeni Ürün Ekle'),
+        backgroundColor: AppColors.surface,
+        actions: [
+          TextButton(
+            onPressed: _loading ? null : _submit,
+            child: _loading
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: AppColors.depoAccent))
+                : const Text('Kaydet',
+                    style: TextStyle(
+                        color: AppColors.depoAccent,
+                        fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+      body: isEditing && !_editLoaded
+          ? const Center(
+              child:
+                  CircularProgressIndicator(color: AppColors.depoAccent))
+          : Form(
+              key: _formKey,
+              child: Stepper(
+                currentStep: _currentStep,
+                onStepContinue: () {
+                  if (_currentStep < 1) {
+                    setState(() => _currentStep++);
+                  }
+                },
+                onStepCancel: () {
+                  if (_currentStep > 0) {
+                    setState(() => _currentStep--);
+                  }
+                },
+                controlsBuilder: (context, details) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Row(
+                      children: [
+                        if (_currentStep < 1)
+                          ElevatedButton(
+                            onPressed: details.onStepContinue,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.depoAccent,
+                            ),
+                            child: const Text('Devam'),
+                          ),
+                        if (_currentStep > 0) ...[
+                          const SizedBox(width: 12),
+                          OutlinedButton(
+                            onPressed: details.onStepCancel,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.textSecondary,
+                              side: const BorderSide(
+                                  color: AppColors.border),
+                            ),
+                            child: const Text('Geri'),
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                },
+                steps: [
+                  // STEP 1: Product Info
+                  Step(
+                    title: const Text('Ürün Bilgileri',
+                        style: TextStyle(color: AppColors.textPrimary)),
+                    isActive: _currentStep >= 0,
+                    state: _currentStep > 0
+                        ? StepState.complete
+                        : StepState.indexed,
+                    content: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          // Image picker
+                          Center(
+                            child: GestureDetector(
+                              onTap: _pickImage,
+                              child: Container(
+                                width: 120,
+                                height: 120,
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface2,
+                                  borderRadius: BorderRadius.circular(
+                                      AppConstants.radiusMd),
+                                  border: Border.all(
+                                      color: AppColors.border),
+                                ),
+                                child: _pickedImage != null
+                                    ? ClipRRect(
+                                        borderRadius:
+                                            BorderRadius.circular(
+                                                AppConstants.radiusMd -
+                                                    1),
+                                        child: PlatformImageFile(
+                                          bytes: _pickedImage!.bytes,
+                                          file: _pickedImage!.dartFile,
+                                          width: 120,
+                                          height: 120,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.add_a_photo_outlined,
+                                        size: 32,
+                                        color:
+                                            AppColors.textSecondary),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          // Name
+                          TextFormField(
+                            controller: _nameCtrl,
+                            style: const TextStyle(
+                                color: AppColors.textPrimary),
+                            decoration: const InputDecoration(
+                              labelText: 'Ürün Adı *',
+                              hintText: 'Örn: Arduino Uno R3',
+                            ),
+                            validator: (v) =>
+                                (v == null || v.trim().isEmpty)
+                                    ? 'Zorunlu'
+                                    : null,
+                          ),
+                          const SizedBox(height: 12),
+                          // Description
+                          TextFormField(
+                            controller: _descCtrl,
+                            maxLines: 2,
+                            style: const TextStyle(
+                                color: AppColors.textPrimary),
+                            decoration: const InputDecoration(
+                              labelText: 'Açıklama',
+                              hintText: 'Ürün hakkında detay',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // Team dropdown
+                          teamsAsync.when(
+                            data: (teams) =>
+                                DropdownButtonFormField<String>(
+                              value: _selectedTeamId,
+                              dropdownColor: AppColors.surface2,
+                              style: const TextStyle(
+                                  color: AppColors.textPrimary),
+                              decoration: const InputDecoration(
+                                  labelText: 'Takım'),
+                              items: [
+                                const DropdownMenuItem(
+                                    value: null,
+                                    child: Text('—')),
+                                ...teams.map((t) =>
+                                    DropdownMenuItem(
+                                        value: t['id'] as String,
+                                        child: Text(
+                                            t['name'] as String))),
+                              ],
+                              onChanged: (v) => setState(() {
+                                _selectedTeamId = v;
+                                _selectedUnitId = null;
+                                _selectedCategoryId = null;
+                              }),
+                            ),
+                            loading: () =>
+                                const CircularProgressIndicator(),
+                            error: (e, _) => Text('Hata: $e'),
+                          ),
+                          const SizedBox(height: 12),
+                          // Unit dropdown (filtered by team)
+                          if (_selectedTeamId != null)
+                            unitsAsync.when(
+                              data: (units) =>
+                                  DropdownButtonFormField<String>(
+                                value: _selectedUnitId,
+                                dropdownColor: AppColors.surface2,
+                                style: const TextStyle(
+                                    color: AppColors.textPrimary),
+                                decoration: const InputDecoration(
+                                    labelText: 'Birim'),
+                                items: [
+                                  const DropdownMenuItem(
+                                      value: null,
+                                      child: Text('—')),
+                                  ...units.map((u) =>
+                                      DropdownMenuItem(
+                                          value:
+                                              u['id'] as String,
+                                          child: Text(u['name']
+                                              as String))),
+                                ],
+                                onChanged: (v) => setState(() {
+                                  _selectedUnitId = v;
+                                  _selectedCategoryId = null;
+                                }),
+                              ),
+                              loading: () =>
+                                  const CircularProgressIndicator(),
+                              error: (e, _) => Text('Hata: $e'),
+                            ),
+                          const SizedBox(height: 12),
+                          // Category dropdown (filtered by team + unit)
+                          categoriesAsync.when(
+                            data: (cats) {
+                              final filtered = cats
+                                  .where((c) =>
+                                      c.teamId == _selectedTeamId &&
+                                      c.unitId == _selectedUnitId)
+                                  .toList();
+                              return DropdownButtonFormField<String>(
+                                value: _selectedCategoryId,
+                                dropdownColor: AppColors.surface2,
+                                style: const TextStyle(
+                                    color: AppColors.textPrimary),
+                                decoration: const InputDecoration(
+                                    labelText: 'Kategori'),
+                                items: [
+                                  const DropdownMenuItem(
+                                      value: null,
+                                      child: Text('—')),
+                                  ...filtered.map((c) =>
+                                      DropdownMenuItem(
+                                          value: c.id,
+                                          child: Text(c.name))),
+                                ],
+                                onChanged: (v) => setState(() =>
+                                    _selectedCategoryId = v),
+                              );
+                            },
+                            loading: () =>
+                                const CircularProgressIndicator(),
+                            error: (e, _) => Text('Hata: $e'),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _serialCtrl,
+                                  style: const TextStyle(
+                                      color:
+                                          AppColors.textPrimary),
+                                  decoration: const InputDecoration(
+                                      labelText: 'Seri No',
+                                      hintText: 'SN-12345'),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _modelCtrl,
+                                  style: const TextStyle(
+                                      color:
+                                          AppColors.textPrimary),
+                                  decoration: const InputDecoration(
+                                      labelText: 'Model',
+                                      hintText: 'R3'),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _brandCtrl,
+                                  style: const TextStyle(
+                                      color:
+                                          AppColors.textPrimary),
+                                  decoration: const InputDecoration(
+                                      labelText: 'Marka',
+                                      hintText: 'Arduino'),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _quantityCtrl,
+                                  keyboardType:
+                                      TextInputType.number,
+                                  style: const TextStyle(
+                                      color:
+                                          AppColors.textPrimary),
+                                  decoration: const InputDecoration(
+                                      labelText: 'Adet',
+                                      hintText: '1'),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          // Status dropdown (dynamic from Firestore)
+                          statusesAsync.when(
+                            data: (statuses) {
+                              final options = statuses.isNotEmpty
+                                  ? statuses
+                                  : [
+                                      const InventoryStatus(
+                                          id: 'available',
+                                          label: 'Mevcut'),
+                                      const InventoryStatus(
+                                          id: 'inUse',
+                                          label: 'Kullanımda'),
+                                      const InventoryStatus(
+                                          id: 'maintenance',
+                                          label: 'Bakımda'),
+                                    ];
+                              return DropdownButtonFormField<String>(
+                                value: _selectedStatus,
+                                dropdownColor: AppColors.surface2,
+                                style: const TextStyle(
+                                    color: AppColors.textPrimary),
+                                decoration: const InputDecoration(
+                                    labelText: 'Durum'),
+                                items: options
+                                    .map((s) =>
+                                        DropdownMenuItem(
+                                            value: s.id,
+                                            child:
+                                                Text(s.label)))
+                                    .toList(),
+                                onChanged: (v) => setState(
+                                    () => _selectedStatus = v!),
+                              );
+                            },
+                            loading: () =>
+                                const CircularProgressIndicator(),
+                            error: (e, _) => Text('Hata: $e'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // STEP 2: Location
+                  Step(
+                    title: const Text('Lokasyon',
+                        style: TextStyle(color: AppColors.textPrimary)),
+                    isActive: _currentStep >= 1,
+                    state: StepState.indexed,
+                    content: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          // Location picker
+                          InkWell(
+                            onTap: _pickLocation,
+                            child: InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: 'Lokasyon',
+                                suffixIcon:
+                                    Icon(Icons.arrow_drop_down),
+                              ),
+                              child: Text(
+                                _selectedLocationName ??
+                                    'Lokasyon seçin',
+                                style: TextStyle(
+                                  color: _selectedLocationName != null
+                                      ? AppColors.textPrimary
+                                      : AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // Shelf
+                          TextFormField(
+                            controller: _shelfCtrl,
+                            style: const TextStyle(
+                                color: AppColors.textPrimary),
+                            decoration: const InputDecoration(
+                              labelText: 'Raf Adı',
+                              hintText: 'Örn: A-3',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // Drawer
+                          TextFormField(
+                            controller: _drawerCtrl,
+                            style: const TextStyle(
+                                color: AppColors.textPrimary),
+                            decoration: const InputDecoration(
+                              labelText: 'Çekmece Adı',
+                              hintText: 'Örn: Çekmece 2',
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          // Location photo
+                          const Text('Lokasyon Fotoğrafı',
+                              style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 13)),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              GestureDetector(
+                                onTap: () =>
+                                    _pickLocationImage(
+                                        ImageSource.camera),
+                                child: Container(
+                                  width: 120,
+                                  height: 120,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surface2,
+                                    borderRadius:
+                                        BorderRadius.circular(
+                                            AppConstants.radiusMd),
+                                    border: Border.all(
+                                        color: AppColors.border),
+                                  ),
+                                  child: _pickedLocationImage != null
+                                      ? ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(
+                                                  AppConstants
+                                                          .radiusMd -
+                                                      1),
+                                          child:
+                                              PlatformImageFile(
+                                            bytes: _pickedLocationImage!
+                                                .bytes,
+                                            file: _pickedLocationImage!
+                                                .dartFile,
+                                            width: 120,
+                                            height: 120,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        )
+                                      : const Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment
+                                                  .center,
+                                          children: [
+                                            Icon(
+                                                Icons.camera_alt,
+                                                size: 28,
+                                                color: AppColors
+                                                    .textSecondary),
+                                            SizedBox(height: 4),
+                                            Text('Kamera',
+                                                style: TextStyle(
+                                                    fontSize: 10,
+                                                    color: AppColors
+                                                        .textSecondary)),
+                                          ],
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              GestureDetector(
+                                onTap: () =>
+                                    _pickLocationImage(
+                                        ImageSource.gallery),
+                                child: Container(
+                                  width: 120,
+                                  height: 120,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surface2,
+                                    borderRadius:
+                                        BorderRadius.circular(
+                                            AppConstants.radiusMd),
+                                    border: Border.all(
+                                        color: AppColors.border),
+                                  ),
+                                  child: const Column(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.photo_library,
+                                          size: 28,
+                                          color: AppColors
+                                              .textSecondary),
+                                      SizedBox(height: 4),
+                                      Text('Galeri',
+                                          style: TextStyle(
+                                              fontSize: 10,
+                                              color: AppColors
+                                                  .textSecondary)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+}

@@ -1,0 +1,558 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../../core/providers/auth_providers.dart';
+import '../../notifications/providers/notification_providers.dart';
+
+class AppShell extends ConsumerWidget {
+  final Widget child;
+
+  const AppShell({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final width = MediaQuery.of(context).size.width;
+    final isDesktop = width >= AppConstants.breakpointTablet;
+
+    if (isDesktop) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: Row(
+          children: [
+            const _SidebarNav(),
+            Container(width: 1, color: AppColors.border),
+            Expanded(child: child),
+          ],
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        elevation: 0,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: AppColors.textPrimary),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
+        title: const Text('SARGE'),
+        actions: const [
+          _NotificationBell(),
+          SizedBox(width: 8),
+        ],
+      ),
+      drawer: const AppDrawer(),
+      body: child,
+      bottomNavigationBar: const _BottomNav(),
+    );
+  }
+}
+
+class AppDrawer extends ConsumerWidget {
+  const AppDrawer({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authStateProvider);
+    final isLoggedIn = authState.value != null;
+    final appUser = ref.watch(currentAppUserProvider).value;
+
+    return Drawer(
+      backgroundColor: AppColors.surface,
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      if (isLoggedIn && appUser != null) {
+                        context.push('/profile/${appUser.uid}');
+                      }
+                    },
+                    child: CircleAvatar(
+                      radius: 18,
+                      backgroundColor: AppColors.surface2,
+                      backgroundImage: appUser != null && appUser.photoUrl != null && appUser.photoUrl!.isNotEmpty
+                          ? NetworkImage(appUser.photoUrl!)
+                          : null,
+                      child: appUser == null || appUser.photoUrl == null || appUser.photoUrl!.isEmpty
+                          ? const Icon(Icons.person_outline, size: 18, color: AppColors.textSecondary)
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('SARGE',
+                          style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.5)),
+                      if (appUser != null)
+                        Text(appUser.displayName,
+                            style:
+                                const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const Divider(color: AppColors.border, height: 1),
+            const SizedBox(height: 8),
+            if (isLoggedIn)
+              _DrawerItem(
+                icon: Icons.person_outline,
+                label: 'Profilim',
+                onTap: () {
+                  Navigator.pop(context);
+                  final uid = ref.read(authStateProvider).value?.uid;
+                  if (uid != null) context.push('/profile/$uid');
+                },
+              ),
+            if (isLoggedIn)
+              _DrawerItem(
+                icon: Icons.bug_report_outlined,
+                label: 'Hata Bildir',
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/report-bug');
+                },
+              ),
+            if (isLoggedIn)
+              _DrawerItem(
+                icon: Icons.settings_outlined,
+                label: 'Ayarlar',
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/settings');
+                },
+              ),
+            const Spacer(),
+            _DrawerItem(
+              icon: Icons.info_outline,
+              label: 'Hakkımızda',
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/about');
+              },
+            ),
+            _DrawerItem(
+              icon: Icons.mail_outline,
+              label: 'İletişim',
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/contact');
+              },
+            ),
+            const Divider(color: AppColors.border, height: 1),
+            if (isLoggedIn)
+              _DrawerItem(
+                icon: Icons.logout,
+                label: 'Çıkış Yap',
+                isDestructive: true,
+                onTap: () async {
+                  Navigator.pop(context);
+                  ref.read(guestSessionProvider.notifier).state = false;
+                  await ref.read(authControllerProvider).signOut();
+                  if (context.mounted) context.go('/login');
+                },
+              )
+            else
+              _DrawerItem(
+                icon: Icons.login,
+                label: 'Giriş Yap',
+                onTap: () {
+                  Navigator.pop(context);
+                  context.go('/login');
+                },
+              ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationBell extends ConsumerWidget {
+  const _NotificationBell();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unread = ref.watch(unreadNotificationCountProvider).value ?? 0;
+    return IconButton(
+      icon: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const Icon(Icons.notifications_outlined, color: AppColors.textPrimary),
+          if (unread > 0)
+            Positioned(
+              right: -6,
+              top: -6,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppColors.error,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.surface, width: 1.5),
+                ),
+                child: Text(
+                  '$unread',
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+        ],
+      ),
+      onPressed: () => context.push('/notifications'),
+    );
+  }
+}
+
+class _DrawerItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool isDestructive;
+
+  const _DrawerItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.isDestructive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isDestructive ? AppColors.error : AppColors.textPrimary;
+    return ListTile(
+      leading:
+          Icon(icon, size: 20, color: isDestructive ? AppColors.error : AppColors.textSecondary),
+      title: Text(label, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w500)),
+      onTap: onTap,
+    );
+  }
+}
+
+class _SidebarNav extends ConsumerWidget {
+  const _SidebarNav();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final location = GoRouterState.of(context).matchedLocation;
+    final authState = ref.watch(authStateProvider);
+    final isLoggedIn = authState.value != null;
+    final isAdmin = ref.watch(isAdminProvider);
+    final appUser = ref.watch(currentAppUserProvider).value;
+
+    return Container(
+      width: AppConstants.sidebarWidth,
+      color: AppColors.surface,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: GestureDetector(
+              onTap: () {
+                if (isLoggedIn && appUser != null) {
+                  context.push('/profile/${appUser.uid}');
+                }
+              },
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.asset(
+                      'assets/images/sarge_logo.png',
+                      width: 28,
+                      height: 28,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'SARGE',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 28),
+          _NavItem(
+            icon: Icons.grid_view_rounded,
+            label: 'Panel',
+            route: '/dashboard',
+            isActive: location == '/dashboard',
+            accentColor: AppColors.panelBlue,
+          ),
+          _NavItem(
+            icon: Icons.inventory_2_outlined,
+            label: 'Depo',
+            route: '/inventory',
+            isActive: location.startsWith('/inventory') || location.startsWith('/locations'),
+            accentColor: AppColors.depoRed,
+          ),
+          _NavItem(
+            icon: Icons.groups_outlined,
+            label: 'Takımım',
+            route: '/team',
+            isActive: location.startsWith('/team'),
+            accentColor: AppColors.teamOrange,
+          ),
+          _NavItem(
+            icon: Icons.task_alt,
+            label: 'Görevlerim',
+            route: '/tasks',
+            isActive: location.startsWith('/tasks'),
+            accentColor: AppColors.tasksGreen,
+          ),
+          const SizedBox(height: 8),
+          if (isAdmin)
+            _NavItem(
+              icon: Icons.admin_panel_settings_outlined,
+              label: 'Yönetim',
+              route: '/admin',
+              isActive: location.startsWith('/admin'),
+              accentColor: AppColors.sargeGold,
+            ),
+          const Spacer(),
+          if (isAdmin)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.darkGreen,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.3)),
+                ),
+                child: const Text('ADMIN',
+                    style: TextStyle(
+                        color: AppColors.primaryGreen,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1)),
+              ),
+            ),
+          if (isLoggedIn)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              child: _NavAction(
+                icon: Icons.logout,
+                label: 'Çıkış Yap',
+                onTap: () async {
+                  ref.read(guestSessionProvider.notifier).state = false;
+                  await ref.read(authControllerProvider).signOut();
+                  if (context.mounted) context.go('/login');
+                },
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              'v${AppConstants.appVersion}',
+              style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.5), fontSize: 11),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String route;
+  final bool isActive;
+  final Color accentColor;
+
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.route,
+    required this.isActive,
+    required this.accentColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.go(route),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        decoration: BoxDecoration(
+          color: isActive ? accentColor.withValues(alpha: 0.12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+          border: isActive ? Border.all(color: accentColor.withValues(alpha: 0.3)) : null,
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: isActive ? accentColor : AppColors.textSecondary),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: TextStyle(
+                color: isActive ? AppColors.textPrimary : AppColors.textSecondary,
+                fontSize: 13,
+                fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NavAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _NavAction({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: AppColors.error),
+            const SizedBox(width: 10),
+            Text(label,
+                style: const TextStyle(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomNav extends ConsumerWidget {
+  const _BottomNav();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final location = GoRouterState.of(context).matchedLocation;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                child: _BottomNavItem(
+                  icon: Icons.grid_view_rounded,
+                  label: 'Panel',
+                  route: '/dashboard',
+                  isActive: location == '/dashboard',
+                  accentColor: AppColors.panelBlue,
+                ),
+              ),
+              Expanded(
+                child: _BottomNavItem(
+                  icon: Icons.inventory_2_outlined,
+                  label: 'Depo',
+                  route: '/inventory',
+                  isActive: location.startsWith('/inventory') ||
+                      location.startsWith('/locations'),
+                  accentColor: AppColors.depoRed,
+                ),
+              ),
+              Expanded(
+                child: _BottomNavItem(
+                  icon: Icons.groups_outlined,
+                  label: 'Takımım',
+                  route: '/team',
+                  isActive: location.startsWith('/team'),
+                  accentColor: AppColors.teamOrange,
+                ),
+              ),
+              Expanded(
+                child: _BottomNavItem(
+                  icon: Icons.task_alt,
+                  label: 'Görevlerim',
+                  route: '/tasks',
+                  isActive: location.startsWith('/tasks'),
+                  accentColor: AppColors.tasksGreen,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomNavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String route;
+  final bool isActive;
+  final Color accentColor;
+
+  const _BottomNavItem({
+    required this.icon,
+    required this.label,
+    required this.route,
+    required this.isActive,
+    required this.accentColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.go(route),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 22, color: isActive ? accentColor : AppColors.textSecondary),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                color: isActive ? accentColor : AppColors.textSecondary,
+                fontSize: 10,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

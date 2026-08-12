@@ -1,0 +1,129 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ---------- USERS ----------
+    match /users/{uid} {
+      allow read: if true; // Public profiles - anyone can view
+      allow create: if isOwner(uid) && request.resource.data.role == 'member';
+      allow update: if isAdmin() || (
+        isOwner(uid) &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['displayName', 'photoUrl', 'bio', 'department', 'className',
+                    'teamIds', 'pastTeams', 'links', 'activeTeamId', 'activeTeamName',
+                    'unitResponsibilities', 'clubRoles', 'awards', 'inWorkshop',
+                    'weeklyPoints', 'prevWeeklyPoints', 'points'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ---------- DEPO (inventory) ----------
+    match /depo_birimler/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /depo_kategoriler/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /depo_unitler/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /depo_lokasyon_options/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /depo_urunler/{id} {
+      allow read: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    // ---------- POINTS HISTORY ----------
+    match /points_history/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------- NOTIFICATIONS ----------
+    match /notifications/{id} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if isSignedIn() && resource.data.targetUserId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
+    // ---------- REPORTS ----------
+    match /reports/{id} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn() && request.resource.data.submittedBy == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ---------- ABOUT ----------
+    match /about_us/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /about_members/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------- TEAMS ----------
+    match /teams/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------- ANNOUNCEMENTS ----------
+    match /announcements/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------- TASKS ----------
+    match /tasks/{id} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        // Assigned user can only change status to pendingApproval
+        request.auth.uid == resource.data.assignedTo &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status']) &&
+        request.resource.data.status == 'pendingApproval'
+      );
+      allow approve: if isAdmin() || (
+        isSignedIn() &&
+        exists(/databases/$(database)/documents/teams/$(resource.data.teamId)) &&
+        get(/databases/$(database)/documents/teams/$(resource.data.teamId)).data.leadUid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['status', 'approvedBy', 'pointsAwarded'])
+      );
+      allow delete: if isAdmin();
+    }
+  }
+}

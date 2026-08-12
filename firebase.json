@@ -1,0 +1,32 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "sargeapp",
+          "appId": "1:343221111506:android:a0b4d6af8cb5cdbf9efb0b",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "sargeapp",
+          "configurations": {
+            "android": "1:343221111506:android:a0b4d6af8cb5cdbf9efb0b",
+            "ios": "1:343221111506:ios:cb60670881326ba09efb0b",
+            "macos": "1:343221111506:ios:cb60670881326ba09efb0b",
+            "web": "1:343221111506:web:b8048af1792b15a19efb0b",
+            "windows": "1:343221111506:web:21e27e42f20cec5d9efb0b"
+          }
+        }
+      }
+    }
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}

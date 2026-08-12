@@ -1,0 +1,72 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Users can upload their own profile photos. Readable by anyone (including guests).
+    // Upload path is always profile_photos/{uid}.jpg — match exactly.
+    match /profile_photos/{photoFile} {
+      allow read: if true;
+      allow write: if isSignedIn() && photoFile == request.auth.uid + '.jpg';
+    }
+
+    // Depo products - any signed-in user can upload product images. Readable by anyone.
+    match /depo_urunler/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // Depo location images - readable by anyone, write admin only.
+    match /depo_lokasyonlar/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Helper: is the signed-in user an admin or yetkili (team lead)?
+    function isAdminOrYetkili() {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['admin', 'unit_lead'];
+    }
+
+    // Announcements - public read, admin/yetkili write.
+    match /announcements/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdminOrYetkili();
+    }
+
+    // About section member photos - public read, admin write.
+    match /about_members/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Team photos - public read, signed-in write.
+    match /team_photos/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // Reports (bug reports) — signed-in users can upload their own report images.
+    match /reports/{allPaths=**} {
+      allow read: if isAdmin();
+      allow write: if isSignedIn();
+    }
+
+    // Default: read for everyone, write for admin.
+    match /{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}
