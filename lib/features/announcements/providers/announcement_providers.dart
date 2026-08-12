@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/auth_providers.dart';
+import '../../notifications/providers/notification_providers.dart';
 import '../models/announcement_models.dart';
 
 /// Stream of all announcements, newest first.
@@ -20,10 +21,12 @@ final announcementsProvider = StreamProvider<List<Announcement>>((ref) {
 class AnnouncementRepository {
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
+  final NotificationService _notifService;
 
-  AnnouncementRepository(this._firestore) : _storage = FirebaseStorage.instance;
+  AnnouncementRepository(this._firestore, this._notifService)
+      : _storage = FirebaseStorage.instance;
 
-  Future<void> addAnnouncement({
+  Future<String> addAnnouncement({
     required String title,
     required String description,
     String? imageUrl,
@@ -31,8 +34,10 @@ class AnnouncementRepository {
     required String createdBy,
     String createdByName = '',
     bool notifyAll = false,
+    String targetType = 'club',
+    List<String> targetTeamIds = const [],
   }) async {
-    await _firestore.collection('announcements').add({
+    final docRef = await _firestore.collection('announcements').add({
       'title': title.trim(),
       'description': description.trim(),
       'imageUrl': imageUrl,
@@ -41,7 +46,42 @@ class AnnouncementRepository {
       'createdBy': createdBy,
       'createdByName': createdByName,
       'notifyAll': notifyAll,
+      'targetType': targetType,
+      'targetTeamIds': targetTeamIds,
     });
+
+    // Send notifications
+    if (targetType == 'club') {
+      final usersSnap = await _firestore.collection('users').get();
+      for (final userDoc in usersSnap.docs) {
+        await _notifService.send(
+          recipientId: userDoc.id,
+          title: 'Yeni Duyuru: $title',
+          body: description.isNotEmpty ? description : 'Yeni bir kulüp duyurusu yayınlandı.',
+          type: 'announcement',
+          relatedId: docRef.id,
+        );
+      }
+    } else {
+      // Send to selected team members
+      final notifiedUids = <String>{};
+      for (final teamId in targetTeamIds) {
+        final teamDoc = await _firestore.collection('teams').doc(teamId).get();
+        final memberIds = (teamDoc.data()?['memberIds'] as List?)?.map((e) => e.toString()).toList() ?? [];
+        notifiedUids.addAll(memberIds);
+      }
+      for (final uid in notifiedUids) {
+        await _notifService.send(
+          recipientId: uid,
+          title: 'Yeni Duyuru: $title',
+          body: description.isNotEmpty ? description : 'Takımınıza yeni bir duyuru yayınlandı.',
+          type: 'announcement',
+          relatedId: docRef.id,
+        );
+      }
+    }
+
+    return docRef.id;
   }
 
   Future<void> updateAnnouncement(
@@ -123,5 +163,8 @@ class AnnouncementRepository {
 }
 
 final announcementRepositoryProvider = Provider<AnnouncementRepository>((ref) {
-  return AnnouncementRepository(ref.watch(firestoreProvider));
+  return AnnouncementRepository(
+    ref.watch(firestoreProvider),
+    ref.watch(notificationServiceProvider),
+  );
 });

@@ -11,6 +11,9 @@ class Announcement {
   final String createdBy;
   final String createdByName;
   final bool notifyAll;
+  final String targetType;       // 'club' | 'team'
+  final List<String> targetTeamIds; // team doc ids if targetType == 'team'
+  final List<Map<String, dynamic>> comments; // [{senderUid, senderName, text, createdAt, isAdmin}]
 
   const Announcement({
     required this.id,
@@ -22,7 +25,14 @@ class Announcement {
     required this.createdBy,
     this.createdByName = '',
     this.notifyAll = false,
+    this.targetType = 'club',
+    this.targetTeamIds = const [],
+    this.comments = const [],
   });
+
+  bool get isClubWide => targetType == 'club';
+
+  int get commentCount => comments.length;
 
   /// Returns a human-readable event status label based on [eventDate].
   String get eventStatus {
@@ -47,6 +57,12 @@ class Announcement {
       createdBy: data['createdBy'] as String? ?? '',
       createdByName: data['createdByName'] as String? ?? 'Kullanıcı',
       notifyAll: data['notifyAll'] as bool? ?? false,
+      targetType: data['targetType'] as String? ?? 'club',
+      targetTeamIds: (data['targetTeamIds'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      comments: (data['comments'] as List?)
+              ?.map((e) => Map<String, dynamic>.from(e as Map))
+              .toList() ??
+          const [],
     );
   }
 
@@ -59,5 +75,8 @@ class Announcement {
         'createdBy': createdBy,
         'createdByName': createdByName,
         'notifyAll': notifyAll,
+        'targetType': targetType,
+        'targetTeamIds': targetTeamIds,
+        'comments': comments,
       };
 }

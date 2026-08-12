@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/auth_providers.dart';
-import '../../../core/widgets/platform_image.dart';
 import '../models/depo_models.dart';
 import '../providers/depo_providers.dart';
 import 'inventory_add_screen.dart';

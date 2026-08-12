@@ -8,13 +8,16 @@ import '../../../core/models/app_user.dart';
 import '../models/team_models.dart';
 
 /// Stream of all users ordered by points descending (weekly leaderboard).
+/// Stream of users that belong to at least one team, ordered by points descending.
 final leaderboardProvider = StreamProvider<List<LeaderboardEntry>>((ref) {
   final firestore = ref.watch(firestoreProvider);
   return firestore
       .collection('users')
-      .orderBy('points', descending: true)
+      .orderBy('weeklyPoints', descending: true)
       .snapshots()
-      .map((snap) => snap.docs.map((d) => LeaderboardEntry.fromDoc(d)).toList());
+      .map((snap) => snap.docs
+          .map((d) => LeaderboardEntry.fromDoc(d))
+          .toList());
 });
 
 /// Stream of users currently checked-in to the workshop.
@@ -83,6 +86,7 @@ class TeamRepository {
     required String submittedBy,
     required String submittedByName,
     String? imageUrl,
+    String type = 'bug',
   }) async {
     await _firestore.collection('reports').add({
       'title': title.trim(),
@@ -91,6 +95,7 @@ class TeamRepository {
       'submittedByName': submittedByName,
       'createdAt': FieldValue.serverTimestamp(),
       'status': 'open',
+      'type': type,
       'imageUrl': imageUrl,
     });
   }

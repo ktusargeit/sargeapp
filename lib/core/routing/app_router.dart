@@ -129,8 +129,13 @@ class AppRouter {
         ),
         ShellRoute(
           navigatorKey: _shellNavigatorKey,
-          builder: (context, state, child) =>
-              AppShell(key: ValueKey(state.matchedLocation), child: child),
+          pageBuilder: (context, state, child) => CustomTransitionPage<void>(
+            key: state.pageKey,
+            child: AppShell(key: ValueKey(state.matchedLocation), child: child),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+                FadeTransition(opacity: animation, child: child),
+            transitionDuration: const Duration(milliseconds: 350),
+          ),
           routes: [
             GoRoute(
               path: '/dashboard',
@@ -184,7 +189,12 @@ class AppRouter {
             GoRoute(
               path: '/tasks',
               name: 'tasks',
-              builder: (context, state) => const TasksScreen(),
+              builder: (context, state) {
+                final extra = state.extra;
+                return TasksScreen(
+                  initialTaskId: extra is String ? extra : null,
+                );
+              },
             ),
             GoRoute(
               path: '/about',

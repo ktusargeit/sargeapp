@@ -11,6 +11,7 @@ import '../../../core/models/app_user.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/utils/image_utils.dart';
 import '../../../core/widgets/platform_image.dart';
+import '../../notifications/providers/notification_providers.dart';
 import '../models/team_models.dart';
 import '../providers/team_providers.dart';
 
@@ -230,92 +231,168 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
     );
   }
 
-  void _showApplyDialog(BuildContext context, List<ClubTeam> teams) {
+  Future<void> _showApplyDialog(BuildContext context, List<ClubTeam> teams) async {
     final currentUser = ref.read(currentAppUserProvider).value;
     if (currentUser == null) return;
 
-    // Fetch existing applications for this user
-    ref.read(firestoreProvider).collection('teamApplications')
+    // Check for ANY pending application first (spam prevention)
+    final pendingSnap = await ref.read(firestoreProvider)
+        .collection('teamApplications')
         .where('applicantUid', isEqualTo: currentUser.uid)
         .where('status', isEqualTo: 'pending')
-        .get()
-        .then((snap) {
-      final pendingTeamIds = snap.docs
-          .map((d) => d.data()['teamId'] as String?)
-          .whereType<String>()
-          .toSet();
+        .get();
 
-      // Filter teams: not already a member, no pending application
-      final availableTeams = teams.where((t) {
-        if (t.memberIds.contains(currentUser.uid)) return false;
-        if (pendingTeamIds.contains(t.id)) return false;
-        return true;
-      }).toList();
-
+    if (pendingSnap.docs.isNotEmpty) {
       if (!mounted) return;
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Takıma Başvur'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: availableTeams.isEmpty
-                ? const Text('Başvurabileceğiniz takım yok.',
-                    style: TextStyle(color: AppColors.textSecondary))
-                : ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: availableTeams.length,
-                    itemBuilder: (_, i) {
-                      final team = availableTeams[i];
-                      return ListTile(
-                        leading: const Icon(Icons.groups_outlined,
-                            color: AppColors.teamOrange),
-                        title: Text(team.name),
-                        subtitle: Text('${team.memberIds.length} üye',
-                            style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 12)),
-                        onTap: () async {
-                          Navigator.pop(ctx);
-                          await ref
-                              .read(firestoreProvider)
-                              .collection('teamApplications')
-                              .add({
-                            'teamId': team.id,
-                            'teamName': team.name,
-                            'applicantUid': currentUser.uid,
-                            'applicantName':
-                                currentUser.displayName,
-                            'status': 'pending',
-                            'appliedAt':
-                                FieldValue.serverTimestamp(),
-                          });
-                          if (mounted) {
-                            ScaffoldMessenger.of(context)
-                                .showSnackBar(SnackBar(
-                              content: Text(
-                                  '${team.name} takımına başvuru gönderildi.'),
-                              backgroundColor: AppColors.success,
-                            ));
-                          }
-                        },
-                      );
-                    },
-                  ),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Kapat')),
-          ],
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Zaten bekleyen bir başvurunuz var. Lütfen sonuçlanmasını bekleyin.'),
+          backgroundColor: AppColors.warning,
+          duration: Duration(seconds: 4),
         ),
       );
-    });
+      return;
+    }
+
+    // Filter teams: not already a member
+    final availableTeams = teams.where((t) {
+      if (t.memberIds.contains(currentUser.uid)) return false;
+      return true;
+    }).toList();
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          bool applying = false;
+          return AlertDialog(
+            title: const Text('Takıma Başvur'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: applying
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40),
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(color: AppColors.teamOrange),
+                            SizedBox(height: 16),
+                            Text('Başvurunuz gönderiliyor...',
+                                style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                    )
+                  : availableTeams.isEmpty
+                      ? const Text('Başvurabileceğiniz takım yok.',
+                          style: TextStyle(color: AppColors.textSecondary))
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: availableTeams.length,
+                          itemBuilder: (_, i) {
+                            final team = availableTeams[i];
+                            return ListTile(
+                              leading: const Icon(Icons.groups_outlined,
+                                  color: AppColors.teamOrange),
+                              title: Text(team.name),
+                              subtitle: Text('${team.memberIds.length} üye',
+                                  style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 12)),
+                              onTap: () async {
+                                setDialogState(() => applying = true);
+                                try {
+                                  // Check if already a member (auto-approve)
+                                  if (team.memberIds.contains(currentUser.uid)) {
+                                    await ref.read(firestoreProvider)
+                                        .collection('teamApplications')
+                                        .add({
+                                      'teamId': team.id,
+                                      'teamName': team.name,
+                                      'applicantUid': currentUser.uid,
+                                      'applicantName': currentUser.displayName,
+                                      'status': 'approved',
+                                      'appliedAt': FieldValue.serverTimestamp(),
+                                    });
+                                    if (mounted) {
+                                      Navigator.pop(ctx);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('${team.name} takımına zaten üyesiniz, başvurunuz otomatik onaylandı.'),
+                                          backgroundColor: AppColors.success,
+                                          duration: const Duration(seconds: 3),
+                                        ),
+                                      );
+                                    }
+                                    return;
+                                  }
+
+                                  // Submit application
+                                  await ref.read(firestoreProvider)
+                                      .collection('teamApplications')
+                                      .add({
+                                    'teamId': team.id,
+                                    'teamName': team.name,
+                                    'applicantUid': currentUser.uid,
+                                    'applicantName': currentUser.displayName,
+                                    'status': 'pending',
+                                    'appliedAt': FieldValue.serverTimestamp(),
+                                  });
+
+                                  // Send notification to admins and unit_leads
+                                  final usersSnap = await ref.read(firestoreProvider)
+                                      .collection('users')
+                                      .where('role', whereIn: ['admin', 'unit_lead'])
+                                      .get();
+                                  final notifService = ref.read(notificationServiceProvider);
+                                  for (final userDoc in usersSnap.docs) {
+                                    await notifService.send(
+                                      recipientId: userDoc.id,
+                                      title: 'Yeni Takım Başvurusu',
+                                      body: '${currentUser.displayName}, ${team.name} takımına başvurdu.',
+                                      type: 'team_application',
+                                      relatedId: team.id,
+                                    );
+                                  }
+
+                                  if (mounted) {
+                                    Navigator.pop(ctx);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('${team.name} takımına başvurunuz başarıyla gönderildi!'),
+                                        backgroundColor: AppColors.success,
+                                        duration: const Duration(seconds: 3),
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (mounted) {
+                                    setDialogState(() => applying = false);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Hata: $e'), backgroundColor: AppColors.error),
+                                    );
+                                  }
+                                }
+                              },
+                            );
+                          },
+                        ),
+            ),
+            actions: applying
+                ? []
+                : [
+                    TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Kapat')),
+                  ],
+          );
+        },
+      ),
+    );
   }
 
-  void _showUnitManagementDialog(BuildContext context) {
-    showDialog(context: context, builder: (ctx) => const _UnitManagementDialog());
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -395,7 +472,7 @@ class _UnitManagementDialogState extends ConsumerState<_UnitManagementDialog> {
                   labelText: 'Takım Seçin *',
                   hintText: 'Önce takım seçin',
                 ),
-                value: _selectedTeamId,
+                initialValue: _selectedTeamId,
                 items: teams
                     .map((t) => DropdownMenuItem(
                         value: t.id, child: Text(t.name)))
@@ -560,6 +637,7 @@ class _UnitManagementDialogState extends ConsumerState<_UnitManagementDialog> {
                   .collection('units')
                   .doc(id)
                   .delete();
+              ref.invalidate(teamUnitsProvider(_selectedTeamId!));
               if (ctx.mounted) Navigator.pop(ctx);
             },
             child: const Text('Sil'),

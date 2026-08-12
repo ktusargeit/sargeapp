@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
-import '../../../core/providers/auth_providers.dart';
 import '../../team/models/team_models.dart';
 import '../../team/providers/team_providers.dart';
 import '../models/depo_models.dart';
@@ -17,16 +16,23 @@ class InventoryScreen extends ConsumerStatefulWidget {
 }
 
 class _InventoryScreenState extends ConsumerState<InventoryScreen> {
+  final _searchCtrl = TextEditingController();
+  String _searchQuery = '';
   String? _filterTeamId;
   String? _filterUnitId;
   String? _filterCategoryId;
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final itemsAsync = ref.watch(inventoryItemsProvider);
     final width = MediaQuery.of(context).size.width;
     final crossAxisCount = width >= 1200 ? 6 : (width >= AppConstants.breakpointTablet ? 5 : 3);
-    final teamsAsync = ref.watch(clubTeamsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.depoBg,
@@ -34,66 +40,96 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         title: const Text('Depo'),
         backgroundColor: AppColors.depoBg,
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(52),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            child: Row(
-              children: [
-                // Team filter
-                _FilterChipGroup(
-                  label: 'Takım',
-                  selected: _filterTeamId,
-                  stream: ref.watch(clubTeamsProvider).valueOrNull,
-                  labelFn: (t) => t is ClubTeam ? t.name : '',
-                  idFn: (t) => t is ClubTeam ? t.id : '',
-                  onChanged: (v) {
-                    setState(() {
-                      _filterTeamId = v;
-                      _filterUnitId = null;
-                      _filterCategoryId = null;
-                    });
-                  },
-                ),
-                const SizedBox(width: 8),
-                // Unit filter (team-scoped)
-                if (_filterTeamId != null)
-                  _FilterChipGroup(
-                    label: 'Birim',
-                    selected: _filterUnitId,
-                    stream: ref.watch(teamUnitsProvider(_filterTeamId!)).valueOrNull,
-                    labelFn: (u) => u is Map ? (u['name'] as String? ?? '') : '',
-                    idFn: (u) => u is Map ? (u['id'] as String) : '',
-                    onChanged: (v) {
-                      setState(() {
-                        _filterUnitId = v;
-                        _filterCategoryId = null;
-                      });
-                    },
-                  ),
-                const SizedBox(width: 8),
-                // Category filter
-                if (_filterTeamId != null)
-                  _buildCategoryFilter(ref),
-                const SizedBox(width: 8),
-                // Clear all
-                if (_filterTeamId != null)
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          preferredSize: const Size.fromHeight(kToolbarHeight + 48),
+          child: Column(
+            children: [
+              // Search bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                child: TextField(
+                  controller: _searchCtrl,
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: 'Ürün ara...',
+                    hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                    prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.textSecondary),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              _searchCtrl.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: AppColors.surface.withValues(alpha: 0.6),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 6),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
                     ),
-                    onPressed: () => setState(() {
-                      _filterTeamId = null;
-                      _filterUnitId = null;
-                      _filterCategoryId = null;
-                    }),
-                    child: const Text('Temizle',
-                        style: TextStyle(fontSize: 12, color: AppColors.error)),
                   ),
-              ],
-            ),
+                  onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
+                ),
+              ),
+              // Filter chips
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                child: Row(
+                  children: [
+                    _FilterChipGroup(
+                      label: 'Takım',
+                      selected: _filterTeamId,
+                      stream: ref.watch(clubTeamsProvider).valueOrNull,
+                      labelFn: (t) => t is ClubTeam ? t.name : '',
+                      idFn: (t) => t is ClubTeam ? t.id : '',
+                      onChanged: (v) {
+                        setState(() {
+                          _filterTeamId = v;
+                          _filterUnitId = null;
+                          _filterCategoryId = null;
+                        });
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    if (_filterTeamId != null)
+                      _FilterChipGroup(
+                        label: 'Birim',
+                        selected: _filterUnitId,
+                        stream: ref.watch(teamUnitsProvider(_filterTeamId!)).valueOrNull,
+                        labelFn: (u) => u is Map ? (u['name'] as String? ?? '') : '',
+                        idFn: (u) => u is Map ? (u['id'] as String) : '',
+                        onChanged: (v) {
+                          setState(() {
+                            _filterUnitId = v;
+                            _filterCategoryId = null;
+                          });
+                        },
+                      ),
+                    const SizedBox(width: 8),
+                    if (_filterTeamId != null) _buildCategoryFilter(ref),
+                    const SizedBox(width: 8),
+                    if (_filterTeamId != null)
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () => setState(() {
+                          _filterTeamId = null;
+                          _filterUnitId = null;
+                          _filterCategoryId = null;
+                        }),
+                        child: const Text('Temizle',
+                            style: TextStyle(fontSize: 12, color: AppColors.error)),
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -109,6 +145,10 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           }
           if (_filterCategoryId != null) {
             filtered = filtered.where((i) => i.categoryId == _filterCategoryId).toList();
+          }
+          // Apply search query
+          if (_searchQuery.isNotEmpty) {
+            filtered = filtered.where((i) => i.name.toLowerCase().contains(_searchQuery)).toList();
           }
 
           if (filtered.isEmpty) {

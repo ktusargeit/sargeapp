@@ -103,8 +103,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       TextFormField(
                         controller: _emailCtrl,
                         keyboardType: TextInputType.emailAddress,
-                        autofillHints: const [AutofillHints.email],
                         textInputAction: TextInputAction.next,
+                        enabled: true,
                         style: const TextStyle(color: AppColors.textPrimary),
                         decoration: const InputDecoration(
                           hintText: 'ornek@sarge.org',
@@ -122,8 +122,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       TextFormField(
                         controller: _passwordCtrl,
                         obscureText: _obscure,
-                        autofillHints: const [AutofillHints.password],
+                        keyboardType: TextInputType.visiblePassword,
                         textInputAction: TextInputAction.done,
+                        enabled: true,
                         onFieldSubmitted: (_) => _submit(),
                         style: const TextStyle(color: AppColors.textPrimary),
                         decoration: InputDecoration(
@@ -207,11 +208,80 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           title: const Text('Şifre Sıfırla'),
-          content: TextField(
-            controller: ctrl,
-            keyboardType: TextInputType.emailAddress,
-            style: const TextStyle(color: AppColors.textPrimary),
-            decoration: const InputDecoration(hintText: 'E-posta adresiniz'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: ctrl,
+                  keyboardType: TextInputType.emailAddress,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  decoration: const InputDecoration(hintText: 'E-posta adresiniz'),
+                ),
+                const SizedBox(height: 16),
+                // Spam warning
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                        color: AppColors.warning.withValues(alpha: 0.3)),
+                  ),
+                  child: const Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('⚠️', style: TextStyle(fontSize: 18)),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: 'ÖNEMLİ: ',
+                                style: TextStyle(
+                                  color: AppColors.warning,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              TextSpan(
+                                text:
+                                    'Şifre yenileme e-postası büyük ihtimalle SPAM klasörüne düşecektir. E-posta kutunuza girdikten sonra sol üstteki üç çizgiye (☰) tıklayıp Spam klasörünü kontrol edin. Karşınıza şu şekilde bir e-posta çıkacaktır:\n\n'
+                                    '"noreply\n'
+                                    'Reset your password for ',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 11,
+                                  height: 1.5,
+                                ),
+                              ),
+                              TextSpan(
+                                text: 'SargeApp',
+                                style: TextStyle(
+                                  color: AppColors.error,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              TextSpan(
+                                text: '"',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 11,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),

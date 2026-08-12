@@ -5,15 +5,19 @@ class LeaderboardEntry {
   final String uid;
   final String displayName;
   final int points;
+  final int weeklyPoints;
   final String? photoUrl;
   final bool inWorkshop;
+  final List<String> teamIds;
 
   const LeaderboardEntry({
     required this.uid,
     required this.displayName,
     required this.points,
+    this.weeklyPoints = 0,
     this.photoUrl,
     this.inWorkshop = false,
+    this.teamIds = const [],
   });
 
   factory LeaderboardEntry.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -22,8 +26,10 @@ class LeaderboardEntry {
       uid: doc.id,
       displayName: data['displayName'] as String? ?? 'Isimsiz Uye',
       points: (data['points'] as num?)?.toInt() ?? 0,
+      weeklyPoints: (data['weeklyPoints'] as num?)?.toInt() ?? 0,
       photoUrl: data['photoUrl'] as String?,
       inWorkshop: data['inWorkshop'] as bool? ?? false,
+      teamIds: (data['teamIds'] as List?)?.map((e) => e.toString()).toList() ?? const [],
     );
   }
 }
@@ -37,7 +43,13 @@ class BugReport {
   final String submittedByName;
   final DateTime? createdAt;
   final String status; // 'open', 'investigating', 'done'
+  final String type; // 'bug' | 'suggestion'
   final String? imageUrl;
+  final List<Map<String, dynamic>> reviewedBy; // [{uid, name, startedAt}]
+  final String? resolvedBy;       // uid of admin who resolved
+  final String? resolvedByName;   // display name of resolver
+  final DateTime? resolvedAt;     // when resolved
+  final List<Map<String, dynamic>> messages; // [{senderUid, senderName, text, imageUrl, createdAt, isAdmin}]
 
   const BugReport({
     required this.id,
@@ -47,10 +59,17 @@ class BugReport {
     required this.submittedByName,
     this.createdAt,
     this.status = 'open',
+    this.type = 'bug',
     this.imageUrl,
+    this.reviewedBy = const [],
+    this.resolvedBy,
+    this.resolvedByName,
+    this.resolvedAt,
+    this.messages = const [],
   });
 
   bool get isResolved => status == 'done';
+  bool get isSuggestion => type == 'suggestion';
 
   String get statusLabel {
     switch (status) {
@@ -63,6 +82,20 @@ class BugReport {
     }
   }
 
+  /// Human-readable status with reviewer names.
+  String statusLabelWithReviewers() {
+    if (status == 'investigating' && reviewedBy.isNotEmpty) {
+      final names = reviewedBy.map((r) => r['name'] as String? ?? '').where((n) => n.isNotEmpty).toList();
+      if (names.isNotEmpty) {
+        return '${names.join(', ')} tarafından inceleniyor';
+      }
+    }
+    if (status == 'done' && resolvedByName != null && resolvedByName!.isNotEmpty) {
+      return '$resolvedByName tarafından çözüldü';
+    }
+    return statusLabel;
+  }
+
   factory BugReport.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
     return BugReport(
@@ -73,9 +106,23 @@ class BugReport {
       submittedByName: data['submittedByName'] as String? ?? 'Bilinmiyor',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       status: data['status'] as String? ?? 'open',
+      type: data['type'] as String? ?? 'bug',
       imageUrl: data['imageUrl'] as String?,
+      reviewedBy: (data['reviewedBy'] as List?)
+              ?.map((e) => Map<String, dynamic>.from(e as Map))
+              .toList() ??
+          const [],
+      resolvedBy: data['resolvedBy'] as String?,
+      resolvedByName: data['resolvedByName'] as String?,
+      resolvedAt: (data['resolvedAt'] as Timestamp?)?.toDate(),
+      messages: (data['messages'] as List?)
+              ?.map((e) => Map<String, dynamic>.from(e as Map))
+              .toList() ??
+          const [],
     );
   }
+
+  int get messageCount => messages.length;
 }
 
 /// A club team (Elektronik Harp, Roket, Mekanik, etc.).

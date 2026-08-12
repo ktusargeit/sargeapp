@@ -14,8 +14,9 @@ class TaskModel {
   final String id;
   final String title;
   final String description;
-  final String assignedTo;       // user uid
-  final String assignedByName;
+  final String assignedTo;       // user uid (kişiye atanan)
+  final String assignedToName;   // display name of the assigned person
+  final String assignedByName;   // display name of the task creator (atayan)
   final int points;
   final TaskStatus status;
   final DateTime? createdAt;
@@ -24,15 +25,19 @@ class TaskModel {
   final String? teamName;
   final String? unitId;           // unit doc id
   final String? unitName;
-  final String? assignedBy;       // uid of task creator
+  final String? assignedBy;       // uid of task creator (atayan)
   final String? approvedBy;       // uid of team captain who approved
   final bool pointsAwarded;       // guard: only award points once
+  final String? imageUrl;         // task image (uploaded by creator)
+  final DateTime? completedAt;    // when submitted/completed (for 24h "recent" window)
+  final List<Map<String, dynamic>> comments; // [{senderUid, senderName, text, imageUrl, createdAt, isAdmin}]
 
   const TaskModel({
     required this.id,
     required this.title,
     this.description = '',
     required this.assignedTo,
+    this.assignedToName = '',
     this.assignedByName = '',
     this.points = 0,
     this.status = TaskStatus.assigned,
@@ -45,6 +50,9 @@ class TaskModel {
     this.assignedBy,
     this.approvedBy,
     this.pointsAwarded = false,
+    this.imageUrl,
+    this.completedAt,
+    this.comments = const [],
   });
 
   factory TaskModel.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -54,6 +62,7 @@ class TaskModel {
       title: data['title'] as String? ?? '',
       description: data['description'] as String? ?? '',
       assignedTo: data['assignedTo'] as String? ?? '',
+      assignedToName: data['assignedToName'] as String? ?? '',
       assignedByName: data['assignedByName'] as String? ?? '',
       points: (data['points'] as num?)?.toInt() ?? 0,
       status: _parseStatus(data['status'] as String?),
@@ -66,8 +75,16 @@ class TaskModel {
       assignedBy: data['assignedBy'] as String?,
       approvedBy: data['approvedBy'] as String?,
       pointsAwarded: data['pointsAwarded'] as bool? ?? false,
+      imageUrl: data['imageUrl'] as String?,
+      completedAt: (data['completedAt'] as Timestamp?)?.toDate(),
+      comments: (data['comments'] as List?)
+              ?.map((e) => Map<String, dynamic>.from(e as Map))
+              .toList() ??
+          const [],
     );
   }
+
+  int get commentCount => comments.length;
 
   String get statusText {
     switch (status) {
@@ -90,13 +107,13 @@ class TaskModel {
   String get statusLabel {
     switch (status) {
       case TaskStatus.assigned:
-        return 'Atandı';
+        return 'Yeni Görev';
       case TaskStatus.inProgress:
-        return 'Devam Ediyor';
+        return 'Üzerinde Çalışılıyor';
       case TaskStatus.pendingApproval:
         return 'Onay Bekliyor';
       case TaskStatus.completed:
-        return 'Tamamlandı';
+        return 'Onaylandı';
       case TaskStatus.rejected:
         return 'Reddedildi';
       case TaskStatus.cancelled:
@@ -125,6 +142,7 @@ class TaskModel {
         'title': title,
         'description': description,
         'assignedTo': assignedTo,
+        'assignedToName': assignedToName,
         'assignedByName': assignedByName,
         'points': points,
         'status': statusText,

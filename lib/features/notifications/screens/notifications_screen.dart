@@ -79,9 +79,9 @@ class NotificationsScreen extends ConsumerWidget {
                   }
                   if (context.mounted) {
                     if (type == 'task_assigned' && relatedId != null) {
-                      // /tasks lives inside ShellRoute; use go() to cross
-                      // from the root navigator into the shell navigator.
-                      context.go('/tasks');
+                      context.go('/tasks', extra: relatedId);
+                    } else if (type == 'team_application' && relatedId != null) {
+                      context.go('/team');
                     } else if (type == 'announcement' && relatedId != null) {
                       context.go('/dashboard');
                     }

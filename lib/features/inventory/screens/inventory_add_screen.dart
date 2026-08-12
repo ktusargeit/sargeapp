@@ -1,7 +1,4 @@
-import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -404,7 +401,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                           teamsAsync.when(
                             data: (teams) =>
                                 DropdownButtonFormField<String>(
-                              value: _selectedTeamId,
+                              initialValue: _selectedTeamId,
                               dropdownColor: AppColors.surface2,
                               style: const TextStyle(
                                   color: AppColors.textPrimary),
@@ -436,7 +433,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                             unitsAsync.when(
                               data: (units) =>
                                   DropdownButtonFormField<String>(
-                                value: _selectedUnitId,
+                                initialValue: _selectedUnitId,
                                 dropdownColor: AppColors.surface2,
                                 style: const TextStyle(
                                     color: AppColors.textPrimary),
@@ -472,7 +469,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                       c.unitId == _selectedUnitId)
                                   .toList();
                               return DropdownButtonFormField<String>(
-                                value: _selectedCategoryId,
+                                initialValue: _selectedCategoryId,
                                 dropdownColor: AppColors.surface2,
                                 style: const TextStyle(
                                     color: AppColors.textPrimary),
@@ -571,7 +568,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                           label: 'Bakımda'),
                                     ];
                               return DropdownButtonFormField<String>(
-                                value: _selectedStatus,
+                                initialValue: _selectedStatus,
                                 dropdownColor: AppColors.surface2,
                                 style: const TextStyle(
                                     color: AppColors.textPrimary),

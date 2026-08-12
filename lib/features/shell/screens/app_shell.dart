@@ -322,7 +322,7 @@ class _SidebarNav extends ConsumerWidget {
           ),
           _NavItem(
             icon: Icons.task_alt,
-            label: 'Görevlerim',
+            label: 'Tüm Görevler',
             route: '/tasks',
             isActive: location.startsWith('/tasks'),
             accentColor: AppColors.tasksGreen,
@@ -399,6 +399,7 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () => context.go(route),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
@@ -437,6 +438,7 @@ class _NavAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
@@ -502,7 +504,7 @@ class _BottomNav extends ConsumerWidget {
               Expanded(
                 child: _BottomNavItem(
                   icon: Icons.task_alt,
-                  label: 'Görevlerim',
+                  label: 'Tüm Görevler',
                   route: '/tasks',
                   isActive: location.startsWith('/tasks'),
                   accentColor: AppColors.tasksGreen,
@@ -534,6 +536,7 @@ class _BottomNavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () => context.go(route),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),

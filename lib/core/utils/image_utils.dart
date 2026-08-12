@@ -27,4 +27,24 @@ class PickedImage {
       return PickedImage(dartFile: File(xFile.path));
     }
   }
+
+  /// Multi-select image picker (works on web and native).
+  static Future<List<PickedImage>> pickMultiple(
+      {double maxWidth = 1024, double maxHeight = 1024, int imageQuality = 85}) async {
+    final picker = ImagePicker();
+    final files = await picker.pickMultiImage(
+      maxWidth: maxWidth,
+      maxHeight: maxHeight,
+      imageQuality: imageQuality,
+    );
+    final out = <PickedImage>[];
+    for (final xFile in files) {
+      if (kIsWeb) {
+        out.add(PickedImage(bytes: await xFile.readAsBytes()));
+      } else {
+        out.add(PickedImage(dartFile: File(xFile.path)));
+      }
+    }
+    return out;
+  }
 }

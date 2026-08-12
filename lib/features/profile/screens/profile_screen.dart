@@ -1,16 +1,14 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/app_user.dart';
-import '../../../core/models/user_profile_models.dart';
 import '../../../core/utils/image_utils.dart';
+import '../../team/providers/team_providers.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -123,6 +121,22 @@ class _AboutTab extends ConsumerWidget {
           _InfoRow(icon: Icons.trending_up, label: 'Haftalık Puan', value: '${user.weeklyPoints}', isLast: true),
         ]),
         const SizedBox(height: AppConstants.spacingLg),
+        _SectionCard(title: 'ÖDÜLLER & BAŞARILAR', children: [
+          if (user.awards.isEmpty)
+            const Padding(padding: EdgeInsets.all(16), child: Text('Henüz ödül eklenmemiş.', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)))
+          else
+            ...user.awards.asMap().entries.map((entry) {
+              final isLast = entry.key == user.awards.length - 1;
+              final award = entry.value;
+              return _InfoRow(
+                icon: Icons.emoji_events_outlined,
+                label: award['title'] as String? ?? '',
+                value: award['description'] as String? ?? '',
+                isLast: isLast,
+              );
+            }),
+        ]),
+        const SizedBox(height: AppConstants.spacingLg),
         _SectionCard(title: 'SOSYAL BAĞLANTILAR', children: [
           if (user.links.isEmpty)
             const Padding(padding: EdgeInsets.all(16), child: Text('Henüz bağlantı eklenmemiş.', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)))
@@ -178,11 +192,47 @@ class _NowTab extends ConsumerWidget {
   const _NowTab({required this.user});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final teamsAsync = ref.watch(clubTeamsProvider);
+    final teams = teamsAsync.valueOrNull ?? [];
+
+    // Map team IDs to real team names
+    final teamNames = user.teamIds
+        .map((id) {
+          final team = teams.cast<dynamic>().firstWhere(
+            (t) => (t as dynamic).id == id,
+            orElse: () => null,
+          );
+          return team != null ? (team as dynamic).name as String : id;
+        })
+        .toList();
+
     return ListView(
       padding: const EdgeInsets.all(AppConstants.spacingMd),
       children: [
         _SectionCard(title: 'AKTİF TAKIM & ROL', children: [
-          _InfoRow(icon: Icons.groups_outlined, label: 'Aktif Takım', value: user.activeTeamName ?? '—'),
+          if (teamNames.isNotEmpty)
+            ...teamNames.asMap().entries.map((e) {
+              final isLast = e.key == teamNames.length - 1 && user.unitResponsibilities.isEmpty;
+              return _InfoRow(
+                icon: Icons.groups_outlined,
+                label: 'Takım',
+                value: e.value,
+                isLast: isLast,
+              );
+            })
+          else
+            const _InfoRow(icon: Icons.groups_outlined, label: 'Aktif Takım', value: '—'),
+          if (user.unitResponsibilities.isNotEmpty) ...[
+            ...user.unitResponsibilities.asMap().entries.map((e) {
+              final isLast = e.key == user.unitResponsibilities.length - 1;
+              return _InfoRow(
+                icon: Icons.folder_outlined,
+                label: 'Birim Sorumluluğu',
+                value: e.value,
+                isLast: isLast,
+              );
+            }),
+          ],
           _InfoRow(icon: Icons.workspace_premium_outlined, label: 'Rol', value: user.roleLabel, isLast: true),
         ]),
       ],
@@ -271,7 +321,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
         ),
         const SizedBox(height: 16),
         // Temel Bilgiler
-        _SectionTitle('TEMEL BİLGİLER'),
+        const _SectionTitle('TEMEL BİLGİLER'),
         const SizedBox(height: 8),
         TextField(controller: _displayNameCtrl, style: const TextStyle(color: AppColors.textPrimary), decoration: const InputDecoration(hintText: 'Ad Soyad *')),
         const SizedBox(height: 12),
@@ -285,13 +335,13 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
           title: const Text('Atölyede', style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
           subtitle: const Text('Şu anda atölyede misin?', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
           value: _inWorkshop,
-          activeColor: AppColors.primaryGreen,
+          activeThumbColor: AppColors.primaryGreen,
           onChanged: (v) => setState(() => _inWorkshop = v),
           contentPadding: EdgeInsets.zero,
         ),
         const SizedBox(height: 20),
         // Sosyal Bağlantılar
-        _SectionTitle('SOSYAL BAĞLANTILAR'),
+        const _SectionTitle('SOSYAL BAĞLANTILAR'),
         const SizedBox(height: 8),
         ..._links.asMap().entries.map((entry) {
           final i = entry.key;
@@ -324,7 +374,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
         TextButton.icon(onPressed: () => setState(() => _links.add({'label': '', 'url': '', 'type': 'other'})), icon: const Icon(Icons.add, size: 16), label: const Text('Bağlantı Ekle'), style: TextButton.styleFrom(foregroundColor: AppColors.primaryGreen)),
         const SizedBox(height: 20),
         // Kulüp Rolleri
-        _SectionTitle('KULÜP ROLLERİ'),
+        const _SectionTitle('KULÜP ROLLERİ'),
         const SizedBox(height: 8),
         ..._clubRoles.asMap().entries.map((entry) {
           final i = entry.key;
@@ -350,7 +400,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
         TextButton.icon(onPressed: () => setState(() => _clubRoles.add({'roleName': '', 'teamName': null, 'startYear': DateTime.now().year, 'endYear': null})), icon: const Icon(Icons.add, size: 16), label: const Text('Rol Ekle'), style: TextButton.styleFrom(foregroundColor: AppColors.primaryGreen)),
         const SizedBox(height: 20),
         // Birim Sorumlulukları
-        _SectionTitle('BİRİM SORUMLULUKLARI'),
+        const _SectionTitle('BİRİM SORUMLULUKLARI'),
         const SizedBox(height: 8),
         Wrap(spacing: 8, runSpacing: 4, children: _unitResponsibilities.asMap().entries.map((entry) {
           return Chip(
@@ -371,7 +421,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
         ),
         const SizedBox(height: 20),
         // Ödüller
-        _SectionTitle('ÖDÜLLER & BAŞARILAR'),
+        const _SectionTitle('ÖDÜLLER & BAŞARILAR'),
         const SizedBox(height: 8),
         ..._awards.asMap().entries.map((entry) {
           final i = entry.key;
