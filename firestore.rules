@@ -97,9 +97,24 @@ service cloud.firestore {
     }
 
     // ---------- UNITS ----------
+    // A "birim" belongs to a team. Only the owning team's captain (leadUid)
+    // or an admin may create / update / delete units. Members may still read
+    // every unit so they can view their own team's structure.
     match /units/{id} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+
+      function isUnitTeamLead(teamId) {
+        return isSignedIn() &&
+          teamId is string &&
+          exists(/databases/$(database)/documents/teams/$(teamId)) &&
+          get(/databases/$(database)/documents/teams/$(teamId)).data.leadUid == request.auth.uid;
+      }
+
+      allow create: if isAdmin() ||
+        isUnitTeamLead(request.resource.data.teamId);
+
+      allow update, delete: if isAdmin() ||
+        isUnitTeamLead(resource.data.teamId);
     }
 
     // ---------- TEAM APPLICATIONS ----------

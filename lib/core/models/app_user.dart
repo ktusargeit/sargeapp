@@ -23,6 +23,7 @@ class AppUser {
   final List<Map<String, dynamic>> awards;
   final List<UserTitle> titles;
   final bool inWorkshop;
+  final bool isSuspended;
 
   const AppUser({
     required this.uid,
@@ -45,6 +46,7 @@ class AppUser {
     this.awards = const [],
     this.titles = const [],
     this.inWorkshop = false,
+    this.isSuspended = false,
   });
 
   bool get isAdmin => role == 'admin';
@@ -56,6 +58,12 @@ class AppUser {
         return 'Admin';
       case 'unit_lead':
         return 'Birim Sorumlusu';
+      case 'board_president':
+        return 'Yönetim Kurulu Başkanı';
+      case 'board_member':
+        return 'Yönetim Kurulu Üyesi';
+      // Both 'member' and the legacy 'user' value fall through here, so the
+      // display stays identical regardless of the stored string.
       default:
         return 'Üye';
     }
@@ -119,6 +127,7 @@ class AppUser {
               .toList() ??
           const [],
       inWorkshop: data['inWorkshop'] as bool? ?? false,
+      isSuspended: data['isSuspended'] as bool? ?? false,
     );
   }
 }

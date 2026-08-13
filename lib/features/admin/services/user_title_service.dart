@@ -91,6 +91,43 @@ class UserTitleService {
     });
   }
 
+  /// Retires the active `unit_lead` title for a specific [unitName].
+  ///
+  /// Used by the team/unit system: when a user is removed as the lead of a
+  /// birim, the matching active title is retired (kept as "Eski Birim
+  /// Sorumlusu") instead of deleted. Returns true if a title was retired.
+  Future<bool> retireUnitLeadTitle({
+    required String uid,
+    required String unitName,
+  }) async {
+    final userRef = _users().doc(uid);
+    var retired = false;
+    await _firestore.runTransaction((txn) async {
+      final snap = await txn.get(userRef);
+      if (!snap.exists) return;
+      final data = snap.data()!;
+      final titles = _titlesFromData(data);
+      var changed = false;
+      final updated = titles.map((t) {
+        if (t.isActive &&
+            t.titleType == TitleType.unitLead &&
+            t.unitName == unitName) {
+          changed = true;
+          return t.copyWith(
+            isActive: false,
+            endDate: DateTime.now(),
+          );
+        }
+        return t;
+      }).map((t) => t.toMap()).toList();
+      if (changed) {
+        retired = true;
+        txn.update(userRef, {'titles': updated});
+      }
+    });
+    return retired;
+  }
+
   /// Completely removes a title (only for accidental additions).
   Future<void> removeTitle({
     required String uid,

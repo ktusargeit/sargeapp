@@ -118,6 +118,21 @@ class PermissionService {
       'role': newRole,
     });
   }
+
+  /// One-off migration: convert any legacy `role == 'user'` documents to the
+  /// canonical `'member'` value. Returns the number of updated documents.
+  Future<int> migrateLegacyUserRoles() async {
+    final snap = await _firestore
+        .collection('users')
+        .where('role', isEqualTo: 'user')
+        .get();
+    var updated = 0;
+    for (final doc in snap.docs) {
+      await doc.reference.update({'role': 'member'});
+      updated++;
+    }
+    return updated;
+  }
 }
 
 final permissionServiceProvider = Provider<PermissionService>((ref) {

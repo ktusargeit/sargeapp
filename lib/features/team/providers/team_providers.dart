@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/models/app_user.dart';
+import '../../admin/services/user_title_service.dart';
 import '../models/team_models.dart';
 
 /// Stream of all users ordered by points descending (weekly leaderboard).
@@ -186,6 +187,165 @@ final teamMembersProvider =
         users.sort((a, b) => a.displayName.compareTo(b.displayName));
         return users;
       });
+});
+
+/// Typed, team-scoped units ("birimler"), ordered by name.
+final teamUnitsListProvider =
+    StreamProvider.family<List<TeamUnit>, String>((ref, teamId) {
+  final firestore = ref.watch(firestoreProvider);
+  return firestore
+      .collection('units')
+      .where('teamId', isEqualTo: teamId)
+      .orderBy('name')
+      .snapshots()
+      .map((snap) => snap.docs.map((d) => TeamUnit.fromDoc(d)).toList());
+});
+
+/// Live stream of a single unit document.
+final unitDocProvider =
+    StreamProvider.family<TeamUnit?, String>((ref, unitId) {
+  final firestore = ref.watch(firestoreProvider);
+  return firestore
+      .collection('units')
+      .doc(unitId)
+      .snapshots()
+      .map((doc) => doc.exists ? TeamUnit.fromDoc(doc) : null);
+});
+
+/// Resolves a unit's members into full [AppUser] profiles.
+final unitMembersProvider =
+    StreamProvider.family<List<AppUser>, String>((ref, unitId) {
+  final firestore = ref.watch(firestoreProvider);
+  return firestore
+      .collection('units')
+      .doc(unitId)
+      .snapshots()
+      .asyncMap((doc) async {
+    final data = doc.data();
+    final memberUids = (data?['memberUids'] as List?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        const [];
+    if (memberUids.isEmpty) return <AppUser>[];
+    final users = <AppUser>[];
+    for (var i = 0; i < memberUids.length; i += 10) {
+      final chunk = memberUids.sublist(
+          i,
+          i + 10 > memberUids.length ? memberUids.length : i + 10);
+      final snap = await firestore
+          .collection('users')
+          .where(FieldPath.documentId, whereIn: chunk)
+          .get();
+      for (final doc in snap.docs) {
+        users.add(AppUser.fromDoc(doc));
+      }
+    }
+    users.sort((a, b) => a.displayName.compareTo(b.displayName));
+    return users;
+  });
+});
+
+/// Service for managing team-scoped units ("birimler") and their leads.
+///
+/// Integrates with [UserTitleService] so that assigning a user as a unit lead
+/// automatically grants an active `unit_lead` title (with the unit name), and
+/// removing them retires that title.
+class UnitService {
+  final FirebaseFirestore _firestore;
+  UnitService(this._firestore);
+
+  Future<void> createUnit({
+    required String teamId,
+    required String name,
+    String? description,
+  }) async {
+    await _firestore.collection('units').add({
+      'teamId': teamId,
+      'name': name.trim(),
+      'description': description == null || description.trim().isEmpty
+          ? null
+          : description.trim(),
+      'memberUids': <String>[],
+      'unitLeadUid': null,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> updateUnit({
+    required String unitId,
+    required String name,
+    String? description,
+  }) async {
+    await _firestore.collection('units').doc(unitId).update({
+      'name': name.trim(),
+      'description':
+          (description == null || description.trim().isEmpty)
+              ? null
+              : description.trim(),
+    });
+  }
+
+  Future<void> deleteUnit(String unitId) async {
+    await _firestore.collection('units').doc(unitId).delete();
+  }
+
+  Future<void> addMember(String unitId, String uid) async {
+    await _firestore.collection('units').doc(unitId).update({
+      'memberUids': FieldValue.arrayUnion([uid]),
+    });
+  }
+
+  Future<void> removeMember(String unitId, String uid) async {
+    await _firestore.collection('units').doc(unitId).update({
+      'memberUids': FieldValue.arrayRemove([uid]),
+    });
+  }
+
+  /// Assigns [uid] as the unit lead, optionally granting a `unit_lead` title.
+  ///
+  /// If the unit already has a lead, their active matching title is retired
+  /// first. Then the new lead (if any) gets an auto-granted `unit_lead` title
+  /// via [UserTitleService.addTitle].
+  Future<void> setUnitLead({
+    required TeamUnit unit,
+    String? newLeadUid,
+  }) async {
+    final titleService = UserTitleService(_firestore);
+
+    // Retire the previous lead's active title for this unit.
+    final previousLeadUid = unit.unitLeadUid;
+    if (previousLeadUid != null && previousLeadUid.isNotEmpty) {
+      try {
+        await titleService.retireUnitLeadTitle(
+          uid: previousLeadUid,
+          unitName: unit.name,
+        );
+      } catch (_) {
+        // Title integration is best-effort; the unit doc update still proceeds.
+      }
+    }
+
+    await _firestore.collection('units').doc(unit.id).update({
+      'unitLeadUid': newLeadUid,
+    });
+
+    // Grant the new lead an active `unit_lead` title.
+    if (newLeadUid != null && newLeadUid.isNotEmpty) {
+      try {
+        await titleService.addTitle(
+          uid: newLeadUid,
+          titleType: 'unit_lead',
+          unitName: unit.name,
+        );
+      } catch (_) {
+        // Best-effort; the unit doc already reflects the lead assignment.
+      }
+    }
+  }
+}
+
+final unitServiceProvider = Provider<UnitService>((ref) {
+  return UnitService(ref.watch(firestoreProvider));
 });
 
 /// Team applications stream (for admin to review).

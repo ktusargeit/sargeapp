@@ -62,6 +62,9 @@ class AppDrawer extends ConsumerWidget {
     final authState = ref.watch(authStateProvider);
     final isLoggedIn = authState.value != null;
     final appUser = ref.watch(currentAppUserProvider).value;
+    // The gold "Admin Kontrol Paneli" entry is intentionally Admin-only
+    // (stricter than `viewAdminPanel`, which also admits board_president).
+    final isAdmin = ref.watch(isAdminProvider);
 
     return Drawer(
       backgroundColor: AppColors.surface,
@@ -157,6 +160,17 @@ class AppDrawer extends ConsumerWidget {
                 context.push('/contact');
               },
             ),
+            if (isLoggedIn && isAdmin) ...[
+               Divider(color: AppColors.border, height: 1),
+              const SizedBox(height: 4),
+              _AdminPanelDrawerItem(
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/admin');
+                },
+              ),
+              const SizedBox(height: 4),
+            ],
              Divider(color: AppColors.border, height: 1),
             if (isLoggedIn)
               _DrawerItem(
@@ -244,6 +258,52 @@ class _DrawerItem extends StatelessWidget {
           Icon(icon, size: 20, color: isDestructive ? AppColors.error : AppColors.textSecondary),
       title: Text(label, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w500)),
       onTap: onTap,
+    );
+  }
+}
+
+/// A visually distinct, gold "Admin Kontrol Paneli" entry shown only to admins.
+/// It intentionally uses a filled gold card + dark text so it clearly stands
+/// out from the neutral drawer items as a privileged area.
+class _AdminPanelDrawerItem extends StatelessWidget {
+  final VoidCallback onTap;
+  const _AdminPanelDrawerItem({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Material(
+        color: AppColors.sargeGold,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                const Icon(Icons.admin_panel_settings,
+                    size: 20, color: Colors.black),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Admin Kontrol Paneli',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Icon(Icons.chevron_right,
+                    size: 18,
+                    color: Colors.black.withValues(alpha: 0.6)),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

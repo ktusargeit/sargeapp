@@ -177,3 +177,47 @@ class ClubTeam {
         'leadUid': leadUid,
       };
 }
+
+/// A team-scoped sub-group (birim), e.g. "Güç Elektroniği Birimi" inside
+/// an "Elektrik" team.
+///
+/// Unlike the legacy `unitResponsibilities` string array on the user profile
+/// (which is just a free-form list of names), this is a structured document in
+/// the existing `units` collection with its own member list and an optional
+/// unit lead.
+class TeamUnit {
+  final String id;
+  final String teamId;
+  final String name;
+  final String? description;
+  final List<String> memberUids;
+  final String? unitLeadUid;
+  final DateTime? createdAt;
+
+  const TeamUnit({
+    required this.id,
+    required this.teamId,
+    required this.name,
+    this.description,
+    this.memberUids = const [],
+    this.unitLeadUid,
+    this.createdAt,
+  });
+
+  bool get hasLead => unitLeadUid != null && unitLeadUid!.isNotEmpty;
+
+  factory TeamUnit.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? {};
+    return TeamUnit(
+      id: doc.id,
+      teamId: data['teamId'] as String? ?? '',
+      name: data['name'] as String? ?? '',
+      description: data['description'] as String?,
+      memberUids:
+          (data['memberUids'] as List?)?.map((e) => e.toString()).toList() ??
+              const [],
+      unitLeadUid: data['unitLeadUid'] as String?,
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+    );
+  }
+}

@@ -19,7 +19,9 @@ import '../../features/profile/screens/profile_screen.dart';
 import '../../features/tasks/screens/tasks_screen.dart';
 import '../../features/team/screens/team_detail_screen.dart';
 import '../../features/admin/screens/admin_panel_screen.dart';
+import '../../features/admin/screens/admin_member_detail_screen.dart';
 import '../../features/notifications/screens/notifications_screen.dart';
+import '../models/app_user.dart';
 import '../providers/auth_providers.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -120,6 +122,21 @@ class AppRouter {
           name: 'admin',
           parentNavigatorKey: _rootNavigatorKey,
           builder: (context, state) => const AdminPanelScreen(),
+          routes: [
+            GoRoute(
+              path: 'members/:id',
+              name: 'admin-member-detail',
+              parentNavigatorKey: _rootNavigatorKey,
+              builder: (context, state) {
+                final id = state.pathParameters['id'] ?? '';
+                final extra = state.extra;
+                return AdminMemberDetailScreen(
+                  userId: id,
+                  initialUser: extra is AppUser ? extra : null,
+                );
+              },
+            ),
+          ],
         ),
         GoRoute(
           path: '/notifications',
