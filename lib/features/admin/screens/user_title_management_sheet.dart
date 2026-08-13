@@ -63,7 +63,7 @@ class _UserTitleManagementSheet extends ConsumerWidget {
                   Expanded(
                     child: Text(
                       'Ünvanları Yönet — ${liveUser.displayName}',
-                      style: const TextStyle(
+                      style:  TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -71,7 +71,7 @@ class _UserTitleManagementSheet extends ConsumerWidget {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close,
+                    icon:  Icon(Icons.close,
                         color: AppColors.textSecondary),
                     onPressed: () => Navigator.pop(context),
                   ),
@@ -147,7 +147,7 @@ class _UserTitleManagementSheet extends ConsumerWidget {
             shrinkWrap: true,
             padding: const EdgeInsets.symmetric(vertical: 8),
             children: [
-              const Padding(
+               Padding(
                 padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
                 child: Text(
                   'Ünvan Seç',
@@ -165,7 +165,7 @@ class _UserTitleManagementSheet extends ConsumerWidget {
                   leading: const Icon(Icons.workspace_premium_outlined,
                       size: 18, color: AppColors.sargeGold),
                   title: Text(label,
-                      style: const TextStyle(
+                      style:  TextStyle(
                           color: AppColors.textPrimary)),
                   onTap: () async {
                     Navigator.pop(ctx);
@@ -284,7 +284,7 @@ class _TitleRow extends ConsumerWidget {
                 Text(
                   '${_dateFormat.format(title.startDate)}'
                   '${title.endDate != null ? ' → ${_dateFormat.format(title.endDate!)}' : ''}',
-                  style: const TextStyle(
+                  style:  TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 11,
                   ),
@@ -293,7 +293,7 @@ class _TitleRow extends ConsumerWidget {
             ),
           ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert,
+            icon:  Icon(Icons.more_vert,
                 size: 18, color: AppColors.textSecondary),
             onSelected: (action) async {
               switch (action) {
@@ -392,7 +392,7 @@ class _SectionLabel extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
-        style: const TextStyle(
+        style:  TextStyle(
           color: AppColors.textSecondary,
           fontSize: 11,
           fontWeight: FontWeight.w600,
@@ -412,7 +412,7 @@ class _EmptyText extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
-        style: const TextStyle(
+        style:  TextStyle(
           color: AppColors.textSecondary,
           fontSize: 13,
         ),

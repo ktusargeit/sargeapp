@@ -56,41 +56,41 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
         if (isAdmin) { visible = teams; } else { visible = teams.where((t) => t.memberIds.contains(currentUser?.uid)).toList(); }
         if (visible.isEmpty && !isAdmin && currentUser != null) {
           return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.groups_outlined, size: 64, color: AppColors.textSecondary),
+             Icon(Icons.groups_outlined, size: 64, color: AppColors.textSecondary),
             const SizedBox(height: 16),
-            const Text('Henüz bir takıma dahil değilsiniz.', style: TextStyle(color: AppColors.textSecondary, fontSize: 14), textAlign: TextAlign.center),
+             Text('Henüz bir takıma dahil değilsiniz.', style: TextStyle(color: AppColors.textSecondary, fontSize: 14), textAlign: TextAlign.center),
             const SizedBox(height: 20),
             ElevatedButton.icon(onPressed: () => _showApplyDialog(context, teams), icon: const Icon(Icons.send_outlined, size: 18), label: const Text('Takıma Başvur'), style: ElevatedButton.styleFrom(backgroundColor: AppColors.teamOrange)),
           ]));
         }
         if (visible.isEmpty) {
           return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.groups_outlined, size: 64, color: AppColors.textSecondary),
+             Icon(Icons.groups_outlined, size: 64, color: AppColors.textSecondary),
             const SizedBox(height: 16),
-            Text(isAdmin ? 'Henüz takım oluşturulmadı.' : 'Henüz bir takıma dahil değilsiniz.', style: const TextStyle(color: AppColors.textSecondary, fontSize: 14), textAlign: TextAlign.center),
+            Text(isAdmin ? 'Henüz takım oluşturulmadı.' : 'Henüz bir takıma dahil değilsiniz.', style:  TextStyle(color: AppColors.textSecondary, fontSize: 14), textAlign: TextAlign.center),
             if (isAdmin) ...[const SizedBox(height: 16), ElevatedButton.icon(onPressed: () => _showCreateTeamDialog(context), icon: const Icon(Icons.add, size: 18), label: const Text('Takım Oluştur'), style: ElevatedButton.styleFrom(backgroundColor: AppColors.teamOrange))],
           ]));
         }
         return RefreshIndicator(color: AppColors.teamOrange, onRefresh: () async => ref.refresh(clubTeamsProvider.future), child: ListView.builder(padding: const EdgeInsets.all(AppConstants.spacingMd), itemCount: visible.length, itemBuilder: (context, i) {
           final team = visible[i];
-          return Card(color: AppColors.surface.withValues(alpha: 0.9), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.radiusMd), side: const BorderSide(color: AppColors.border)),
+          return Card(color: AppColors.surface.withValues(alpha: 0.9), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.radiusMd), side:  BorderSide(color: AppColors.border)),
             child: InkWell(borderRadius: BorderRadius.circular(AppConstants.radiusMd), onTap: () => context.push('/team/${team.id}'),
               child: Padding(padding: const EdgeInsets.all(14), child: Row(children: [
                 Container(width: 56, height: 56, decoration: BoxDecoration(color: AppColors.surface2, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.teamOrange.withValues(alpha: 0.3)), image: team.photoUrl != null && team.photoUrl!.isNotEmpty ? DecorationImage(image: NetworkImage(team.photoUrl!), fit: BoxFit.cover) : null), child: team.photoUrl == null || team.photoUrl!.isEmpty ? const Icon(Icons.groups_outlined, size: 28, color: AppColors.teamOrange) : null),
                 const SizedBox(width: 14),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(team.name, style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+                  Text(team.name, style:  TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 4),
-                  if (team.description.isNotEmpty) Text(team.description, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                  if (team.description.isNotEmpty) Text(team.description, maxLines: 2, overflow: TextOverflow.ellipsis, style:  TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                   const SizedBox(height: 6),
                   Row(children: [
-                    const Icon(Icons.people_outline, size: 14, color: AppColors.textSecondary), const SizedBox(width: 4),
-                    Text('${team.memberIds.length} üye', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                     Icon(Icons.people_outline, size: 14, color: AppColors.textSecondary), const SizedBox(width: 4),
+                    Text('${team.memberIds.length} üye', style:  TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                     const SizedBox(width: 16),
                     Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: team.isActive ? AppColors.success.withValues(alpha: 0.12) : AppColors.error.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(4), border: Border.all(color: team.isActive ? AppColors.success.withValues(alpha: 0.4) : AppColors.error.withValues(alpha: 0.4))), child: Text(team.isActive ? 'AKTİF' : 'PASİF', style: TextStyle(color: team.isActive ? AppColors.success : AppColors.error, fontSize: 10, fontWeight: FontWeight.w700))),
                   ]),
                 ])),
-                const Icon(Icons.chevron_right, color: AppColors.border),
+                 Icon(Icons.chevron_right, color: AppColors.border),
               ])),
             ),
           );
@@ -142,14 +142,14 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
                               fit: BoxFit.cover,
                             ),
                           )
-                        : const Icon(Icons.add_a_photo_outlined,
+                        :  Icon(Icons.add_a_photo_outlined,
                             size: 32, color: AppColors.textSecondary),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: nameCtrl,
-                  style: const TextStyle(color: AppColors.textPrimary),
+                  style:  TextStyle(color: AppColors.textPrimary),
                   decoration: const InputDecoration(
                       labelText: 'Takım Adı *',
                       hintText: 'Örn: Elektronik Harp'),
@@ -158,7 +158,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
                 TextField(
                   controller: descCtrl,
                   maxLines: 3,
-                  style: const TextStyle(color: AppColors.textPrimary),
+                  style:  TextStyle(color: AppColors.textPrimary),
                   decoration: const InputDecoration(
                       labelText: 'Açıklama',
                       hintText: 'Takım hakkında kısa bilgi'),
@@ -243,7 +243,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
         .get();
 
     if (pendingSnap.docs.isNotEmpty) {
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Zaten bekleyen bir başvurunuz var. Lütfen sonuçlanmasını bekleyin.'),
@@ -260,18 +260,18 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
       return true;
     }).toList();
 
-    if (!mounted) return;
+    if (!context.mounted) return;
+    var applying = false;
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
-          bool applying = false;
           return AlertDialog(
             title: const Text('Takıma Başvur'),
             content: SizedBox(
               width: double.maxFinite,
               child: applying
-                  ? const Padding(
+                  ?  Padding(
                       padding: EdgeInsets.symmetric(vertical: 40),
                       child: Center(
                         child: Column(
@@ -286,7 +286,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
                       ),
                     )
                   : availableTeams.isEmpty
-                      ? const Text('Başvurabileceğiniz takım yok.',
+                      ?  Text('Başvurabileceğiniz takım yok.',
                           style: TextStyle(color: AppColors.textSecondary))
                       : ListView.builder(
                           shrinkWrap: true,
@@ -298,7 +298,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
                                   color: AppColors.teamOrange),
                               title: Text(team.name),
                               subtitle: Text('${team.memberIds.length} üye',
-                                  style: const TextStyle(
+                                  style:  TextStyle(
                                       color: AppColors.textSecondary,
                                       fontSize: 12)),
                               onTap: () async {
@@ -316,8 +316,8 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
                                       'status': 'approved',
                                       'appliedAt': FieldValue.serverTimestamp(),
                                     });
-                                    if (mounted) {
-                                      Navigator.pop(ctx);
+                                    if (ctx.mounted) Navigator.pop(ctx);
+                                    if (context.mounted) {
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(
                                           content: Text('${team.name} takımına zaten üyesiniz, başvurunuz otomatik onaylandı.'),
@@ -357,8 +357,8 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
                                     );
                                   }
 
-                                  if (mounted) {
-                                    Navigator.pop(ctx);
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text('${team.name} takımına başvurunuz başarıyla gönderildi!'),
@@ -368,8 +368,8 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
                                     );
                                   }
                                 } catch (e) {
-                                  if (mounted) {
-                                    setDialogState(() => applying = false);
+                                  setDialogState(() => applying = false);
+                                  if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(content: Text('Hata: $e'), backgroundColor: AppColors.error),
                                     );
@@ -406,12 +406,12 @@ class _ApplicationsTab extends ConsumerWidget {
     return appsAsync.when(
       data: (apps) {
         final pending = apps.where((a) => a['status'] == 'pending').toList();
-        if (pending.isEmpty) return const Center(child: Text('Bekleyen başvuru yok.', style: TextStyle(color: AppColors.textSecondary)));
+        if (pending.isEmpty) return  Center(child: Text('Bekleyen başvuru yok.', style: TextStyle(color: AppColors.textSecondary)));
         return ListView.builder(padding: const EdgeInsets.all(AppConstants.spacingMd), itemCount: pending.length, itemBuilder: (_, i) {
           final app = pending[i];
           return Card(color: AppColors.surface, margin: const EdgeInsets.only(bottom: 8), child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(app['applicantName'] as String? ?? '', style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
-            Text('Takım: ${app['teamName'] ?? ''}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+            Text(app['applicantName'] as String? ?? '', style:  TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+            Text('Takım: ${app['teamName'] ?? ''}', style:  TextStyle(color: AppColors.textSecondary, fontSize: 12)),
             const SizedBox(height: 8),
             Row(mainAxisAlignment: MainAxisAlignment.end, children: [
               TextButton.icon(onPressed: () async {
@@ -467,7 +467,7 @@ class _UnitManagementDialogState extends ConsumerState<_UnitManagementDialog> {
             teamsAsync.when(
               data: (teams) => DropdownButtonFormField<String>(
                 dropdownColor: AppColors.surface2,
-                style: const TextStyle(color: AppColors.textPrimary),
+                style:  TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'Takım Seçin *',
                   hintText: 'Önce takım seçin',
@@ -486,7 +486,7 @@ class _UnitManagementDialogState extends ConsumerState<_UnitManagementDialog> {
             if (_selectedTeamId != null) ...[
               Row(
                 children: [
-                  const Text('Mevcut Birimler',
+                   Text('Mevcut Birimler',
                       style:
                           TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                   const Spacer(),
@@ -497,12 +497,12 @@ class _UnitManagementDialogState extends ConsumerState<_UnitManagementDialog> {
                   ),
                 ],
               ),
-              const Divider(color: AppColors.border),
+               Divider(color: AppColors.border),
               Expanded(
                 child: unitsAsync != null
                     ? unitsAsync.when(
                         data: (units) => units.isEmpty
-                            ? const Center(
+                            ?  Center(
                                 child: Text('Bu takımda henüz birim yok.',
                                     style: TextStyle(
                                         color: AppColors.textSecondary)))

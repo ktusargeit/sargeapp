@@ -10,6 +10,8 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/utils/image_utils.dart';
 import '../../../core/widgets/platform_image.dart';
+import '../../../core/widgets/comment_tile.dart';
+import '../../notifications/providers/notification_providers.dart';
 import '../../team/models/team_models.dart';
 import '../../team/providers/team_providers.dart';
 
@@ -65,7 +67,7 @@ class _ReportBugScreenState extends ConsumerState<ReportBugScreen>
         imageUrl = await repo.uploadReportImage(tempId,
             file: _pickedImage!.dartFile, bytes: _pickedImage!.bytes);
       }
-      await repo.submitReport(
+      final reportId = await repo.submitReport(
         title: _titleCtrl.text.trim(),
         message: _descCtrl.text.trim(),
         submittedBy: user?.uid ?? '',
@@ -73,6 +75,15 @@ class _ReportBugScreenState extends ConsumerState<ReportBugScreen>
         imageUrl: imageUrl,
         type: _reportType,
       );
+
+      // Notify admins/unit leads about the new report/suggestion.
+      await ref.read(notificationServiceProvider).notifyAdmins(
+            title: _reportType == 'suggestion' ? 'Yeni Öneri' : 'Yeni Hata Bildirimi',
+            body: '${user?.displayName ?? 'Bir kullanıcı'}: ${_titleCtrl.text.trim()}',
+            type: 'report',
+            relatedId: reportId,
+          );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Bildiriminiz alındı, teşekkürler!'),
@@ -129,7 +140,7 @@ class _ReportBugScreenState extends ConsumerState<ReportBugScreen>
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text('TÜR',
+         Text('TÜR',
             style: TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 11,
@@ -160,7 +171,7 @@ class _ReportBugScreenState extends ConsumerState<ReportBugScreen>
           ],
         ),
         const SizedBox(height: 16),
-        const Text('HATA BAŞLIĞI',
+         Text('HATA BAŞLIĞI',
             style: TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 11,
@@ -169,14 +180,14 @@ class _ReportBugScreenState extends ConsumerState<ReportBugScreen>
         const SizedBox(height: 8),
         TextField(
           controller: _titleCtrl,
-          style: const TextStyle(color: AppColors.textPrimary),
+          style:  TextStyle(color: AppColors.textPrimary),
           decoration: const InputDecoration(
             hintText: 'Örn: Depo rafı yanlış görünüyor',
             labelText: 'Başlık *',
           ),
         ),
         const SizedBox(height: 16),
-        const Text('AÇIKLAMA',
+         Text('AÇIKLAMA',
             style: TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 11,
@@ -186,14 +197,14 @@ class _ReportBugScreenState extends ConsumerState<ReportBugScreen>
         TextField(
           controller: _descCtrl,
           maxLines: 5,
-          style: const TextStyle(color: AppColors.textPrimary),
+          style:  TextStyle(color: AppColors.textPrimary),
           decoration: const InputDecoration(
             hintText: 'Raf 3\'e bastığımda yanlış ürünler geliyor.',
             labelText: 'Açıklama',
           ),
         ),
         const SizedBox(height: 16),
-        const Text('FOTOĞRAF (İsteğe Bağlı)',
+         Text('FOTOĞRAF (İsteğe Bağlı)',
             style: TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 11,
@@ -209,7 +220,7 @@ class _ReportBugScreenState extends ConsumerState<ReportBugScreen>
                 label: const Text('Kamera'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.textPrimary,
-                  side: const BorderSide(color: AppColors.border),
+                  side:  BorderSide(color: AppColors.border),
                 ),
               ),
             ),
@@ -221,7 +232,7 @@ class _ReportBugScreenState extends ConsumerState<ReportBugScreen>
                 label: const Text('Galeri'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.textPrimary,
-                  side: const BorderSide(color: AppColors.border),
+                  side:  BorderSide(color: AppColors.border),
                 ),
               ),
             ),
@@ -382,12 +393,12 @@ class _BugListTabState extends ConsumerState<_BugListTab> {
               Expanded(
                 child: TextField(
                   controller: _searchCtrl,
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                  style:  TextStyle(color: AppColors.textPrimary, fontSize: 13),
                   decoration: InputDecoration(
                     hintText: 'Ara...',
-                    hintStyle: const TextStyle(
+                    hintStyle:  TextStyle(
                         color: AppColors.textSecondary, fontSize: 13),
-                    prefixIcon: const Icon(Icons.search,
+                    prefixIcon:  Icon(Icons.search,
                         size: 18, color: AppColors.textSecondary),
                     isDense: true,
                     filled: true,
@@ -414,8 +425,8 @@ class _BugListTabState extends ConsumerState<_BugListTab> {
                     value: _personFilter,
                     isDense: true,
                     dropdownColor: AppColors.surface2,
-                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
-                    hint: const Text('Kişi',
+                    style:  TextStyle(color: AppColors.textPrimary, fontSize: 12),
+                    hint:  Text('Kişi',
                         style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                     items: [
                       if (_personFilter != null)
@@ -454,7 +465,7 @@ class _BugListTabState extends ConsumerState<_BugListTab> {
                     .toList();
               }
               if (filtered.isEmpty) {
-                return const Center(
+                return  Center(
                   child: Text('Kayıt bulunamadı.',
                       style: TextStyle(color: AppColors.textSecondary)),
                 );
@@ -526,13 +537,17 @@ class _BugCard extends ConsumerWidget {
     final replyCount = report.messageCount;
     final statusLabel = report.statusLabel;
     final hasReplyBadge = replyCount > 0;
+    final currentUid = ref.read(authStateProvider).value?.uid;
+    final isOwner = currentUid != null && report.submittedBy == currentUid;
+    final canEdit = isOwner;
+    final canDelete = isAdmin || isOwner;
 
     return Card(
       color: AppColors.surface,
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-          side: const BorderSide(color: AppColors.border)),
+          side:  BorderSide(color: AppColors.border)),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppConstants.radiusMd),
         onTap: () => _showDetail(context, ref),
@@ -559,6 +574,24 @@ class _BugCard extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  if (canEdit)
+                    GestureDetector(
+                      onTap: () => _editReport(context, ref),
+                      child: const Padding(
+                        padding: EdgeInsets.all(4),
+                        child: Icon(Icons.edit_outlined,
+                            size: 18, color: AppColors.primaryGreen),
+                      ),
+                    ),
+                  if (canDelete)
+                    GestureDetector(
+                      onTap: () => _deleteReport(context, ref),
+                      child: const Padding(
+                        padding: EdgeInsets.all(4),
+                        child: Icon(Icons.delete_outline,
+                            size: 18, color: AppColors.error),
+                      ),
+                    ),
                 ],
               ),
               const SizedBox(height: 6),
@@ -573,7 +606,7 @@ class _BugCard extends ConsumerWidget {
                       border: Border.all(color: _typeColor().withValues(alpha: 0.4)),
                     ),
                     child: Text(
-                      report.isSuggestion ? 'Öneri' : statusLabel,
+                      report.isSuggestion ? 'Öneri' : 'Hata',
                       style: TextStyle(
                         color: _typeColor(),
                         fontSize: 10,
@@ -628,7 +661,7 @@ class _BugCard extends ConsumerWidget {
                   const Spacer(),
                   Text(
                     report.submittedByName,
-                    style: const TextStyle(
+                    style:  TextStyle(
                         color: AppColors.textSecondary, fontSize: 11),
                   ),
                 ],
@@ -679,6 +712,84 @@ class _BugCard extends ConsumerWidget {
       builder: (ctx) => _ReportDetailView(
         reportId: report.id,
         isAdmin: isAdmin,
+      ),
+    );
+  }
+
+  void _editReport(BuildContext context, WidgetRef ref) {
+    final titleCtrl = TextEditingController(text: report.title);
+    final msgCtrl = TextEditingController(text: report.message);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Bildirimi Düzenle'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleCtrl,
+                style:  TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(labelText: 'Başlık'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: msgCtrl,
+                maxLines: 4,
+                style:  TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(labelText: 'Açıklama'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('İptal')),
+          ElevatedButton(
+            onPressed: () async {
+              if (titleCtrl.text.trim().isEmpty) return;
+              Navigator.pop(ctx);
+              await ref
+                  .read(firestoreProvider)
+                  .collection('reports')
+                  .doc(report.id)
+                  .update({
+                'title': titleCtrl.text.trim(),
+                'message': msgCtrl.text.trim(),
+              });
+            },
+            child: const Text('Kaydet'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _deleteReport(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Bildirimi Sil'),
+        content: const Text(
+            'Bu bildirim kalıcı olarak silinecek. Onaylıyor musunuz?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('İptal')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref
+                  .read(firestoreProvider)
+                  .collection('reports')
+                  .doc(report.id)
+                  .delete();
+            },
+            child: const Text('Sil'),
+          ),
+        ],
       ),
     );
   }
@@ -824,6 +935,33 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
         'messages': FieldValue.arrayUnion([newMsg]),
       });
 
+      // Notify the relevant party: an admin reply notifies the submitter; the
+      // submitter's own reply notifies admins/unit leads. Never notify yourself.
+      try {
+        final notifService = ref.read(notificationServiceProvider);
+        final body = _msgCtrl.text.trim().isNotEmpty
+            ? _msgCtrl.text.trim()
+            : 'Bildiriminize bir yanıt eklendi.';
+        if (uid != report.submittedBy) {
+          await notifService.send(
+            recipientId: report.submittedBy,
+            title: 'Bildiriminize yanıt: ${report.title.isNotEmpty ? report.title : report.message}',
+            body: body,
+            type: 'report_reply',
+            relatedId: widget.reportId,
+          );
+        } else {
+          await notifService.notifyAdmins(
+            title: 'Yeni bildirim yanıtı: ${report.title.isNotEmpty ? report.title : report.message}',
+            body: body,
+            type: 'report_reply',
+            relatedId: widget.reportId,
+          );
+        }
+      } catch (_) {
+        // Notification is best-effort; don't block the reply.
+      }
+
       if (mounted) {
         setState(() {
           _msgCtrl.clear();
@@ -860,7 +998,7 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
             minChildSize: 0.5,
             maxChildSize: 0.5,
             expand: false,
-            builder: (_, __) => const Center(
+            builder: (_, __) =>  Center(
               child: Text('Bildirim bulunamadı.',
                   style: TextStyle(color: AppColors.textSecondary)),
             ),
@@ -904,7 +1042,7 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                         Expanded(
                           child: Text(
                             report.title.isEmpty ? report.message : report.title,
-                            style: const TextStyle(
+                            style:  TextStyle(
                               color: AppColors.textPrimary,
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
@@ -958,7 +1096,7 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                         const SizedBox(width: 8),
                         Text(
                           'Bildiren: ${report.submittedByName}',
-                          style: const TextStyle(
+                          style:  TextStyle(
                               color: AppColors.textSecondary, fontSize: 12),
                         ),
                       ],
@@ -973,7 +1111,7 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(report.message,
-                            style: const TextStyle(
+                            style:  TextStyle(
                                 color: AppColors.textPrimary,
                                 fontSize: 14,
                                 height: 1.5)),
@@ -1042,9 +1180,9 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                     // Durum Değiştir section
                     if (widget.isAdmin) ...[
                       const SizedBox(height: 12),
-                      const Divider(color: AppColors.border),
+                       Divider(color: AppColors.border),
                       const SizedBox(height: 8),
-                      const Text(
+                       Text(
                         'DURUM DEĞİŞTİR',
                         style: TextStyle(
                           color: AppColors.textSecondary,
@@ -1088,17 +1226,17 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                     ],
 
                     const SizedBox(height: 12),
-                    const Divider(color: AppColors.border),
+                     Divider(color: AppColors.border),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Row(
                         children: [
-                          const Icon(Icons.chat_bubble_outline,
+                           Icon(Icons.chat_bubble_outline,
                               size: 14, color: AppColors.textSecondary),
                           const SizedBox(width: 6),
                           Text(
                             'Mesajlar (${messages.length})',
-                            style: const TextStyle(
+                            style:  TextStyle(
                               color: AppColors.textSecondary,
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -1110,7 +1248,7 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                     ),
                     // Messages
                     if (messages.isEmpty)
-                      const Padding(
+                       Padding(
                         padding: EdgeInsets.symmetric(vertical: 20),
                         child: Center(
                           child: Text('Henüz mesaj yok.',
@@ -1121,93 +1259,123 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                     else
                       ...messages.map((msg) {
                         final isMe = msg['senderUid'] == currentUid;
+                        final senderUid = msg['senderUid'] as String? ?? '';
                         final name = msg['senderName'] as String? ?? '';
                         final text = msg['text'] as String? ?? '';
                         final imgUrl = msg['imageUrl'] as String?;
                         final isMsgAdmin = msg['isAdmin'] as bool? ?? false;
 
-                        return Align(
-                          alignment: isMe
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: Container(
-                            constraints: BoxConstraints(
-                                maxWidth: MediaQuery.of(context).size.width * 0.7),
-                            margin: const EdgeInsets.only(bottom: 10),
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: isMsgAdmin
-                                  ? AppColors.success.withValues(alpha: 0.08)
-                                  : AppColors.surface2,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: isMsgAdmin
-                                    ? AppColors.success.withValues(alpha: 0.2)
-                                    : AppColors.border,
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      name,
-                                      style: TextStyle(
-                                        color: isMsgAdmin
-                                            ? AppColors.success
-                                            : AppColors.textPrimary,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    if (isMsgAdmin) ...[
-                                      const SizedBox(width: 4),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 4, vertical: 1),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.success.withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(2),
-                                        ),
-                                        child: const Text('ADMIN',
-                                            style: TextStyle(
-                                                color: AppColors.success,
-                                                fontSize: 8,
-                                                fontWeight: FontWeight.w700)),
-                                      ),
-                                    ],
-                                  ],
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Row(
+                            mainAxisAlignment: isMe
+                                ? MainAxisAlignment.end
+                                : MainAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (!isMe)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2, right: 6),
+                                  child: UserAvatar(
+                                    uid: senderUid,
+                                    name: name,
+                                    radius: 12,
+                                    isAdmin: isMsgAdmin,
+                                  ),
                                 ),
-                                if (text.isNotEmpty) ...[
-                                  const SizedBox(height: 4),
-                                  Text(text,
-                                      style: const TextStyle(
-                                          color: AppColors.textPrimary,
-                                          fontSize: 13,
-                                          height: 1.4)),
-                                ],
-                                if (imgUrl != null && imgUrl.isNotEmpty) ...[
-                                  const SizedBox(height: 6),
-                                  GestureDetector(
-                                    onTap: () => _showFullScreen(context, imgUrl),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: Image.network(
-                                        imgUrl,
-                                        height: 120,
-                                        width: double.infinity,
-                                        fit: BoxFit.cover,
-                                        cacheWidth: 600,
-                                        errorBuilder: (_, __, ___) =>
-                                            const SizedBox.shrink(),
-                                      ),
+                              Flexible(
+                                child: Container(
+                                  constraints: BoxConstraints(
+                                      maxWidth:
+                                          MediaQuery.of(context).size.width * 0.6),
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: isMsgAdmin
+                                        ? AppColors.success.withValues(alpha: 0.08)
+                                        : AppColors.surface2,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: isMsgAdmin
+                                          ? AppColors.success.withValues(alpha: 0.2)
+                                          : AppColors.border,
                                     ),
                                   ),
-                                ],
-                              ],
-                            ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            name,
+                                            style: TextStyle(
+                                              color: isMsgAdmin
+                                                  ? AppColors.success
+                                                  : AppColors.textPrimary,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          if (isMsgAdmin) ...[
+                                            const SizedBox(width: 4),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 4, vertical: 1),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.success
+                                                    .withValues(alpha: 0.15),
+                                                borderRadius: BorderRadius.circular(2),
+                                              ),
+                                              child: const Text('ADMIN',
+                                                  style: TextStyle(
+                                                      color: AppColors.success,
+                                                      fontSize: 8,
+                                                      fontWeight: FontWeight.w700)),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                      if (text.isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(text,
+                                            style:  TextStyle(
+                                                color: AppColors.textPrimary,
+                                                fontSize: 13,
+                                                height: 1.4)),
+                                      ],
+                                      if (imgUrl != null && imgUrl.isNotEmpty) ...[
+                                        const SizedBox(height: 6),
+                                        GestureDetector(
+                                          onTap: () => _showFullScreen(context, imgUrl),
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: Image.network(
+                                              imgUrl,
+                                              height: 120,
+                                              width: double.infinity,
+                                              fit: BoxFit.cover,
+                                              cacheWidth: 600,
+                                              errorBuilder: (_, __, ___) =>
+                                                  const SizedBox.shrink(),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              if (isMe)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2, left: 6),
+                                  child: UserAvatar(
+                                    uid: senderUid,
+                                    name: name,
+                                    radius: 12,
+                                    isAdmin: isMsgAdmin,
+                                  ),
+                                ),
+                            ],
                           ),
                         );
                       }),
@@ -1216,7 +1384,7 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
               ),
               // Message input
               Container(
-                decoration: const BoxDecoration(
+                decoration:  BoxDecoration(
                   color: AppColors.surface,
                   border: Border(top: BorderSide(color: AppColors.border)),
                 ),
@@ -1279,9 +1447,9 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                           controller: _msgCtrl,
                           maxLines: 4,
                           minLines: 1,
-                          style: const TextStyle(
+                          style:  TextStyle(
                               color: AppColors.textPrimary, fontSize: 13),
-                          decoration: const InputDecoration(
+                          decoration:  InputDecoration(
                             hintText: 'Mesaj yazın...',
                             hintStyle: TextStyle(
                                 color: AppColors.textSecondary, fontSize: 13),

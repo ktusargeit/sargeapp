@@ -22,7 +22,7 @@ class NotificationsScreen extends ConsumerWidget {
       body: notificationsAsync.when(
         data: (notifications) {
           if (notifications.isEmpty) {
-            return const Center(
+            return  Center(
               child: Text('Henüz bildirim yok.',
                   style: TextStyle(color: AppColors.textSecondary)),
             );
@@ -56,7 +56,7 @@ class NotificationsScreen extends ConsumerWidget {
                 ),
                 subtitle: Text(
                   n['body'] as String? ?? '',
-                  style: const TextStyle(
+                  style:  TextStyle(
                       color: AppColors.textSecondary, fontSize: 12),
                 ),
                 trailing: isRead
@@ -97,10 +97,10 @@ class NotificationsScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline,
+               Icon(Icons.error_outline,
                   size: 48, color: AppColors.textSecondary),
               const SizedBox(height: 12),
-              const Text(
+               Text(
                 'Bildirimler yüklenirken bir sorun oluştu.\nLütfen tekrar deneyin.',
                 style: TextStyle(
                     color: AppColors.textSecondary, fontSize: 14),

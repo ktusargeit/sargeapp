@@ -87,7 +87,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   children: [
                     const _Logo(),
                     const SizedBox(height: AppConstants.spacingXl),
-                    const Text(
+                     Text(
                       'Kayıt Ol',
                       textAlign: TextAlign.center,
                       style: TextStyle(
@@ -97,7 +97,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
+                     Text(
                       'SARGE Kulüp Yönetim Sistemine katılın',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
@@ -108,7 +108,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     TextFormField(
                       controller: _displayNameCtrl,
                       textInputAction: TextInputAction.next,
-                      style: const TextStyle(color: AppColors.textPrimary),
+                      style:  TextStyle(color: AppColors.textPrimary),
                       decoration: const InputDecoration(
                         hintText: 'Adınız Soyadınız',
                         prefixIcon: Icon(Icons.person_outline, size: 18),
@@ -126,7 +126,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       keyboardType: TextInputType.emailAddress,
                       autofillHints: const [AutofillHints.email],
                       textInputAction: TextInputAction.next,
-                      style: const TextStyle(color: AppColors.textPrimary),
+                      style:  TextStyle(color: AppColors.textPrimary),
                       decoration: const InputDecoration(
                         hintText: 'ornek@sarge.org',
                         prefixIcon: Icon(Icons.mail_outline, size: 18),
@@ -144,7 +144,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       controller: _passwordCtrl,
                       obscureText: _obscure,
                       textInputAction: TextInputAction.next,
-                      style: const TextStyle(color: AppColors.textPrimary),
+                      style:  TextStyle(color: AppColors.textPrimary),
                       decoration: InputDecoration(
                         hintText: '••••••••',
                         prefixIcon: const Icon(Icons.lock_outline, size: 18),
@@ -168,7 +168,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       obscureText: true,
                       textInputAction: TextInputAction.done,
                       onFieldSubmitted: (_) => _submit(),
-                      style: const TextStyle(color: AppColors.textPrimary),
+                      style:  TextStyle(color: AppColors.textPrimary),
                       decoration: const InputDecoration(
                         hintText: '••••••••',
                         prefixIcon: Icon(Icons.lock_outline, size: 18),
@@ -184,7 +184,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       style:
                           ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
                       child: _loading
-                          ? const SizedBox(
+                          ?  SizedBox(
                               width: 18,
                               height: 18,
                               child:
@@ -196,7 +196,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text('Zaten hesabın var mı?',
+                         Text('Zaten hesabın var mı?',
                             style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                         TextButton(
                           onPressed: () => context.push('/login'),
@@ -262,7 +262,7 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
+      style:  TextStyle(
         color: AppColors.textSecondary,
         fontSize: 12,
         fontWeight: FontWeight.w500,

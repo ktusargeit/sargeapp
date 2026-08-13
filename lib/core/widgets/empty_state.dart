@@ -29,7 +29,7 @@ class EmptyState extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             title,
-            style: const TextStyle(
+            style:  TextStyle(
               color: AppColors.textPrimary,
               fontSize: 15,
               fontWeight: FontWeight.w600,
@@ -40,7 +40,7 @@ class EmptyState extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               subtitle!,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              style:  TextStyle(color: AppColors.textSecondary, fontSize: 13),
               textAlign: TextAlign.center,
             ),
           ],

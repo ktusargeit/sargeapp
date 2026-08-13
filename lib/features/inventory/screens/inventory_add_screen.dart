@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -118,7 +117,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Padding(
+               Padding(
                 padding: EdgeInsets.all(16),
                 child: Text('Lokasyon Seç',
                     style: TextStyle(
@@ -126,7 +125,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                         fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary)),
               ),
-              const Divider(color: AppColors.border, height: 1),
+               Divider(color: AppColors.border, height: 1),
               Flexible(
                 child: locationsAsync.when(
                   data: (locations) => ListView(
@@ -136,7 +135,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                               leading: const Icon(Icons.location_on_outlined,
                                   color: AppColors.depoAccent),
                               title: Text(loc.name,
-                                  style: const TextStyle(
+                                  style:  TextStyle(
                                       color: AppColors.textPrimary)),
                               onTap: () => Navigator.pop(ctx, {
                                 'id': loc.id,
@@ -198,8 +197,13 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
         'locationName': _selectedLocationName,
         'shelfName': _shelfCtrl.text.trim().isEmpty ? null : _shelfCtrl.text.trim(),
         'drawerName': _drawerCtrl.text.trim().isEmpty ? null : _drawerCtrl.text.trim(),
-        'createdBy': user?.uid,
       };
+
+      // Kaydeden kullanıcı yalnızca ilk eklemede yazılır; düzenlemede orijinal
+      // ekleyen korunur (üzerine yazılmaz).
+      if (widget.editItemId == null) {
+        data['createdBy'] = user?.uid;
+      }
 
       if (widget.editItemId != null) {
         // Update existing item
@@ -311,7 +315,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                             onPressed: details.onStepCancel,
                             style: OutlinedButton.styleFrom(
                               foregroundColor: AppColors.textSecondary,
-                              side: const BorderSide(
+                              side:  BorderSide(
                                   color: AppColors.border),
                             ),
                             child: const Text('Geri'),
@@ -324,7 +328,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                 steps: [
                   // STEP 1: Product Info
                   Step(
-                    title: const Text('Ürün Bilgileri',
+                    title:  Text('Ürün Bilgileri',
                         style: TextStyle(color: AppColors.textPrimary)),
                     isActive: _currentStep >= 0,
                     state: _currentStep > 0
@@ -361,7 +365,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                           fit: BoxFit.cover,
                                         ),
                                       )
-                                    : const Icon(
+                                    :  Icon(
                                         Icons.add_a_photo_outlined,
                                         size: 32,
                                         color:
@@ -373,7 +377,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                           // Name
                           TextFormField(
                             controller: _nameCtrl,
-                            style: const TextStyle(
+                            style:  TextStyle(
                                 color: AppColors.textPrimary),
                             decoration: const InputDecoration(
                               labelText: 'Ürün Adı *',
@@ -389,7 +393,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                           TextFormField(
                             controller: _descCtrl,
                             maxLines: 2,
-                            style: const TextStyle(
+                            style:  TextStyle(
                                 color: AppColors.textPrimary),
                             decoration: const InputDecoration(
                               labelText: 'Açıklama',
@@ -403,7 +407,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                 DropdownButtonFormField<String>(
                               initialValue: _selectedTeamId,
                               dropdownColor: AppColors.surface2,
-                              style: const TextStyle(
+                              style:  TextStyle(
                                   color: AppColors.textPrimary),
                               decoration: const InputDecoration(
                                   labelText: 'Takım'),
@@ -435,7 +439,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                   DropdownButtonFormField<String>(
                                 initialValue: _selectedUnitId,
                                 dropdownColor: AppColors.surface2,
-                                style: const TextStyle(
+                                style:  TextStyle(
                                     color: AppColors.textPrimary),
                                 decoration: const InputDecoration(
                                     labelText: 'Birim'),
@@ -471,7 +475,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                               return DropdownButtonFormField<String>(
                                 initialValue: _selectedCategoryId,
                                 dropdownColor: AppColors.surface2,
-                                style: const TextStyle(
+                                style:  TextStyle(
                                     color: AppColors.textPrimary),
                                 decoration: const InputDecoration(
                                     labelText: 'Kategori'),
@@ -498,7 +502,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                               Expanded(
                                 child: TextFormField(
                                   controller: _serialCtrl,
-                                  style: const TextStyle(
+                                  style:  TextStyle(
                                       color:
                                           AppColors.textPrimary),
                                   decoration: const InputDecoration(
@@ -510,7 +514,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                               Expanded(
                                 child: TextFormField(
                                   controller: _modelCtrl,
-                                  style: const TextStyle(
+                                  style:  TextStyle(
                                       color:
                                           AppColors.textPrimary),
                                   decoration: const InputDecoration(
@@ -526,7 +530,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                               Expanded(
                                 child: TextFormField(
                                   controller: _brandCtrl,
-                                  style: const TextStyle(
+                                  style:  TextStyle(
                                       color:
                                           AppColors.textPrimary),
                                   decoration: const InputDecoration(
@@ -540,7 +544,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                   controller: _quantityCtrl,
                                   keyboardType:
                                       TextInputType.number,
-                                  style: const TextStyle(
+                                  style:  TextStyle(
                                       color:
                                           AppColors.textPrimary),
                                   decoration: const InputDecoration(
@@ -570,7 +574,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                               return DropdownButtonFormField<String>(
                                 initialValue: _selectedStatus,
                                 dropdownColor: AppColors.surface2,
-                                style: const TextStyle(
+                                style:  TextStyle(
                                     color: AppColors.textPrimary),
                                 decoration: const InputDecoration(
                                     labelText: 'Durum'),
@@ -595,7 +599,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                   ),
                   // STEP 2: Location
                   Step(
-                    title: const Text('Lokasyon',
+                    title:  Text('Lokasyon',
                         style: TextStyle(color: AppColors.textPrimary)),
                     isActive: _currentStep >= 1,
                     state: StepState.indexed,
@@ -626,7 +630,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                           // Shelf
                           TextFormField(
                             controller: _shelfCtrl,
-                            style: const TextStyle(
+                            style:  TextStyle(
                                 color: AppColors.textPrimary),
                             decoration: const InputDecoration(
                               labelText: 'Raf Adı',
@@ -637,7 +641,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                           // Drawer
                           TextFormField(
                             controller: _drawerCtrl,
-                            style: const TextStyle(
+                            style:  TextStyle(
                                 color: AppColors.textPrimary),
                             decoration: const InputDecoration(
                               labelText: 'Çekmece Adı',
@@ -646,7 +650,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                           ),
                           const SizedBox(height: 16),
                           // Location photo
-                          const Text('Lokasyon Fotoğrafı',
+                           Text('Lokasyon Fotoğrafı',
                               style: TextStyle(
                                   color: AppColors.textSecondary,
                                   fontSize: 13)),
@@ -686,7 +690,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                             fit: BoxFit.cover,
                                           ),
                                         )
-                                      : const Column(
+                                      :  Column(
                                           mainAxisAlignment:
                                               MainAxisAlignment
                                                   .center,
@@ -722,7 +726,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                     border: Border.all(
                                         color: AppColors.border),
                                   ),
-                                  child: const Column(
+                                  child:  Column(
                                     mainAxisAlignment:
                                         MainAxisAlignment.center,
                                     children: [

@@ -37,7 +37,7 @@ class MetricCard extends StatelessWidget {
               const Spacer(),
               Text(
                 value,
-                style: const TextStyle(
+                style:  TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
@@ -48,7 +48,7 @@ class MetricCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             label,
-            style: const TextStyle(
+            style:  TextStyle(
               color: AppColors.textSecondary,
               fontSize: 12,
               fontWeight: FontWeight.w500,

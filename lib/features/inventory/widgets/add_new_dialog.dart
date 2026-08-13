@@ -36,7 +36,7 @@ class _AddNewDialogState extends ConsumerState<AddNewDialog> {
       content: TextField(
         controller: _ctrl,
         autofocus: true,
-        style: const TextStyle(color: AppColors.textPrimary),
+        style:  TextStyle(color: AppColors.textPrimary),
         decoration: InputDecoration(hintText: widget.hintText),
       ),
       actions: [
@@ -53,7 +53,7 @@ class _AddNewDialogState extends ConsumerState<AddNewDialog> {
                   setState(() => _loading = true);
                   try {
                     await widget.onAdd(text);
-                    if (mounted) Navigator.pop(context);
+                    if (context.mounted) Navigator.pop(context);
                   } finally {
                     if (mounted) setState(() => _loading = false);
                   }

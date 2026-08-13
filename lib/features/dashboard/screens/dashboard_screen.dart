@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
@@ -13,9 +12,10 @@ import '../../../core/providers/auth_providers.dart';
 import '../../../core/utils/image_utils.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/platform_image.dart';
-import '../../../core/widgets/full_screen_image_view.dart';
+import '../../../core/widgets/comment_tile.dart';
 import '../../announcements/models/announcement_models.dart';
 import '../../announcements/providers/announcement_providers.dart';
+import '../../notifications/providers/notification_providers.dart';
 import '../../team/models/team_models.dart';
 import '../../team/providers/team_providers.dart';
 import '../../tasks/models/task_models.dart';
@@ -52,7 +52,7 @@ class DashboardScreen extends ConsumerWidget {
                 padding:
                     const EdgeInsets.all(AppConstants.spacingMd),
                 children: [
-                  const Padding(
+                   Padding(
                     padding: EdgeInsets.only(left: 4, bottom: 8),
                     child: Text(
                       'HAFTALIK LİDERLİK TABLOSU',
@@ -67,7 +67,7 @@ class DashboardScreen extends ConsumerWidget {
                   const _LeaderboardCard(),
                   const SizedBox(height: AppConstants.spacingLg),
                   if (!isGuest && appUser != null) ...[
-                    const Padding(
+                     Padding(
                       padding: EdgeInsets.only(left: 4, bottom: 8),
                       child: Text(
                         'GÖREVLERİM',
@@ -82,7 +82,7 @@ class DashboardScreen extends ConsumerWidget {
                     const _MyTasksCard(),
                     const SizedBox(height: AppConstants.spacingLg),
                   ],
-                  const Padding(
+                   Padding(
                     padding: EdgeInsets.only(left: 4, bottom: 8),
                     child: Text(
                       'DUYURULAR & ETKİNLİKLER',
@@ -213,10 +213,10 @@ class _MyTasksCard extends ConsumerWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.task_alt,
+                 Icon(Icons.task_alt,
                     color: AppColors.textSecondary, size: 20),
                 const SizedBox(width: 10),
-                const Expanded(
+                 Expanded(
                   child: Text(
                     'Aktif göreviniz yok. Görevleriniz burada görünecek.',
                     maxLines: 1,
@@ -284,7 +284,7 @@ class _MyTasksCard extends ConsumerWidget {
                                     CrossAxisAlignment.start,
                                 children: [
                                   Text(task.title,
-                                      style: const TextStyle(
+                                      style:  TextStyle(
                                           color: AppColors.textPrimary,
                                           fontSize: 14,
                                           fontWeight: FontWeight.w600)),
@@ -323,7 +323,7 @@ class _MyTasksCard extends ConsumerWidget {
                                       fontWeight: FontWeight.w700)),
                             ),
                             const SizedBox(width: 4),
-                            const Icon(Icons.chevron_right,
+                             Icon(Icons.chevron_right,
                                 size: 16, color: AppColors.border),
                           ],
                         ),
@@ -361,7 +361,7 @@ class _GuestBanner extends StatelessWidget {
                     AppColors.panelBlue.withValues(alpha: 0.4)),
           ),
         ),
-        child: const Row(
+        child:  Row(
           children: [
             Icon(Icons.rocket_launch_outlined,
                 color: AppColors.panelBlue, size: 18),
@@ -402,7 +402,7 @@ class _JoinCtaCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+           Row(
             children: [
               Icon(Icons.emoji_events_outlined,
                   color: AppColors.panelBlue, size: 20),
@@ -415,7 +415,7 @@ class _JoinCtaCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
+           Text(
             'Depo erişimi, görevler, takım çalışması ve daha fazlası için ücretsiz üye olun!',
             style: TextStyle(
                 color: AppColors.textSecondary,
@@ -475,7 +475,7 @@ class _Header extends ConsumerWidget {
                   firstName != null
                       ? 'Merhaba, $firstName'
                       : 'SARGE Panel',
-                  style: const TextStyle(
+                  style:  TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
@@ -484,7 +484,7 @@ class _Header extends ConsumerWidget {
                 const SizedBox(height: 2),
                 Text(
                   formatted,
-                  style: const TextStyle(
+                  style:  TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 12),
                 ),
@@ -497,7 +497,7 @@ class _Header extends ConsumerWidget {
                   ref.read(authStateProvider).value?.uid;
               if (uid != null) context.push('/profile/$uid');
             },
-            child: const Icon(Icons.person_outline,
+            child:  Icon(Icons.person_outline,
                 size: 22, color: AppColors.textSecondary),
           ),
         ],
@@ -520,7 +520,15 @@ class _LeaderboardCardState extends ConsumerState<_LeaderboardCard> {
   Widget build(BuildContext context) {
     final leaderboardAsync = ref.watch(leaderboardProvider);
     final teamsAsync = ref.watch(clubTeamsProvider);
-    final teams = teamsAsync.valueOrNull ?? [];
+    final currentUid = ref.watch(currentAppUserProvider).value?.uid;
+    final allTeams = teamsAsync.valueOrNull ?? [];
+    // Yalnızca kullanıcının üye olduğu gerçek takımlar seçilebilir.
+    final teams = currentUid == null
+        ? const <ClubTeam>[]
+        : allTeams.where((t) => t.memberIds.contains(currentUid)).toList();
+    // İlk takım otomatik seçilir; böylece "Tüm Takımlar" yokken liderlik
+    // tablosu her zaman somut bir takıma göre filtrelenir.
+    final selectedTeamId = _teamId ?? (teams.isNotEmpty ? teams.first.id : null);
 
     return Container(
       decoration: BoxDecoration(
@@ -537,7 +545,7 @@ class _LeaderboardCardState extends ConsumerState<_LeaderboardCard> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Row(
               children: [
-                const Text('Takım',
+                 Text('Takım',
                     style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                 const Spacer(),
                 Container(
@@ -549,18 +557,13 @@ class _LeaderboardCardState extends ConsumerState<_LeaderboardCard> {
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String?>(
-                      value: _teamId,
+                      value: selectedTeamId,
                       isDense: true,
                       dropdownColor: AppColors.surface2,
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
-                      hint: const Text('Tüm Takımlar',
+                      style:  TextStyle(color: AppColors.textPrimary, fontSize: 12),
+                      hint:  Text('Takım Seç',
                           style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                       items: [
-                        const DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text('Tüm Takımlar',
-                              style: TextStyle(fontSize: 12)),
-                        ),
                         ...teams.map((t) => DropdownMenuItem<String?>(
                               value: t.id,
                               child: Text(t.name, style: const TextStyle(fontSize: 12)),
@@ -573,13 +576,13 @@ class _LeaderboardCardState extends ConsumerState<_LeaderboardCard> {
               ],
             ),
           ),
-          const Divider(height: 1, color: AppColors.border),
+           Divider(height: 1, color: AppColors.border),
           leaderboardAsync.when(
             data: (entries) {
               ClubTeam? selectedTeam;
-              if (_teamId != null) {
+              if (selectedTeamId != null) {
                 for (final t in teams) {
-                  if (t.id == _teamId) {
+                  if (t.id == selectedTeamId) {
                     selectedTeam = t;
                     break;
                   }
@@ -587,13 +590,13 @@ class _LeaderboardCardState extends ConsumerState<_LeaderboardCard> {
               }
               final selectedMemberUids =
                   selectedTeam?.memberIds.toSet() ?? <String>{};
-              final filtered = _teamId == null
+              final filtered = selectedTeamId == null
                   ? entries
                   : entries
                       .where((e) => selectedMemberUids.contains(e.uid))
                       .toList();
               if (filtered.isEmpty) {
-                return const Padding(
+                return  Padding(
                   padding: EdgeInsets.all(24),
                   child: Center(
                     child: Text('Henüz puan verisi yok.',
@@ -610,13 +613,16 @@ class _LeaderboardCardState extends ConsumerState<_LeaderboardCard> {
                       children: [
                         _LeaderboardRow(rank: e.key + 1, entry: e.value),
                         if (!isLast)
-                          const Divider(height: 1, color: AppColors.border),
+                           Divider(height: 1, color: AppColors.border),
                       ],
                     );
                   }),
-                  const Divider(height: 1, color: AppColors.border),
+                   Divider(height: 1, color: AppColors.border),
                   InkWell(
-                    onTap: () => context.push('/team'),
+                    // Seçili takımın doğrudan puan tablosu ekranına git.
+                    onTap: () => selectedTeamId != null
+                        ? context.push('/team/$selectedTeamId')
+                        : context.push('/team'),
                     child: const Padding(
                       padding: EdgeInsets.symmetric(vertical: 10),
                       child: Row(
@@ -698,7 +704,7 @@ class _LeaderboardRow extends ConsumerWidget {
                       : null,
               child: entry.photoUrl == null ||
                       entry.photoUrl!.isEmpty
-                  ? const Icon(Icons.person_outline,
+                  ?  Icon(Icons.person_outline,
                       size: 12,
                       color: AppColors.textSecondary)
                   : null,
@@ -707,7 +713,7 @@ class _LeaderboardRow extends ConsumerWidget {
             Expanded(
               child: Text(
                 entry.displayName,
-                style: const TextStyle(
+                style:  TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
@@ -771,7 +777,7 @@ class _AnnouncementCard extends ConsumerWidget {
                   errorBuilder: (_, __, ___) => Container(
                     height: 140,
                     color: AppColors.surface2,
-                    child: const Icon(
+                    child:  Icon(
                         Icons.image_not_supported_outlined,
                         color: AppColors.textSecondary),
                   ),
@@ -787,7 +793,7 @@ class _AnnouncementCard extends ConsumerWidget {
                       Expanded(
                         child: Text(
                           announcement.title,
-                          style: const TextStyle(
+                          style:  TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -825,14 +831,14 @@ class _AnnouncementCard extends ConsumerWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.event_outlined,
+                         Icon(Icons.event_outlined,
                             size: 13,
                             color: AppColors.textSecondary),
                         const SizedBox(width: 4),
                         Text(
                           DateFormat('dd MMM yyyy', 'tr_TR')
                               .format(announcement.eventDate!),
-                          style: const TextStyle(
+                          style:  TextStyle(
                               color: AppColors.textSecondary,
                               fontSize: 12),
                         ),
@@ -842,7 +848,7 @@ class _AnnouncementCard extends ConsumerWidget {
                   const SizedBox(height: 8),
                   Text(
                     announcement.description,
-                    style: const TextStyle(
+                    style:  TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 13,
                         height: 1.4),
@@ -850,13 +856,13 @@ class _AnnouncementCard extends ConsumerWidget {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      const Icon(Icons.person_outline,
+                       Icon(Icons.person_outline,
                           size: 13,
                           color: AppColors.textSecondary),
                       const SizedBox(width: 4),
                       Text(
                         announcement.createdByName,
-                        style: const TextStyle(
+                        style:  TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 12),
                       ),
@@ -1116,7 +1122,7 @@ class _AnnouncementDialogState
             children: [
               TextField(
                 controller: _titleCtrl,
-                style: const TextStyle(
+                style:  TextStyle(
                     color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                     labelText: 'Başlık *',
@@ -1126,7 +1132,7 @@ class _AnnouncementDialogState
               TextField(
                 controller: _descCtrl,
                 maxLines: 4,
-                style: const TextStyle(
+                style:  TextStyle(
                     color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                     labelText: 'Açıklama *',
@@ -1182,7 +1188,7 @@ class _AnnouncementDialogState
                       size: 18,
                       color: AppColors.panelBlue),
                   const SizedBox(width: 8),
-                  const Flexible(
+                   Flexible(
                     child: Text('Herkese bildirim gönder',
                         style: TextStyle(
                             color: AppColors.textPrimary,
@@ -1257,7 +1263,7 @@ class _TargetAudienceSelector extends ConsumerWidget {
           children: [
             const Icon(Icons.public, size: 16, color: AppColors.panelBlue),
             const SizedBox(width: 8),
-            const Text('Hedef Kitle',
+             Text('Hedef Kitle',
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
             const Spacer(),
             Container(
@@ -1272,7 +1278,7 @@ class _TargetAudienceSelector extends ConsumerWidget {
                   value: targetType,
                   isDense: true,
                   dropdownColor: AppColors.surface2,
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                  style:  TextStyle(color: AppColors.textPrimary, fontSize: 13),
                   items: const [
                     DropdownMenuItem(value: 'club', child: Text('Tüm Kulübe')),
                     DropdownMenuItem(value: 'team', child: Text('Belirli Takımlara')),
@@ -1324,7 +1330,7 @@ class _TargetAudienceSelector extends ConsumerWidget {
 
 class _AnnouncementCommentBadge extends ConsumerWidget {
   final String announcementId;
-  const _AnnouncementCommentBadge({super.key, required this.announcementId});
+  const _AnnouncementCommentBadge({required this.announcementId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1432,6 +1438,22 @@ class _AnnouncementDetailSheetState
         'isAdmin': isAdmin,
       });
 
+      // Notify the announcement creator (unless the commenter is the creator).
+      try {
+        final creatorId = widget.announcement.createdBy;
+        if (creatorId.isNotEmpty && creatorId != uid) {
+          await ref.read(notificationServiceProvider).send(
+                recipientId: creatorId,
+                title: 'Duyuruya yorum: ${widget.announcement.title}',
+                body: text.isNotEmpty ? text : 'Duyuruna bir yorum eklendi.',
+                type: 'announcement_comment',
+                relatedId: widget.announcement.id,
+              );
+        }
+      } catch (_) {
+        // Notification is best-effort; don't block the comment.
+      }
+
       _commentCtrl.clear();
       setState(() => _commentImages = []);
     } catch (e) {
@@ -1490,7 +1512,7 @@ class _AnnouncementDetailSheetState
                       Expanded(
                         child: Text(
                           announcement.title,
-                          style: const TextStyle(
+                          style:  TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
@@ -1522,14 +1544,14 @@ class _AnnouncementDetailSheetState
                   // Author + date
                   Row(
                     children: [
-                      const Icon(Icons.person_outline,
+                       Icon(Icons.person_outline,
                           size: 13, color: AppColors.textSecondary),
                       const SizedBox(width: 4),
                       Text(announcement.createdByName,
-                          style: const TextStyle(
+                          style:  TextStyle(
                               color: AppColors.textSecondary, fontSize: 12)),
                       const SizedBox(width: 12),
-                      const Icon(Icons.access_time,
+                       Icon(Icons.access_time,
                           size: 13, color: AppColors.textSecondary),
                       const SizedBox(width: 4),
                       Text(
@@ -1560,7 +1582,7 @@ class _AnnouncementDetailSheetState
                   // Description
                   Text(
                     announcement.description,
-                    style: const TextStyle(
+                    style:  TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 14,
                         height: 1.5),
@@ -1579,15 +1601,15 @@ class _AnnouncementDetailSheetState
                     ),
                   ],
                   const SizedBox(height: 20),
-                  const Divider(color: AppColors.border),
+                   Divider(color: AppColors.border),
                   // Comments header
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                   Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
                     child: Row(
                       children: [
-                        const Text('💬', style: TextStyle(fontSize: 14)),
-                        const SizedBox(width: 6),
-                        const Text(
+                        Text('💬', style: TextStyle(fontSize: 14)),
+                        SizedBox(width: 6),
+                        Text(
                           'Yorumlar',
                           style: TextStyle(
                             color: AppColors.textPrimary,
@@ -1608,7 +1630,7 @@ class _AnnouncementDetailSheetState
             if (widget.canComment)
               Container(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                decoration: const BoxDecoration(
+                decoration:  BoxDecoration(
                   color: AppColors.surface,
                   border: Border(top: BorderSide(color: AppColors.border)),
                 ),
@@ -1672,11 +1694,11 @@ class _AnnouncementDetailSheetState
                         Expanded(
                           child: TextField(
                             controller: _commentCtrl,
-                            style: const TextStyle(
+                            style:  TextStyle(
                                 color: AppColors.textPrimary, fontSize: 14),
                             decoration: InputDecoration(
                               hintText: 'Yorum yaz...',
-                              hintStyle: const TextStyle(
+                              hintStyle:  TextStyle(
                                   color: AppColors.textSecondary, fontSize: 13),
                               filled: true,
                               fillColor: AppColors.surface2,
@@ -1730,7 +1752,7 @@ class _AnnouncementDetailSheetState
 /// Live comments list from the subcollection.
 class _AnnouncementCommentsList extends ConsumerWidget {
   final String announcementId;
-  const _AnnouncementCommentsList({super.key, required this.announcementId});
+  const _AnnouncementCommentsList({required this.announcementId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1753,7 +1775,7 @@ class _AnnouncementCommentsList extends ConsumerWidget {
         }
         final comments = snapshot.data?.docs ?? [];
         if (comments.isEmpty) {
-          return const Padding(
+          return  Padding(
             padding: EdgeInsets.symmetric(vertical: 20),
             child: Center(
               child: Text('Henüz yorum yapılmadı.',
@@ -1764,131 +1786,7 @@ class _AnnouncementCommentsList extends ConsumerWidget {
         }
         return Column(
           children: comments.map((doc) {
-            final data = doc.data();
-            final senderName = data['senderName'] as String? ?? 'Bilinmeyen';
-            final text = data['text'] as String? ?? '';
-            final isAdminComment = data['isAdmin'] as bool? ?? false;
-            final timestamp = data['createdAt'] as Timestamp?;
-            final imageUrls = (data['imageUrls'] as List?)
-                    ?.map((e) => e.toString())
-                    .toList() ??
-                const [];
-            final timeStr = timestamp != null
-                ? '${timestamp.toDate().day}/${timestamp.toDate().month} ${timestamp.toDate().hour}:${timestamp.toDate().minute.toString().padLeft(2, '0')}'
-                : '';
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CircleAvatar(
-                    radius: 14,
-                    backgroundColor: isAdminComment
-                        ? AppColors.sargeGold.withValues(alpha: 0.2)
-                        : AppColors.surface2,
-                    child: Text(
-                      senderName.isNotEmpty ? senderName[0].toUpperCase() : '?',
-                      style: TextStyle(
-                        color: isAdminComment
-                            ? AppColors.sargeGold
-                            : AppColors.textSecondary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              senderName,
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            if (isAdminComment) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 4, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: AppColors.sargeGold.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(3),
-                                ),
-                                child: const Text(
-                                  'Admin',
-                                  style: TextStyle(
-                                    color: AppColors.sargeGold,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ],
-                            const Spacer(),
-                            Text(
-                              timeStr,
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        if (text.isNotEmpty)
-                          Text(
-                            text,
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 13,
-                            ),
-                          ),
-                        if (imageUrls.isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: imageUrls.asMap().entries.map((e) {
-                              return GestureDetector(
-                                onTap: () => showFullScreenImageViewer(
-                                  context,
-                                  urls: imageUrls,
-                                  initialIndex: e.key,
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: CachedNetworkImage(
-                                    imageUrl: e.value,
-                                    width: 80,
-                                    height: 80,
-                                    fit: BoxFit.cover,
-                                    placeholder: (_, __) => Container(
-                                      width: 80,
-                                      height: 80,
-                                      color: AppColors.surface2,
-                                    ),
-                                    errorWidget: (_, __, ___) =>
-                                        const SizedBox.shrink(),
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
+            return CommentTile(data: doc.data());
           }).toList(),
         );
       },

@@ -42,7 +42,7 @@ const _guestAllowedRoutes = {
 };
 
 class AppRouter {
-  static GoRouter build(WidgetRef ref) {
+  static GoRouter build(Ref ref) {
     return GoRouter(
       navigatorKey: _rootNavigatorKey,
       initialLocation: '/splash',
@@ -223,10 +223,19 @@ class AppRouter {
   }
 }
 
+/// Caches the [GoRouter] so it is built exactly once and reused on rebuilds.
+///
+/// Recreating the router (and re-using the same global navigator keys) on every
+/// [SargeDepoApp.build] caused go_router to rebuild its shell navigator with a
+/// duplicate `GlobalObjectKey(navigatorKey.hashCode)`. Caching fixes that.
+final appRouterProvider = Provider<GoRouter>((ref) {
+  return AppRouter.build(ref);
+});
+
 /// Bridges Riverpod's authStateProvider stream to a [Listenable] so
 /// go_router's [refreshListenable] can trigger re-evaluation of [redirect].
 class GoRouterRefreshStream extends ChangeNotifier {
-  GoRouterRefreshStream(WidgetRef ref) {
+  GoRouterRefreshStream(Ref ref) {
     ref.listen(authStateProvider, (previous, next) {
       notifyListeners();
     });

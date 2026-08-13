@@ -36,14 +36,14 @@ class _AboutEditSheetState extends ConsumerState<AboutEditSheet> {
       builder: (context, scrollController) {
         return Column(children: [
           Container(margin: const EdgeInsets.only(top: 12, bottom: 8), width: 36, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
-          const Padding(padding: EdgeInsets.symmetric(horizontal: 20, vertical: 4), child: Row(children: [
+           Padding(padding: EdgeInsets.symmetric(horizontal: 20, vertical: 4), child: Row(children: [
             Icon(Icons.edit_outlined, color: AppColors.primaryGreen, size: 18), SizedBox(width: 8),
             Text('Hakkımızda Sayfasını Düzenle', style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
           ])),
-          const Divider(color: AppColors.border, height: 1),
+           Divider(color: AppColors.border, height: 1),
           Expanded(child: ListView(controller: scrollController, padding: const EdgeInsets.all(AppConstants.spacingMd), children: [
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              const Text('METİN BÖLÜMLERİ', style: TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
+               Text('METİN BÖLÜMLERİ', style: TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
               TextButton.icon(onPressed: () => _showSectionEditor(context, null), icon: const Icon(Icons.add, size: 16), label: const Text('Ekle')),
             ]),
             const SizedBox(height: 8),
@@ -54,7 +54,7 @@ class _AboutEditSheetState extends ConsumerState<AboutEditSheet> {
             ),
             const SizedBox(height: AppConstants.spacingLg),
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              const Text('TAKIM / ONURSAL ÜYELER', style: TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
+               Text('TAKIM / ONURSAL ÜYELER', style: TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
               TextButton.icon(onPressed: () => _showMemberEditor(context, null), icon: const Icon(Icons.add, size: 16), label: const Text('Ekle')),
             ]),
             const SizedBox(height: 8),
@@ -87,8 +87,8 @@ class _SectionRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), decoration: BoxDecoration(color: AppColors.surface2, borderRadius: BorderRadius.circular(8), border: Border.all(color: AppColors.border)),
       child: Row(children: [
-        Expanded(child: Text(section.title, style: const TextStyle(color: AppColors.textPrimary, fontSize: 13))),
-        IconButton(icon: const Icon(Icons.edit_outlined, size: 16, color: AppColors.textSecondary), onPressed: onEdit),
+        Expanded(child: Text(section.title, style:  TextStyle(color: AppColors.textPrimary, fontSize: 13))),
+        IconButton(icon:  Icon(Icons.edit_outlined, size: 16, color: AppColors.textSecondary), onPressed: onEdit),
         IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.error), onPressed: () => ref.read(aboutRepositoryProvider).deleteSection(section.id)),
       ]));
   }
@@ -102,13 +102,13 @@ class _MemberRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), decoration: BoxDecoration(color: AppColors.surface2, borderRadius: BorderRadius.circular(8), border: Border.all(color: AppColors.border)),
       child: Row(children: [
-        CircleAvatar(radius: 16, backgroundColor: AppColors.surface3, backgroundImage: member.photoUrl != null && member.photoUrl!.isNotEmpty ? NetworkImage(member.photoUrl!) : null, child: member.photoUrl == null || member.photoUrl!.isEmpty ? const Icon(Icons.person_outline, size: 14, color: AppColors.textSecondary) : null),
+        CircleAvatar(radius: 16, backgroundColor: AppColors.surface3, backgroundImage: member.photoUrl != null && member.photoUrl!.isNotEmpty ? NetworkImage(member.photoUrl!) : null, child: member.photoUrl == null || member.photoUrl!.isEmpty ?  Icon(Icons.person_outline, size: 14, color: AppColors.textSecondary) : null),
         const SizedBox(width: 10),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(member.name, style: const TextStyle(color: AppColors.textPrimary, fontSize: 13)),
-          Text(member.type == MemberType.honorary ? 'Onursal Üye' : 'Takım Üyesi', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+          Text(member.name, style:  TextStyle(color: AppColors.textPrimary, fontSize: 13)),
+          Text(member.type == MemberType.honorary ? 'Onursal Üye' : 'Takım Üyesi', style:  TextStyle(color: AppColors.textSecondary, fontSize: 11)),
         ])),
-        IconButton(icon: const Icon(Icons.edit_outlined, size: 16, color: AppColors.textSecondary), onPressed: onEdit),
+        IconButton(icon:  Icon(Icons.edit_outlined, size: 16, color: AppColors.textSecondary), onPressed: onEdit),
         IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.error), onPressed: () => ref.read(aboutRepositoryProvider).deleteMember(member.id, photoUrl: member.photoUrl)),
       ]));
   }
@@ -142,9 +142,9 @@ class _SectionEditorDialogState extends ConsumerState<_SectionEditorDialog> {
     return AlertDialog(
       title: Text(widget.existing == null ? 'Yeni Bölüm' : 'Bölümü Düzenle'),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: _titleCtrl, style: const TextStyle(color: AppColors.textPrimary), decoration: const InputDecoration(hintText: 'Başlık (örn: Tarihçemiz)')),
+        TextField(controller: _titleCtrl, style:  TextStyle(color: AppColors.textPrimary), decoration: const InputDecoration(hintText: 'Başlık (örn: Tarihçemiz)')),
         const SizedBox(height: 12),
-        TextField(controller: _contentCtrl, maxLines: 6, style: const TextStyle(color: AppColors.textPrimary), decoration: const InputDecoration(hintText: 'İçerik metni...')),
+        TextField(controller: _contentCtrl, maxLines: 6, style:  TextStyle(color: AppColors.textPrimary), decoration: const InputDecoration(hintText: 'İçerik metni...')),
       ])),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
@@ -205,11 +205,11 @@ class _MemberEditorDialogState extends ConsumerState<_MemberEditorDialog> {
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
         GestureDetector(onTap: _pickImage, child: CircleAvatar(radius: 36, backgroundColor: AppColors.surface2,
           backgroundImage: _pickedImage != null ? (kIsWeb ? (_pickedImage!.bytes != null ? MemoryImage(_pickedImage!.bytes!) : null) : (_pickedImage!.dartFile != null ? FileImage(_pickedImage!.dartFile!) : null)) as ImageProvider? : (widget.existing?.photoUrl != null && widget.existing!.photoUrl!.isNotEmpty ? NetworkImage(widget.existing!.photoUrl!) : null),
-          child: _pickedImage == null && (widget.existing?.photoUrl == null || widget.existing!.photoUrl!.isEmpty) ? const Icon(Icons.add_a_photo_outlined, color: AppColors.textSecondary) : null)),
+          child: _pickedImage == null && (widget.existing?.photoUrl == null || widget.existing!.photoUrl!.isEmpty) ?  Icon(Icons.add_a_photo_outlined, color: AppColors.textSecondary) : null)),
         const SizedBox(height: 14),
-        TextField(controller: _nameCtrl, style: const TextStyle(color: AppColors.textPrimary), decoration: const InputDecoration(hintText: 'Ad Soyad')),
+        TextField(controller: _nameCtrl, style:  TextStyle(color: AppColors.textPrimary), decoration: const InputDecoration(hintText: 'Ad Soyad')),
         const SizedBox(height: 12),
-        TextField(controller: _roleCtrl, style: const TextStyle(color: AppColors.textPrimary), decoration: const InputDecoration(hintText: 'Görev / Rol (örn: Takım Kaptanı)')),
+        TextField(controller: _roleCtrl, style:  TextStyle(color: AppColors.textPrimary), decoration: const InputDecoration(hintText: 'Görev / Rol (örn: Takım Kaptanı)')),
         const SizedBox(height: 12),
         RadioGroup<MemberType>(groupValue: _type, onChanged: (v) => setState(() => _type = v ?? MemberType.team), child: const Row(children: [
           Expanded(child: RadioListTile<MemberType>(dense: true, contentPadding: EdgeInsets.zero, title: Text('Takım Üyesi', style: TextStyle(fontSize: 13)), value: MemberType.team)),

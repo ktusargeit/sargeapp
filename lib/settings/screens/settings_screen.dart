@@ -19,7 +19,7 @@ class SettingsScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(AppConstants.spacingMd),
           children: [
-            const Padding(
+             Padding(
               padding: EdgeInsets.only(bottom: 12),
               child: Text('Ayarlar', style: TextStyle(color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.w700)),
             ),
@@ -82,10 +82,10 @@ class _SettingsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Padding(padding: const EdgeInsets.only(left: 4, bottom: 8), child: Text(title.toUpperCase(), style: const TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1.2))),
+      Padding(padding: const EdgeInsets.only(left: 4, bottom: 8), child: Text(title.toUpperCase(), style:  TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1.2))),
       Container(decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppConstants.radiusMd), border: Border.all(color: AppColors.border)),
         child: Column(children: children.asMap().entries.map((entry) {
-          return Column(children: [entry.value, if (entry.key != children.length - 1) const Divider(height: 1, color: AppColors.border)]);
+          return Column(children: [entry.value, if (entry.key != children.length - 1)  Divider(height: 1, color: AppColors.border)]);
         }).toList())),
     ]);
   }
@@ -106,9 +106,9 @@ class _SettingsTile extends StatelessWidget {
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(title, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w500)),
-        if (subtitle != null && subtitle!.isNotEmpty) ...[const SizedBox(height: 2), Text(subtitle!, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12))],
+        if (subtitle != null && subtitle!.isNotEmpty) ...[const SizedBox(height: 2), Text(subtitle!, style:  TextStyle(color: AppColors.textSecondary, fontSize: 12))],
       ])),
-      if (!isDestructive) const Icon(Icons.chevron_right, size: 18, color: AppColors.border),
+      if (!isDestructive)  Icon(Icons.chevron_right, size: 18, color: AppColors.border),
     ])));
   }
 }

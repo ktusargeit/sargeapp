@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +11,7 @@ import '../../../core/providers/auth_providers.dart';
 import '../../../core/utils/image_utils.dart';
 import '../../../core/widgets/platform_image.dart';
 import '../../../core/widgets/full_screen_image_view.dart';
+import '../../../core/widgets/comment_tile.dart';
 import '../../team/models/team_models.dart';
 import '../../team/providers/team_providers.dart';
 import '../../notifications/providers/notification_providers.dart';
@@ -63,21 +63,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     });
   }
 
-  Query<Map<String, dynamic>> _buildQuery(WidgetRef ref) {
-    final firestore = ref.read(firestoreProvider);
-    final uid = ref.read(authStateProvider).value?.uid;
-    final isAdmin = ref.watch(isAdminProvider);
-
-    Query<Map<String, dynamic>> q = firestore.collection('tasks');
-
-    if (!isAdmin && uid != null) {
-      q = q.where('assignedTo', isEqualTo: uid);
-    }
-
-    q = q.orderBy('createdAt', descending: true);
-    return q;
-  }
-
   List<TaskModel> _applyClientFilters(List<TaskModel> tasks, String? currentUid) {
     if (_filterTeamId != null && _filterTeamId!.isNotEmpty) {
       tasks = tasks.where((t) => t.teamId == _filterTeamId).toList();
@@ -118,9 +103,20 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authUser = ref.watch(authStateProvider).value;
+    final appUserAsync = ref.watch(currentAppUserProvider);
+    final appUser = appUserAsync.value;
     final isAdmin = ref.watch(isAdminProvider);
-    final appUser = ref.watch(currentAppUserProvider).value;
-    final currentUid = appUser?.uid;
+    // Use the auth uid (available as soon as auth resolves) so the task query
+    // starts with the correct uid immediately. Previously `currentUid` came from
+    // the Firestore profile document, which loads after auth, so the provider
+    // briefly built an empty "(null, false)" query and made existing tasks flash
+    // then vanish — most noticeable on normal (non-admin) accounts.
+    final currentUid = authUser?.uid ?? appUser?.uid;
+    // While a signed-in user's profile document is still loading we show a loader
+    // instead of falling back to an empty/wrong list (prevents the admin
+    // "own tasks → all tasks" flash and the member "empty → tasks" flash).
+    final profileStillLoading = authUser != null && appUser == null;
     final teamsAsync = ref.watch(clubTeamsProvider);
     final visibleTeams = teamsAsync.valueOrNull ?? [];
 
@@ -138,11 +134,11 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: TextField(
                   controller: _searchCtrl,
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                  style:  TextStyle(color: AppColors.textPrimary, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'Görev ara...',
-                    hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-                    prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.textSecondary),
+                    hintStyle:  TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                    prefixIcon:  Icon(Icons.search, size: 20, color: AppColors.textSecondary),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear, size: 18),
@@ -260,67 +256,20 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
           ),
         ),
       ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: _buildQuery(ref).snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: AppColors.tasksAccent));
-          }
-          final docs = snapshot.data?.docs ?? [];
-          var tasks = docs.map((d) => TaskModel.fromDoc(d)).toList();
-
-          tasks = _applyClientFilters(tasks, currentUid);
-
-          final filtered = _searchQuery.isEmpty
-              ? tasks
-              : tasks.where((t) {
-                  return t.title.toLowerCase().contains(_searchQuery) ||
-                      t.assignedByName.toLowerCase().contains(_searchQuery) ||
-                      (t.unitName?.toLowerCase().contains(_searchQuery) ?? false) ||
-                      (t.teamName?.toLowerCase().contains(_searchQuery) ?? false);
-                }).toList();
-
-          if (filtered.isEmpty) {
-            return const Center(
-              child: Text('Gösterilecek görev yok.',
-                  style: TextStyle(color: AppColors.textSecondary)),
-            );
-          }
-
-          final taskList = _showHistory
-              ? filtered
-              : filtered
-                  .where((t) =>
-                      t.status == TaskStatus.assigned ||
-                      t.status == TaskStatus.inProgress ||
-                      t.status == TaskStatus.pendingApproval)
-                  .toList();
-
-          if (taskList.isEmpty) {
-            return const Center(
-              child: Text('Gösterilecek görev yok.',
-                  style: TextStyle(color: AppColors.textSecondary)),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(AppConstants.spacingMd),
-            itemCount: taskList.length,
-            itemBuilder: (_, i) {
-              final task = taskList[i];
-              return _TaskCard(
-                key: ValueKey(task.id),
-                task: task,
-                isAdmin: isAdmin,
-                isUnitLead: appUser?.isUnitLead ?? false,
-                currentUid: appUser?.uid,
-                statusColor: _statusColor(task.status),
-                pointsColor: _pointsColor(task.status),
-              );
-            },
-          );
-        },
-      ),
+      body: profileStillLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.tasksAccent))
+          : _TasksBody(
+              viewKey: (uid: currentUid, isAdmin: isAdmin),
+              applyClientFilters: _applyClientFilters,
+              searchQuery: _searchQuery,
+              showHistory: _showHistory,
+              statusColor: _statusColor,
+              pointsColor: _pointsColor,
+              currentUid: currentUid,
+              isAdmin: isAdmin,
+              isUnitLead: appUser?.isUnitLead ?? false,
+            ),
       floatingActionButton: isAdmin
           ? FloatingActionButton.extended(
               onPressed: () => _showAddTaskDialog(context),
@@ -340,6 +289,99 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => const _AddTaskDialog(),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TASKS BODY (stable provider stream + client filters)
+// ═══════════════════════════════════════════════════════════════════════
+
+class _TasksBody extends ConsumerWidget {
+  final TasksViewKey viewKey;
+  final List<TaskModel> Function(List<TaskModel>, String?) applyClientFilters;
+  final String searchQuery;
+  final bool showHistory;
+  final Color Function(TaskStatus) statusColor;
+  final Color Function(TaskStatus) pointsColor;
+  final String? currentUid;
+  final bool isAdmin;
+  final bool isUnitLead;
+
+  const _TasksBody({
+    required this.viewKey,
+    required this.applyClientFilters,
+    required this.searchQuery,
+    required this.showHistory,
+    required this.statusColor,
+    required this.pointsColor,
+    required this.currentUid,
+    required this.isAdmin,
+    required this.isUnitLead,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tasksAsync = ref.watch(tasksScreenProvider(viewKey));
+
+    return tasksAsync.when(
+      loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.tasksAccent)),
+      error: (e, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'Görevler yüklenemedi: $e',
+            style: const TextStyle(color: AppColors.error),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+      data: (allTasks) {
+        var tasks = applyClientFilters(allTasks, currentUid);
+
+        final filtered = searchQuery.isEmpty
+            ? tasks
+            : tasks.where((t) {
+                return t.title.toLowerCase().contains(searchQuery) ||
+                    t.assignedByName.toLowerCase().contains(searchQuery) ||
+                    (t.unitName?.toLowerCase().contains(searchQuery) ?? false) ||
+                    (t.teamName?.toLowerCase().contains(searchQuery) ?? false);
+              }).toList();
+
+        final taskList = showHistory
+            ? filtered
+            : filtered
+                .where((t) =>
+                    t.status == TaskStatus.assigned ||
+                    t.status == TaskStatus.inProgress ||
+                    t.status == TaskStatus.pendingApproval)
+                .toList();
+
+        if (taskList.isEmpty) {
+          return  Center(
+            child: Text('Gösterilecek görev yok.',
+                style: TextStyle(color: AppColors.textSecondary)),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(AppConstants.spacingMd),
+          itemCount: taskList.length,
+          itemBuilder: (_, i) {
+            final task = taskList[i];
+            return _TaskCard(
+              key: ValueKey(task.id),
+              task: task,
+              isAdmin: isAdmin,
+              isUnitLead: isUnitLead,
+              currentUid: currentUid,
+              statusColor: statusColor(task.status),
+              pointsColor: pointsColor(task.status),
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -387,7 +429,7 @@ class _TaskCard extends ConsumerWidget {
       color: AppColors.surface,
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-          side: const BorderSide(color: AppColors.border)),
+          side:  BorderSide(color: AppColors.border)),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppConstants.radiusMd),
         onTap: () => _openDetailSheet(context, ref),
@@ -409,7 +451,7 @@ class _TaskCard extends ConsumerWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(task.title,
-                        style: const TextStyle(
+                        style:  TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 15,
                             fontWeight: FontWeight.w600)),
@@ -446,7 +488,7 @@ class _TaskCard extends ConsumerWidget {
                 Text(task.description,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                    style:  TextStyle(color: AppColors.textSecondary, fontSize: 13)),
               ],
               const SizedBox(height: 8),
               Column(
@@ -585,7 +627,7 @@ class _MetaRow extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style:  TextStyle(
                   color: AppColors.textSecondary, fontSize: 12),
             ),
           ),
@@ -594,7 +636,7 @@ class _MetaRow extends StatelessWidget {
               value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
+              style:  TextStyle(color: AppColors.textPrimary, fontSize: 12),
             ),
           ),
         ],
@@ -606,7 +648,7 @@ class _MetaRow extends StatelessWidget {
 /// Live comment count badge from the comments subcollection.
 class _CommentCountBadge extends ConsumerWidget {
   final String taskId;
-  const _CommentCountBadge({super.key, required this.taskId});
+  const _CommentCountBadge({required this.taskId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -700,9 +742,9 @@ class _FilterDropdown<T> extends StatelessWidget {
           value: value,
           isDense: true,
           dropdownColor: AppColors.surface2,
-          style: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
+          style:  TextStyle(color: AppColors.textPrimary, fontSize: 12),
           hint: Text(hint,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              style:  TextStyle(color: AppColors.textSecondary, fontSize: 12)),
           items: [
             if (value != null)
               DropdownMenuItem<T?>(
@@ -784,8 +826,8 @@ class _PersonFilterDropdown extends ConsumerWidget {
             value: value,
             isDense: true,
             dropdownColor: AppColors.surface2,
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
-            hint: const Text('Kişi',
+            style:  TextStyle(color: AppColors.textPrimary, fontSize: 12),
+            hint:  Text('Kişi',
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
             items: [
               if (value != null)
@@ -879,6 +921,35 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
         'isAdmin': isAdmin,
       });
 
+      // Notify the assignee + creator (unless the commenter is that person)
+      // so a task comment never goes unnoticed.
+      try {
+        final taskSnap = await firestore
+            .collection('tasks')
+            .doc(widget.taskId)
+            .get();
+        final taskData = taskSnap.data() ?? {};
+        final assigneeId = taskData['assignedTo'] as String?;
+        final creatorId = taskData['assignedBy'] as String?;
+        final notifService = ref.read(notificationServiceProvider);
+        final body = text.isNotEmpty ? text : 'Görevine bir yorum eklendi.';
+        final targets = <String>{
+          if (assigneeId != null) assigneeId,
+          if (creatorId != null) creatorId,
+        }..removeWhere((id) => id.isEmpty || id == uid);
+        for (final targetId in targets) {
+          await notifService.send(
+            recipientId: targetId,
+            title: 'Görev yorumu: ${taskData['title'] ?? 'Görev'}',
+            body: body,
+            type: 'task_comment',
+            relatedId: widget.taskId,
+          );
+        }
+      } catch (_) {
+        // Notification is best-effort; a failure here must not block the comment.
+      }
+
       _commentCtrl.clear();
       setState(() => _commentImages = []);
     } catch (e) {
@@ -931,10 +1002,33 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
   Future<void> _submitForApproval() async {
     final firestore = ref.read(firestoreProvider);
     try {
+      final taskDoc = await firestore.collection('tasks').doc(widget.taskId).get();
+      final data = taskDoc.data() ?? {};
+      final creatorId = data['assignedBy'] as String?;
+      final title = data['title'] as String? ?? 'Görev';
+      final assigneeName = data['assignedToName'] as String? ?? 'Kullanıcı';
+
       await firestore.collection('tasks').doc(widget.taskId).update({
         'status': 'pendingApproval',
         'completedAt': FieldValue.serverTimestamp(),
       });
+
+      // Notify the task creator/approver that the assignee submitted for approval.
+      try {
+        final uid = ref.read(authStateProvider).value?.uid;
+        if (creatorId != null && creatorId.isNotEmpty && creatorId != uid) {
+          await ref.read(notificationServiceProvider).send(
+                recipientId: creatorId,
+                title: 'Görev onaya gönderildi: $title',
+                body: '$assigneeName görevi teslim etti, onay bekliyor.',
+                type: 'task_submitted',
+                relatedId: widget.taskId,
+              );
+        }
+      } catch (_) {
+        // Notification is best-effort; never block the submission.
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Görev teslim edildi, onay bekleniyor.'),
@@ -1003,7 +1097,7 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
                     children: [
                       Expanded(
                         child: Text(task.title,
-                            style: const TextStyle(
+                            style:  TextStyle(
                                 color: AppColors.textPrimary,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700)),
@@ -1037,7 +1131,7 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
                     children: [
                       if (task.description.isNotEmpty) ...[
                         Text(task.description,
-                            style: const TextStyle(
+                            style:  TextStyle(
                                 color: AppColors.textSecondary, fontSize: 14)),
                         const SizedBox(height: 10),
                       ],
@@ -1051,7 +1145,7 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
                       if (task.teamName != null) _MetaRow(label: 'Takım', value: task.teamName!),
                       if (task.unitName != null) _MetaRow(label: 'Birim', value: task.unitName!),
                       _MetaRow(label: 'Puan', value: '${task.points}'),
-                      if (task.pointsAwarded) _MetaRow(label: 'Puan Durumu', value: 'Verildi ✓'),
+                      if (task.pointsAwarded) const _MetaRow(label: 'Puan Durumu', value: 'Verildi ✓'),
                       if (task.imageUrl != null && task.imageUrl!.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         GestureDetector(
@@ -1131,14 +1225,14 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
                     ],
                   ),
                 ),
-                const Divider(color: AppColors.border, height: 1),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                 Divider(color: AppColors.border, height: 1),
+                 Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   child: Row(
                     children: [
-                      const Text('💬', style: TextStyle(fontSize: 14)),
-                      const SizedBox(width: 6),
-                      const Text('Yorumlar',
+                      Text('💬', style: TextStyle(fontSize: 14)),
+                      SizedBox(width: 6),
+                      Text('Yorumlar',
                           style: TextStyle(
                               color: AppColors.textPrimary,
                               fontSize: 14,
@@ -1225,7 +1319,7 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
 /// Comments list for a task (subcollection).
 class _TaskCommentsList extends ConsumerWidget {
   final String taskId;
-  const _TaskCommentsList({super.key, required this.taskId});
+  const _TaskCommentsList({required this.taskId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1244,7 +1338,7 @@ class _TaskCommentsList extends ConsumerWidget {
         }
         final comments = snapshot.data?.docs ?? [];
         if (comments.isEmpty) {
-          return const Center(
+          return  Center(
               child: Text('Henüz yorum yapılmadı.',
                   style: TextStyle(color: AppColors.textSecondary, fontSize: 13)));
         }
@@ -1253,127 +1347,10 @@ class _TaskCommentsList extends ConsumerWidget {
           itemCount: comments.length,
           itemBuilder: (_, i) {
             final data = comments[i].data();
-            return _CommentTile(data: data);
+            return CommentTile(data: data);
           },
         );
       },
-    );
-  }
-}
-
-/// Reusable comment tile (shared shape across tasks/announcements).
-class _CommentTile extends StatelessWidget {
-  final Map<String, dynamic> data;
-  const _CommentTile({required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    final senderName = data['senderName'] as String? ?? 'Bilinmeyen';
-    final text = data['text'] as String? ?? '';
-    final isAdminComment = data['isAdmin'] as bool? ?? false;
-    final timestamp = data['createdAt'] as Timestamp?;
-    final imageUrls = (data['imageUrls'] as List?)
-            ?.map((e) => e.toString())
-            .toList() ??
-        const [];
-
-    final timeStr = timestamp != null
-        ? '${timestamp.toDate().day}/${timestamp.toDate().month} ${timestamp.toDate().hour}:${timestamp.toDate().minute.toString().padLeft(2, '0')}'
-        : '';
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 14,
-            backgroundColor: isAdminComment
-                ? AppColors.sargeGold.withValues(alpha: 0.2)
-                : AppColors.surface2,
-            child: Text(
-              senderName.isNotEmpty ? senderName[0].toUpperCase() : '?',
-              style: TextStyle(
-                color: isAdminComment ? AppColors.sargeGold : AppColors.textSecondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(senderName,
-                        style: const TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600)),
-                    if (isAdminComment) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: AppColors.sargeGold.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                        child: const Text('Admin',
-                            style: TextStyle(
-                                color: AppColors.sargeGold,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700)),
-                      ),
-                    ],
-                    const Spacer(),
-                    Text(timeStr,
-                        style: const TextStyle(
-                            color: AppColors.textSecondary, fontSize: 10)),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                if (text.isNotEmpty)
-                  Text(text,
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 13)),
-                if (imageUrls.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: imageUrls.asMap().entries.map((e) {
-                      return GestureDetector(
-                        onTap: () => showFullScreenImageViewer(
-                          context,
-                          urls: imageUrls,
-                          initialIndex: e.key,
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: CachedNetworkImage(
-                            imageUrl: e.value,
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => Container(
-                              width: 80,
-                              height: 80,
-                              color: AppColors.surface2,
-                            ),
-                            errorWidget: (_, __, ___) =>
-                                const SizedBox.shrink(),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -1400,7 +1377,7 @@ class _CommentInputBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      decoration: const BoxDecoration(
+      decoration:  BoxDecoration(
         color: AppColors.surface,
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
@@ -1456,10 +1433,10 @@ class _CommentInputBar extends StatelessWidget {
               Expanded(
                 child: TextField(
                   controller: controller,
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                  style:  TextStyle(color: AppColors.textPrimary, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'Yorum yaz...',
-                    hintStyle: const TextStyle(
+                    hintStyle:  TextStyle(
                         color: AppColors.textSecondary, fontSize: 13),
                     filled: true,
                     fillColor: AppColors.surface2,
@@ -1524,6 +1501,7 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
   String? _selectedName;
   PickedImage? _pickedImage;
   bool _loading = false;
+  bool _assignWholeTeam = false;
 
   @override
   void dispose() {
@@ -1553,10 +1531,10 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
               teamsAsync.when(
                 data: (teams) => DropdownButtonFormField<ClubTeam>(
                   dropdownColor: AppColors.surface2,
-                  style: const TextStyle(color: AppColors.textPrimary),
+                  style:  TextStyle(color: AppColors.textPrimary),
                   decoration: const InputDecoration(
                       labelText: 'Takım *', hintText: 'Takım seçin'),
-                  value: _selectedTeam,
+                  initialValue: _selectedTeam,
                   items: teams
                       .map((t) => DropdownMenuItem(value: t, child: Text(t.name)))
                       .toList(),
@@ -1581,8 +1559,31 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
                     _selectedName = null;
                   }),
                 ),
+              if (_selectedTeam != null) ...[
+                const SizedBox(height: 4),
+                CheckboxListTile(
+                  value: _assignWholeTeam,
+                  contentPadding: EdgeInsets.zero,
+                  title:  Text(
+                    'Takımın tamamına ata',
+                    style: TextStyle(
+                        color: AppColors.textPrimary, fontSize: 14),
+                  ),
+                  subtitle: Text(
+                    'Açıksa "${_selectedTeam!.name}" takımındaki herkese ayrı ayrı görev oluşturulur.',
+                    style:  TextStyle(
+                        color: AppColors.textSecondary, fontSize: 11),
+                  ),
+                  activeColor: AppColors.tasksAccent,
+                  onChanged: (v) => setState(() {
+                    _assignWholeTeam = v ?? false;
+                    _selectedUid = null;
+                    _selectedName = null;
+                  }),
+                ),
+              ],
               const SizedBox(height: 12),
-              if (_selectedTeam != null)
+              if (_selectedTeam != null && !_assignWholeTeam)
                 _TeamMemberSelector(
                   teamId: _selectedTeam!.id,
                   selectedUid: _selectedUid,
@@ -1594,7 +1595,7 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
               const SizedBox(height: 12),
               TextField(
                 controller: _titleCtrl,
-                style: const TextStyle(color: AppColors.textPrimary),
+                style:  TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                     labelText: 'Görev Başlığı *', hintText: 'Örn: Atölye temizliği'),
               ),
@@ -1602,7 +1603,7 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
               TextField(
                 controller: _descCtrl,
                 maxLines: 3,
-                style: const TextStyle(color: AppColors.textPrimary),
+                style:  TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                     labelText: 'Açıklama', hintText: 'Görev detayı (isteğe bağlı)'),
               ),
@@ -1610,7 +1611,7 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
               TextField(
                 controller: _pointsCtrl,
                 keyboardType: TextInputType.number,
-                style: const TextStyle(color: AppColors.textPrimary),
+                style:  TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(labelText: 'Puan', hintText: '10'),
               ),
               const SizedBox(height: 12),
@@ -1656,22 +1657,66 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
   }
 
   Future<void> _submit() async {
-    if (_titleCtrl.text.trim().isEmpty || _selectedUid == null) {
+    final title = _titleCtrl.text.trim();
+    final requiresPerson = !_assignWholeTeam && _selectedUid == null;
+
+    if (title.isEmpty || (_selectedTeam == null) || requiresPerson) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Takım, kişi ve başlık zorunludur'),
+          content: Text('Takım ve başlık zorunludur'),
           backgroundColor: AppColors.error));
       return;
     }
+
     setState(() => _loading = true);
     try {
       final user = ref.read(authStateProvider).value;
+      final firestore = ref.read(firestoreProvider);
+      final notifService = ref.read(notificationServiceProvider);
+      final points = int.tryParse(_pointsCtrl.text.trim()) ?? 10;
 
+      // Resolve the list of (uid, name) recipients.
+      final recipients = <({String uid, String name})>[];
+      if (_assignWholeTeam) {
+        final members = ref.read(teamMembersProvider(_selectedTeam!.id)).valueOrNull;
+        if (members == null || members.isEmpty) {
+          // Fallback to reading the team doc's memberIds directly.
+          final teamDoc =
+              await firestore.collection('teams').doc(_selectedTeam!.id).get();
+          final memberIds = (teamDoc.data()?['memberIds'] as List?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              const [];
+          for (final uid in memberIds) {
+            final doc = await firestore.collection('users').doc(uid).get();
+            recipients.add((
+              uid: uid,
+              name: (doc.data()?['displayName'] as String?) ?? 'Üye',
+            ));
+          }
+        } else {
+          for (final m in members) {
+            recipients.add((uid: m.uid, name: m.displayName));
+          }
+        }
+        if (recipients.isEmpty) {
+          setState(() => _loading = false);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Bu takımda görev atanacak üye yok.'),
+                backgroundColor: AppColors.warning));
+          }
+          return;
+        }
+      } else {
+        recipients.add((uid: _selectedUid!, name: _selectedName ?? 'Üye'));
+      }
+
+      // Upload task image once and reuse for every task.
       String? imageUrl;
       if (_pickedImage != null) {
         final tempId = 'task_${DateTime.now().microsecondsSinceEpoch}';
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('tasks/$tempId.jpg');
+        final storageRef =
+            FirebaseStorage.instance.ref().child('tasks/$tempId.jpg');
         if (kIsWeb && _pickedImage!.bytes != null) {
           await storageRef.putData(_pickedImage!.bytes!);
         } else if (_pickedImage!.dartFile != null) {
@@ -1680,39 +1725,45 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
         imageUrl = await storageRef.getDownloadURL();
       }
 
-      final docRef = await ref.read(firestoreProvider).collection('tasks').add({
-        'title': _titleCtrl.text.trim(),
-        'description': _descCtrl.text.trim(),
-        'assignedTo': _selectedUid!,
-        'assignedToName': _selectedName ?? '',
-        'assignedByName': user?.displayName ?? 'Admin',
-        'assignedBy': user?.uid,
-        'points': int.tryParse(_pointsCtrl.text.trim()) ?? 10,
-        'status': 'assigned',
-        'createdAt': FieldValue.serverTimestamp(),
-        'teamId': _selectedTeam?.id,
-        'teamName': _selectedTeam?.name,
-        'unitId': _selectedUnit?['id'],
-        'unitName': _selectedUnit?['name'],
-        'pointsAwarded': false,
-        'imageUrl': imageUrl,
-      });
-      final notifService = ref.read(notificationServiceProvider);
-      await notifService.send(
-        recipientId: _selectedUid!,
-        title: 'Yeni görev atandı',
-        body: 'Sana "${_titleCtrl.text.trim()}" görevi atandı. +${int.tryParse(_pointsCtrl.text.trim()) ?? 10} puan',
-        type: 'task_assigned',
-        relatedId: docRef.id,
-      );
+      // Create a task for each recipient.
+      for (final recipient in recipients) {
+        final docRef = await firestore.collection('tasks').add({
+          'title': title,
+          'description': _descCtrl.text.trim(),
+          'assignedTo': recipient.uid,
+          'assignedToName': recipient.name,
+          'assignedByName': user?.displayName ?? 'Admin',
+          'assignedBy': user?.uid,
+          'points': points,
+          'status': 'assigned',
+          'createdAt': FieldValue.serverTimestamp(),
+          'teamId': _selectedTeam?.id,
+          'teamName': _selectedTeam?.name,
+          'unitId': _selectedUnit?['id'],
+          'unitName': _selectedUnit?['name'],
+          'pointsAwarded': false,
+          'imageUrl': imageUrl,
+        });
+        await notifService.send(
+          recipientId: recipient.uid,
+          title: 'Yeni görev atandı',
+          body: 'Sana "$title" görevi atandı. +$points puan',
+          type: 'task_assigned',
+          relatedId: docRef.id,
+        );
+      }
+
       if (mounted) Navigator.pop(context);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Görev atandı.'), backgroundColor: AppColors.success));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(_assignWholeTeam
+                ? '${recipients.length} kişiye görev atandı.'
+                : 'Görev atandı.'),
+            backgroundColor: AppColors.success));
       }
     } catch (e) {
       setState(() => _loading = false);
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('Hata: $e'), backgroundColor: AppColors.error));
       }
@@ -1734,12 +1785,12 @@ class _TeamUnitSelector extends ConsumerWidget {
     return unitsAsync.when(
       data: (units) => DropdownButtonFormField<Map<String, dynamic>>(
         dropdownColor: AppColors.surface2,
-        style: const TextStyle(color: AppColors.textPrimary),
+        style:  TextStyle(color: AppColors.textPrimary),
         decoration: const InputDecoration(
             labelText: 'Birim', hintText: 'Birim seçin (isteğe bağlı)'),
-        value: value,
+        initialValue: value,
         items: [
-          const DropdownMenuItem<Map<String, dynamic>>(
+           DropdownMenuItem<Map<String, dynamic>>(
             value: null,
             child: Text('Birim seçilmedi',
                 style: TextStyle(color: AppColors.textSecondary)),
@@ -1773,10 +1824,10 @@ class _TeamMemberSelector extends ConsumerWidget {
     return membersAsync.when(
       data: (members) => DropdownButtonFormField<String>(
         dropdownColor: AppColors.surface2,
-        style: const TextStyle(color: AppColors.textPrimary),
+        style:  TextStyle(color: AppColors.textPrimary),
         decoration: const InputDecoration(
             labelText: 'Kişi *', hintText: 'Görev atanacak kişi'),
-        value: selectedUid,
+        initialValue: selectedUid,
         items: members
             .map((u) => DropdownMenuItem(value: u.uid, child: Text(u.displayName)))
             .toList(),

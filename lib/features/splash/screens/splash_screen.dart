@@ -46,7 +46,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Container(
-        decoration: const BoxDecoration(
+        decoration:  BoxDecoration(
           gradient: RadialGradient(
             center: Alignment.center,
             radius: 0.8,
@@ -75,7 +75,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                           child: const Icon(Icons.hexagon_outlined, size: 60, color: AppColors.sargeGold),
                         )),
                 const SizedBox(height: 24),
-                const Text('SARGE',
+                 Text('SARGE',
                     style: TextStyle(color: AppColors.textPrimary, fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: 6)),
                 const SizedBox(height: 8),
                 Text('KULÜP YÖNETİM SİSTEMİ',

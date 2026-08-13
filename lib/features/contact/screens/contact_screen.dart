@@ -45,10 +45,10 @@ class ContactScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.contact_mail_outlined,
+                     Icon(Icons.contact_mail_outlined,
                         size: 48, color: AppColors.textSecondary),
                     const SizedBox(height: 12),
-                    const Text('Henüz iletişim bilgileri eklenmemiş.',
+                     Text('Henüz iletişim bilgileri eklenmemiş.',
                         style: TextStyle(
                             color: AppColors.textSecondary, fontSize: 14)),
                     const SizedBox(height: 16),
@@ -67,7 +67,7 @@ class ContactScreen extends ConsumerWidget {
                 ),
               );
             }
-            return const Center(
+            return  Center(
               child: Text('Henüz iletişim bilgisi eklenmemiş.',
                   style:
                       TextStyle(color: AppColors.textSecondary)),
@@ -79,14 +79,14 @@ class ContactScreen extends ConsumerWidget {
             children: [
               if (data['title'] != null)
                 Text(data['title'] as String,
-                    style: const TextStyle(
+                    style:  TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 22,
                         fontWeight: FontWeight.w700)),
               if (data['description'] != null) ...[
                 const SizedBox(height: 12),
                 Text(data['description'] as String,
-                    style: const TextStyle(
+                    style:  TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 14,
                         height: 1.5)),
@@ -95,7 +95,7 @@ class ContactScreen extends ConsumerWidget {
               if (data['email'] != null ||
                   data['phone'] != null ||
                   data['address'] != null) ...[
-                const Text('İLETİŞİM BİLGİLERİ',
+                 Text('İLETİŞİM BİLGİLERİ',
                     style: TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 11,
@@ -137,7 +137,7 @@ class ContactScreen extends ConsumerWidget {
                   data['website'] != null ||
                   data['socialLinks'] != null) ...[
                 const SizedBox(height: 28),
-                const Text('SOSYAL MEDYA',
+                 Text('SOSYAL MEDYA',
                     style: TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 11,
@@ -293,7 +293,7 @@ Widget _buildField(TextEditingController ctrl, String label, String hint,
   return TextField(
     controller: ctrl,
     maxLines: maxLines,
-    style: const TextStyle(color: AppColors.textPrimary),
+    style:  TextStyle(color: AppColors.textPrimary),
     decoration: InputDecoration(
       labelText: label,
       hintText: hint,
@@ -323,12 +323,12 @@ class _ContactRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label,
-                    style: const TextStyle(
+                    style:  TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 11)),
                 const SizedBox(height: 2),
                 Text(value,
-                    style: const TextStyle(
+                    style:  TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 14)),
               ],

@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 
 import 'core/providers/theme_provider.dart';
 import 'core/routing/app_router.dart';
+import 'core/services/fcm_service.dart';
 import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
 
@@ -61,6 +62,13 @@ void main() async {
     debugPrint('Notification init failed (non-fatal): $e\n$st');
   }
 
+  // --- FCM token lifecycle (non-fatal) ---
+  try {
+    FcmService(FirebaseMessaging.instance, FirebaseFirestore.instance).init();
+  } catch (e, st) {
+    debugPrint('FCM init failed (non-fatal): $e\n$st');
+  }
+
   // --- Launch App ---
   runApp(const ProviderScope(child: SargeDepoApp()));
 }
@@ -102,21 +110,47 @@ class _ErrorApp extends StatelessWidget {
   }
 }
 
+/// Android 13+ (API 33) runtime notification permission is requested here;
+/// `POST_NOTIFICATIONS` is also declared in the manifest.
 Future<void> _initNotifications() async {
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
   const initSettings = InitializationSettings(android: androidInit);
   await localNotifications.initialize(initSettings);
 
   final messaging = FirebaseMessaging.instance;
-  await messaging.requestPermission(alert: true, badge: true, sound: true);
+
+  final permission = await messaging.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+    provisional: true,
+  );
+  debugPrint('FCM permission: ${permission.authorizationStatus}');
+
+  // Android 13+ requires an explicit POST_NOTIFICATIONS runtime permission.
+  await localNotifications
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.requestNotificationsPermission();
 
   FirebaseMessaging.onMessage.listen((message) {
     _showLocalNotification(message);
   });
 
-  FirebaseMessaging.onMessageOpenedApp.listen((message) {
-    _showLocalNotification(message);
-  });
+  FirebaseMessaging.onMessageOpenedApp.listen(_handleTappedNotification);
+}
+
+/// Same as [FirebaseMessaging.onMessageOpenedApp] but also handles the case
+/// where the app was launched from a terminated state via a notification tap.
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  // No UI action is taken in background; the OS already shows the notification.
+}
+
+void _handleTappedNotification(RemoteMessage message) {
+  // Routing is intentionally simple: tapping a notification opens the app.
+  debugPrint('Notification tapped: ${message.messageId}');
 }
 
 void _showLocalNotification(RemoteMessage message) {
@@ -141,13 +175,18 @@ class SargeDepoApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final router = AppRouter.build(ref);
+    final router = ref.watch(appRouterProvider);
+    final themeMode = ref.watch(themeModeProvider);
+    // Keyed on the theme mode so that a theme toggle rebuilds the entire
+    // widget tree. Screens read theme-aware `AppColors` tokens, which would
+    // otherwise stay stale until an unrelated rebuild.
     return MaterialApp.router(
+      key: ValueKey('sarge_${themeMode.name}'),
       title: 'SARGE',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ref.watch(themeModeProvider),
+      themeMode: themeMode,
       routerConfig: router,
     );
   }

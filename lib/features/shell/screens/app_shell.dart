@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/auth_providers.dart';
+import '../../../core/permissions/permission_system.dart';
 import '../../notifications/providers/notification_providers.dart';
 
 class AppShell extends ConsumerWidget {
@@ -36,7 +37,7 @@ class AppShell extends ConsumerWidget {
         elevation: 0,
         leading: Builder(
           builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: AppColors.textPrimary),
+            icon:  Icon(Icons.menu, color: AppColors.textPrimary),
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
@@ -86,7 +87,7 @@ class AppDrawer extends ConsumerWidget {
                           ? NetworkImage(appUser.photoUrl!)
                           : null,
                       child: appUser == null || appUser.photoUrl == null || appUser.photoUrl!.isEmpty
-                          ? const Icon(Icons.person_outline, size: 18, color: AppColors.textSecondary)
+                          ?  Icon(Icons.person_outline, size: 18, color: AppColors.textSecondary)
                           : null,
                     ),
                   ),
@@ -94,7 +95,7 @@ class AppDrawer extends ConsumerWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('SARGE',
+                       Text('SARGE',
                           style: TextStyle(
                               color: AppColors.textPrimary,
                               fontSize: 16,
@@ -103,13 +104,13 @@ class AppDrawer extends ConsumerWidget {
                       if (appUser != null)
                         Text(appUser.displayName,
                             style:
-                                const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                                 TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                     ],
                   ),
                 ],
               ),
             ),
-            const Divider(color: AppColors.border, height: 1),
+             Divider(color: AppColors.border, height: 1),
             const SizedBox(height: 8),
             if (isLoggedIn)
               _DrawerItem(
@@ -156,7 +157,7 @@ class AppDrawer extends ConsumerWidget {
                 context.push('/contact');
               },
             ),
-            const Divider(color: AppColors.border, height: 1),
+             Divider(color: AppColors.border, height: 1),
             if (isLoggedIn)
               _DrawerItem(
                 icon: Icons.logout,
@@ -196,7 +197,7 @@ class _NotificationBell extends ConsumerWidget {
       icon: Stack(
         clipBehavior: Clip.none,
         children: [
-          const Icon(Icons.notifications_outlined, color: AppColors.textPrimary),
+           Icon(Icons.notifications_outlined, color: AppColors.textPrimary),
           if (unread > 0)
             Positioned(
               right: -6,
@@ -256,6 +257,9 @@ class _SidebarNav extends ConsumerWidget {
     final authState = ref.watch(authStateProvider);
     final isLoggedIn = authState.value != null;
     final isAdmin = ref.watch(isAdminProvider);
+    // "Yönetim" paneli: yalnızca `viewAdminPanel` yetkisine sahip roller görsün.
+    final canViewAdmin =
+        ref.watch(currentUserCanProvider(Permissions.viewAdminPanel));
     final appUser = ref.watch(currentAppUserProvider).value;
 
     return Container(
@@ -285,7 +289,7 @@ class _SidebarNav extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Text(
+                   Text(
                     'SARGE',
                     style: TextStyle(
                       color: AppColors.textPrimary,
@@ -328,7 +332,7 @@ class _SidebarNav extends ConsumerWidget {
             accentColor: AppColors.tasksGreen,
           ),
           const SizedBox(height: 8),
-          if (isAdmin)
+          if (canViewAdmin)
             _NavItem(
               icon: Icons.admin_panel_settings_outlined,
               label: 'Yönetim',
@@ -463,7 +467,7 @@ class _BottomNav extends ConsumerWidget {
     final location = GoRouterState.of(context).matchedLocation;
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration:  BoxDecoration(
         color: AppColors.surface,
         border: Border(top: BorderSide(color: AppColors.border)),
       ),

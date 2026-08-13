@@ -82,7 +82,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     children: [
                       const _Logo(),
                       const SizedBox(height: AppConstants.spacingXl),
-                      const Text(
+                       Text(
                         'Giriş Yap',
                         textAlign: TextAlign.center,
                         style: TextStyle(
@@ -92,7 +92,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      const Text(
+                       Text(
                         'SARGE Kulüp Yönetim Sistemine hoş geldiniz',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
@@ -105,7 +105,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
                         enabled: true,
-                        style: const TextStyle(color: AppColors.textPrimary),
+                        style:  TextStyle(color: AppColors.textPrimary),
                         decoration: const InputDecoration(
                           hintText: 'ornek@sarge.org',
                           prefixIcon: Icon(Icons.mail_outline, size: 18),
@@ -126,7 +126,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         textInputAction: TextInputAction.done,
                         enabled: true,
                         onFieldSubmitted: (_) => _submit(),
-                        style: const TextStyle(color: AppColors.textPrimary),
+                        style:  TextStyle(color: AppColors.textPrimary),
                         decoration: InputDecoration(
                           hintText: '••••••••',
                           prefixIcon: const Icon(Icons.lock_outline, size: 18),
@@ -156,7 +156,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         style:
                             ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
                         child: _loading
-                            ? const SizedBox(
+                            ?  SizedBox(
                                 width: 18,
                                 height: 18,
                                 child:
@@ -168,7 +168,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text('Hesabın yok mu?',
+                           Text('Hesabın yok mu?',
                               style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                           TextButton(
                             onPressed: () => context.push('/register'),
@@ -186,7 +186,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ref.read(guestSessionProvider.notifier).state = true;
                           if (mounted) context.go('/dashboard');
                         },
-                        child: const Text('Misafir olarak devam et',
+                        child:  Text('Misafir olarak devam et',
                             style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                       ),
                     ],
@@ -216,7 +216,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 TextField(
                   controller: ctrl,
                   keyboardType: TextInputType.emailAddress,
-                  style: const TextStyle(color: AppColors.textPrimary),
+                  style:  TextStyle(color: AppColors.textPrimary),
                   decoration: const InputDecoration(hintText: 'E-posta adresiniz'),
                 ),
                 const SizedBox(height: 16),
@@ -229,7 +229,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     border: Border.all(
                         color: AppColors.warning.withValues(alpha: 0.3)),
                   ),
-                  child: const Row(
+                  child:  Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('⚠️', style: TextStyle(fontSize: 18)),
@@ -293,7 +293,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       try {
                         await ref.read(authControllerProvider).sendPasswordReset(ctrl.text.trim());
                         if (ctx.mounted) Navigator.pop(ctx);
-                        if (mounted) {
+                        if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                                 content: Text('Şifre sıfırlama e-postası gönderildi. Lütfen gelen kutunuzu kontrol edin.'),
@@ -302,7 +302,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         }
                       } on FirebaseAuthException catch (e) {
                         if (ctx.mounted) Navigator.pop(ctx);
-                        if (mounted) {
+                        if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                                 content: Text(_mapResetPasswordError(e)),
@@ -311,7 +311,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         }
                       } catch (e) {
                         if (ctx.mounted) Navigator.pop(ctx);
-                        if (mounted) {
+                        if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                                 content: Text('Hata: $e'),
@@ -390,7 +390,7 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
+      style:  TextStyle(
         color: AppColors.textSecondary,
         fontSize: 12,
         fontWeight: FontWeight.w500,

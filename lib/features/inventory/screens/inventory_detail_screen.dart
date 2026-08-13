@@ -18,16 +18,14 @@ class InventoryDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
-  bool _deleting = false;
-
   Future<void> _deleteItem() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Ürünü Sil',
+        title:  Text('Ürünü Sil',
             style: TextStyle(color: AppColors.textPrimary)),
-        content: const Text(
+        content:  Text(
             'Bu ürünü silmek istediğinize emin misiniz? Bu işlem geri alınamaz.',
             style: TextStyle(color: AppColors.textSecondary)),
         actions: [
@@ -43,7 +41,6 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
       ),
     );
     if (confirmed != true) return;
-    setState(() => _deleting = true);
     try {
       await ref.read(depoRepositoryProvider).deleteItem(widget.itemId);
       if (mounted) {
@@ -62,8 +59,6 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
               backgroundColor: AppColors.error),
         );
       }
-    } finally {
-      if (mounted) setState(() => _deleting = false);
     }
   }
 
@@ -80,7 +75,7 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
         actions: [
           if (currentUser != null && (currentUser.isAdmin || currentUser.isUnitLead))
             PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert, color: AppColors.textPrimary),
+              icon:  Icon(Icons.more_vert, color: AppColors.textPrimary),
               color: AppColors.surface2,
               onSelected: (value) {
                 if (value == 'edit') {
@@ -94,7 +89,7 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
                   _deleteItem();
                 }
               },
-              itemBuilder: (_) => const [
+              itemBuilder: (_) =>  [
                 PopupMenuItem(
                     value: 'edit',
                     child: Row(children: [
@@ -121,7 +116,7 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
         data: (items) {
           final item = items.where((i) => i.id == widget.itemId).firstOrNull;
           if (item == null) {
-            return const Center(
+            return  Center(
                 child: Text('Ürün bulunamadı.',
                     style: TextStyle(color: AppColors.textSecondary)));
           }
@@ -187,7 +182,7 @@ class _ItemDetailView extends StatelessWidget {
                         BorderRadius.circular(AppConstants.radiusMd),
                     border: Border.all(color: AppColors.border),
                   ),
-                  child: const Center(
+                  child:  Center(
                     child: Icon(Icons.inventory_2_outlined,
                         size: 48, color: AppColors.textSecondary),
                   ),
@@ -203,7 +198,7 @@ class _ItemDetailView extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppConstants.radiusMd),
               border: Border.all(color: AppColors.border),
             ),
-            child: const Center(
+            child:  Center(
               child: Icon(Icons.inventory_2_outlined,
                   size: 48, color: AppColors.textSecondary),
             ),
@@ -214,7 +209,7 @@ class _ItemDetailView extends StatelessWidget {
           children: [
             Expanded(
               child: Text(item.name,
-                  style: const TextStyle(
+                  style:  TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 20,
                       fontWeight: FontWeight.w700)),
@@ -240,7 +235,7 @@ class _ItemDetailView extends StatelessWidget {
         if (item.description != null && item.description!.isNotEmpty) ...[
           const SizedBox(height: 12),
           Text(item.description!,
-              style: const TextStyle(
+              style:  TextStyle(
                   color: AppColors.textSecondary, fontSize: 14, height: 1.5)),
         ],
         const SizedBox(height: 20),
@@ -279,10 +274,12 @@ class _ItemDetailView extends StatelessWidget {
           Center(
             child: Text(
               'Eklenme: ${_formatDate(item.createdAt!)}',
-              style: const TextStyle(
+              style:  TextStyle(
                   color: AppColors.textSecondary, fontSize: 11),
             ),
           ),
+        const SizedBox(height: 8),
+        _CreatorLabel(createdBy: item.createdBy),
         const SizedBox(height: 40),
       ],
     );
@@ -290,6 +287,28 @@ class _ItemDetailView extends StatelessWidget {
 
   String _formatDate(DateTime dt) {
     return '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+/// Resolves and renders the "Ekleyen: [isim]" line for an inventory item.
+class _CreatorLabel extends ConsumerWidget {
+  final String? createdBy;
+  const _CreatorLabel({required this.createdBy});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (createdBy == null || createdBy!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final creatorAsync = ref.watch(userProfileProvider(createdBy!));
+    final name = creatorAsync.valueOrNull?.displayName;
+    return Center(
+      child: Text(
+        'Ekleyen: ${name ?? 'Bilinmiyor'}',
+        style:  TextStyle(
+            color: AppColors.textSecondary, fontSize: 11),
+      ),
+    );
   }
 }
 
@@ -304,7 +323,7 @@ class _SectionCard extends StatelessWidget {
       Padding(
         padding: const EdgeInsets.only(left: 4, bottom: 8),
         child: Text(title,
-            style: const TextStyle(
+            style:  TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
@@ -320,7 +339,7 @@ class _SectionCard extends StatelessWidget {
             return Column(children: [
               entry.value,
               if (entry.key != children.length - 1)
-                const Divider(height: 1, color: AppColors.border)
+                 Divider(height: 1, color: AppColors.border)
             ]);
           }).toList(),
         ),
@@ -341,13 +360,13 @@ class _InfoRow extends StatelessWidget {
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Expanded(
             child: Text(label,
-                style: const TextStyle(
+                style:  TextStyle(
                     color: AppColors.textSecondary, fontSize: 13))),
         const SizedBox(width: 12),
         Flexible(
             child: Text(value,
                 textAlign: TextAlign.right,
-                style: const TextStyle(
+                style:  TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 13,
                     fontWeight: FontWeight.w500))),

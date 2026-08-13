@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/widgets/full_screen_image_view.dart';
 import '../../team/models/team_models.dart';
 import '../../team/providers/team_providers.dart';
 import '../models/depo_models.dart';
@@ -48,11 +49,11 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 child: TextField(
                   controller: _searchCtrl,
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                  style:  TextStyle(color: AppColors.textPrimary, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'Ürün ara...',
-                    hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-                    prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.textSecondary),
+                    hintStyle:  TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                    prefixIcon:  Icon(Icons.search, size: 20, color: AppColors.textSecondary),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear, size: 18),
@@ -152,7 +153,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           }
 
           if (filtered.isEmpty) {
-            return const Center(
+            return  Center(
                 child: Text('Henüz ürün yok.',
                     style: TextStyle(color: AppColors.textSecondary)));
           }
@@ -241,9 +242,9 @@ class _FilterChipGroup extends StatelessWidget {
           value: selected,
           isDense: true,
           dropdownColor: AppColors.surface2,
-          style: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
+          style:  TextStyle(color: AppColors.textPrimary, fontSize: 12),
           hint: Text(label,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              style:  TextStyle(color: AppColors.textSecondary, fontSize: 12)),
           items: [
             DropdownMenuItem<String?>(
               value: null,
@@ -264,51 +265,107 @@ class _FilterChipGroup extends StatelessWidget {
   }
 }
 
+/// Product image with tap-to-zoom. Supports a single image or a gallery of
+/// images (comma-separated or a `List`), with a proper placeholder on error.
+class _ProductImage extends StatelessWidget {
+  final DepoItem item;
+  const _ProductImage({required this.item});
+
+  List<String> _imageUrls() {
+    final raw = item.imageUrl;
+    if (raw == null || raw.isEmpty) return const [];
+    // Support both a single URL and multiple URLs separated by a delimiter
+    // (comma) or stored as a Firestore list.
+    final parts = raw
+        .split(RegExp(r',\s*|\n'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    return parts;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final urls = _imageUrls();
+
+    if (urls.isEmpty) {
+      return Container(
+        color: AppColors.surface2,
+        child:  Center(
+          child: Icon(Icons.inventory_2_outlined,
+              size: 28, color: AppColors.textSecondary),
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => showFullScreenImageViewer(
+        context,
+        urls: urls,
+        initialIndex: 0,
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.network(
+            urls.first,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            errorBuilder: (_, __, ___) => Container(
+              color: AppColors.surface2,
+              child:  Center(
+                child: Icon(Icons.image_not_supported_outlined,
+                    size: 28, color: AppColors.textSecondary),
+              ),
+            ),
+          ),
+          // Visual hint that this area opens the full-screen zoom viewer.
+          Positioned(
+            right: 4,
+            bottom: 4,
+            child: IgnorePointer(
+              child: Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Icon(Icons.zoom_in,
+                    size: 14, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ItemCard extends StatelessWidget {
-  final dynamic item;
+  final DepoItem item;
   const _ItemCard({required this.item});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.push('/inventory/detail/${item.id}'),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Image fills most of the card – naturally square via aspect ratio.
-            Expanded(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(AppConstants.radiusMd - 1)),
-                child: item.imageUrl != null && item.imageUrl!.isNotEmpty
-                    ? Image.network(
-                        item.imageUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: AppColors.surface2,
-                          child: const Center(
-                            child: Icon(Icons.inventory_2_outlined,
-                                size: 28, color: AppColors.textSecondary),
-                          ),
-                        ),
-                      )
-                    : Container(
-                        color: AppColors.surface2,
-                        child: const Center(
-                          child: Icon(Icons.inventory_2_outlined,
-                              size: 28, color: AppColors.textSecondary),
-                        ),
-                      ),
-              ),
-            ),
-            // Minimal text footer – no wasted vertical space.
-            Padding(
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+        border: Border.all(color: AppColors.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Image fills most of the card. Tapping it opens the full-screen
+          // zoomable viewer; it is intentionally NOT the detail route.
+          Expanded(
+            child: _ProductImage(item: item),
+          ),
+          // Minimal text footer. Tapping it opens the detail screen.
+          InkWell(
+            onTap: () => context.push('/inventory/detail/${item.id}'),
+            child: Padding(
               padding: const EdgeInsets.fromLTRB(6, 4, 6, 4),
               child: Row(
                 children: [
@@ -316,7 +373,7 @@ class _ItemCard extends StatelessWidget {
                     child: Text(item.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style:  TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 11,
                             fontWeight: FontWeight.w600)),
@@ -337,8 +394,8 @@ class _ItemCard extends StatelessWidget {
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

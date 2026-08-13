@@ -80,7 +80,7 @@ class TeamRepository {
     return ref.getDownloadURL();
   }
 
-  Future<void> submitReport({
+  Future<String> submitReport({
     required String title,
     required String message,
     required String submittedBy,
@@ -88,7 +88,7 @@ class TeamRepository {
     String? imageUrl,
     String type = 'bug',
   }) async {
-    await _firestore.collection('reports').add({
+    final docRef = await _firestore.collection('reports').add({
       'title': title.trim(),
       'message': message.trim(),
       'submittedBy': submittedBy,
@@ -98,6 +98,7 @@ class TeamRepository {
       'type': type,
       'imageUrl': imageUrl,
     });
+    return docRef.id;
   }
 
   Future<void> resolveReport(String id, bool resolved) async {

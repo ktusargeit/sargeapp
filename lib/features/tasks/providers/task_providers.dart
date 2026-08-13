@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../models/task_models.dart';
@@ -71,4 +72,45 @@ final completedTaskCountProvider =
       .where('status', isEqualTo: 'completed')
       .snapshots()
       .map((snap) => snap.docs.length);
+});
+
+/// View context for the Tasks screen: who is viewing and whether they are admin.
+typedef TasksViewKey = ({String? uid, bool isAdmin});
+
+/// Tasks visible in the Tasks screen.
+///
+/// Keyed by (uid, isAdmin) so the underlying Firestore query stream is stable
+/// across widget rebuilds. This prevents the "tasks flash then vanish" bug
+/// where a brand-new query (with a momentarily-null uid) got built on every
+/// setState/rebuild and briefly returned the wrong result set.
+final tasksScreenProvider =
+    StreamProvider.family<List<TaskModel>, TasksViewKey>((ref, key) {
+  final firestore = ref.watch(firestoreProvider);
+
+  Query<Map<String, dynamic>> q;
+  if (key.isAdmin) {
+    // Admins see every task, newest first. Single-field orderBy → no index.
+    q = firestore.collection('tasks').orderBy('createdAt', descending: true);
+  } else if (key.uid != null) {
+    // Regular users only see tasks assigned to them. No server-side orderBy is
+    // applied here, so this query does NOT require a composite index (avoids
+    // the "The query requires an index" / failed-precondition error for
+    // members). Sorting happens client-side below.
+    q = firestore
+        .collection('tasks')
+        .where('assignedTo', isEqualTo: key.uid);
+  } else {
+    // Auth still loading — caller shows a loader instead.
+    return Stream.value(const <TaskModel>[]);
+  }
+
+  return q.snapshots().map((snap) {
+    final tasks = snap.docs.map((d) => TaskModel.fromDoc(d)).toList();
+    tasks.sort((a, b) {
+      final at = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bt = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bt.compareTo(at); // newest first
+    });
+    return tasks;
+  });
 });

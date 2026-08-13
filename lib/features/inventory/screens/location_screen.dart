@@ -10,7 +10,7 @@ class LocationScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Lokasyonlar'), backgroundColor: AppColors.surface),
-      body: const Center(
+      body:  Center(
         child: Text('Lokasyon yönetimi', style: TextStyle(color: AppColors.textSecondary)),
       ),
     );

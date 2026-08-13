@@ -35,14 +35,16 @@ class Announcement {
   int get commentCount => comments.length;
 
   /// Returns a human-readable event status label based on [eventDate].
+  ///
+  /// Any future event is treated as upcoming; the label no longer disappears
+  /// for dates further than 7 days out. Past events are marked "Geçti".
   String get eventStatus {
     if (eventDate == null) return '';
     final now = DateTime.now();
     final diff = eventDate!.difference(now);
     if (diff.isNegative) return 'Geçti';
     if (diff.inDays <= 1) return 'Çok Yakında';
-    if (diff.inDays <= 7) return 'Yakında';
-    return '';
+    return 'Yakında';
   }
 
   factory Announcement.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {

@@ -26,7 +26,6 @@ class TeamDetailScreen extends ConsumerStatefulWidget {
 class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  bool _uploadingPhoto = false;
 
   @override
   void initState() {
@@ -55,7 +54,7 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
         actions: [
           if (isAdmin)
             PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert,
+              icon:  Icon(Icons.more_vert,
                   color: AppColors.textSecondary),
               onSelected: (action) {
                 final teams =
@@ -92,11 +91,12 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
             team = teams
                 .firstWhere((t) => t.id == widget.teamId);
           } catch (_) {}
-          if (team == null)
-            return const Center(
+          if (team == null) {
+            return  Center(
                 child: Text('Takım bulunamadı.',
                     style: TextStyle(
                         color: AppColors.textSecondary)));
+          }
 
           // Determine captain status
           final isCaptain =
@@ -134,7 +134,7 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
                         Expanded(
                           child: Text(
                             team.name,
-                            style: const TextStyle(
+                            style:  TextStyle(
                                 color: AppColors.textPrimary,
                                 fontSize: 20,
                                 fontWeight: FontWeight.w700),
@@ -183,7 +183,7 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
                       const SizedBox(height: 6),
                       Text(
                         team.description,
-                        style: const TextStyle(
+                        style:  TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 14,
                             height: 1.5),
@@ -192,7 +192,7 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
                   ],
                 ),
               ),
-              const Divider(
+               Divider(
                   height: 1, color: AppColors.border),
               Container(
                 color: AppColors.surface,
@@ -208,7 +208,7 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
                   ],
                 ),
               ),
-              const Divider(
+               Divider(
                   height: 1, color: AppColors.border),
               Expanded(
                 child: TabBarView(
@@ -263,7 +263,6 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
       ),
     );
     if (picked == null || !mounted) return;
-    setState(() => _uploadingPhoto = true);
     try {
       final image = await PickedImage.pick(picked);
       if (image == null) return;
@@ -281,19 +280,19 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
           .collection('teams')
           .doc(team.id)
           .update({'photoUrl': url});
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
                 content: Text(
                     'Takım fotoğrafı güncellendi.'),
                 backgroundColor: AppColors.success));
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('Fotoğraf yüklenemedi: $e'),
             backgroundColor: AppColors.error));
-    } finally {
-      if (mounted) setState(() => _uploadingPhoto = false);
+      }
     }
   }
 
@@ -314,7 +313,7 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
             children: [
               TextField(
                 controller: nameCtrl,
-                style: const TextStyle(
+                style:  TextStyle(
                     color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                     labelText: 'Takım Adı *'),
@@ -323,7 +322,7 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
               TextField(
                 controller: descCtrl,
                 maxLines: 3,
-                style: const TextStyle(
+                style:  TextStyle(
                     color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                     labelText: 'Açıklama'),
@@ -338,8 +337,9 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
               onPressed: saving
                   ? null
                   : () async {
-                      if (nameCtrl.text.trim().isEmpty)
+                      if (nameCtrl.text.trim().isEmpty) {
                         return;
+                      }
                       setDialogState(() => saving = true);
                       try {
                         await ref
@@ -351,23 +351,26 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
                           'description':
                               descCtrl.text.trim(),
                         });
-                        if (ctx.mounted)
+                        if (ctx.mounted) {
                           Navigator.pop(ctx);
-                        if (mounted)
+                        }
+                        if (mounted) {
                           ScaffoldMessenger.of(context)
                               .showSnackBar(const SnackBar(
                                   content: Text(
                                       'Takım güncellendi.'),
                                   backgroundColor:
                                       AppColors.success));
+                        }
                       } catch (e) {
-                        if (mounted)
+                        if (mounted) {
                           ScaffoldMessenger.of(context)
                               .showSnackBar(SnackBar(
                                   content: Text(
                                       'Güncellenemedi: $e'),
                                   backgroundColor:
                                       AppColors.error));
+                        }
                       }
                     },
               child: const Text('Kaydet'),
@@ -410,13 +413,14 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
                   context.pop();
                 }
               } catch (e) {
-                if (mounted)
+                if (mounted) {
                   ScaffoldMessenger.of(context)
                       .showSnackBar(SnackBar(
                           content:
                               Text('Silinemedi: $e'),
                           backgroundColor:
                               AppColors.error));
+                }
               }
             },
             child: const Text('Sil'),
@@ -444,7 +448,7 @@ class _CaptainRow extends ConsumerWidget {
           const SizedBox(width: 4),
           Text(
             captain?.displayName ?? 'Bilinmiyor',
-            style: const TextStyle(
+            style:  TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 13,
                 fontWeight: FontWeight.w500),
@@ -494,11 +498,12 @@ class _ScoreboardTab extends ConsumerWidget {
         final members = users
             .where((u) => team.memberIds.contains(u.uid))
             .toList();
-        if (members.isEmpty)
-          return const Center(
+        if (members.isEmpty) {
+          return  Center(
               child: Text('Bu takımda henüz üye yok.',
                   style: TextStyle(
                       color: AppColors.textSecondary)));
+        }
         members.sort(
             (a, b) => b.weeklyPoints.compareTo(a.weeklyPoints));
         return ListView.separated(
@@ -555,7 +560,7 @@ class _ScoreboardTab extends ConsumerWidget {
                             Flexible(
                               child: Text(
                                   user.displayName,
-                                  style: const TextStyle(
+                                  style:  TextStyle(
                                       color: AppColors
                                           .textPrimary,
                                       fontSize: 14,
@@ -599,7 +604,7 @@ class _ScoreboardTab extends ConsumerWidget {
                           ],
                         ),
                         Text(user.roleLabel,
-                            style: const TextStyle(
+                            style:  TextStyle(
                                 color: AppColors
                                     .textSecondary,
                                 fontSize: 11)),
@@ -669,7 +674,7 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
         content: SizedBox(
           width: double.maxFinite,
           child: availableUsers.isEmpty
-              ? const Text('Eklenebilecek uygun kullanıcı yok.',
+              ?  Text('Eklenebilecek uygun kullanıcı yok.',
                   style: TextStyle(color: AppColors.textSecondary))
               : ListView.builder(
                   shrinkWrap: true,
@@ -730,10 +735,10 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
               margin: const EdgeInsets.fromLTRB(
                   16, 8, 16, 4),
               child: DropdownButtonFormField<String?>(
-                value: _filterUnitId,
+                initialValue: _filterUnitId,
                 isDense: true,
                 dropdownColor: AppColors.surface2,
-                style: const TextStyle(
+                style:  TextStyle(
                     color: AppColors.textPrimary, fontSize: 13),
                 decoration: InputDecoration(
                   contentPadding: const EdgeInsets.symmetric(
@@ -742,7 +747,7 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
                   border: OutlineInputBorder(
                     borderRadius:
                         BorderRadius.circular(8),
-                    borderSide: BorderSide(
+                    borderSide:  BorderSide(
                         color: AppColors.border),
                   ),
                 ),
@@ -793,13 +798,14 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
                   .where((u) =>
                       widget.team.memberIds.contains(u.uid))
                   .toList();
-              if (members.isEmpty)
-                return const Center(
+              if (members.isEmpty) {
+                return  Center(
                     child: Text(
                         'Bu takımda henüz üye yok.',
                         style: TextStyle(
                             color:
                                 AppColors.textSecondary)));
+              }
               if (members.length <= 1) {
                 // Nothing to manage
               }
@@ -903,7 +909,7 @@ class _MemberRow extends ConsumerWidget {
                         children: [
                           Flexible(
                             child: Text(user.displayName,
-                                style: const TextStyle(
+                                style:  TextStyle(
                                     color: AppColors
                                         .textPrimary,
                                     fontSize: 14,
@@ -941,14 +947,14 @@ class _MemberRow extends ConsumerWidget {
                       if (user.unitResponsibilities.isNotEmpty)
                         Text(
                           user.unitResponsibilities.join(', '),
-                          style: const TextStyle(
+                          style:  TextStyle(
                               color:
                                   AppColors.textSecondary,
                               fontSize: 11),
                         ),
                       if (user.roleLabel.isNotEmpty)
                         Text(user.roleLabel,
-                            style: const TextStyle(
+                            style:  TextStyle(
                                 color: AppColors
                                     .textSecondary,
                                 fontSize: 11)),
@@ -957,7 +963,7 @@ class _MemberRow extends ConsumerWidget {
                 ),
                 if (canManage && user.uid != team.leadUid)
                   PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert,
+                    icon:  Icon(Icons.more_vert,
                         size: 18,
                         color: AppColors.textSecondary),
                     onSelected: (action) =>
@@ -988,14 +994,14 @@ class _MemberRow extends ConsumerWidget {
                     ],
                   )
                 else
-                  const Icon(Icons.chevron_right,
+                   Icon(Icons.chevron_right,
                       size: 18, color: AppColors.border),
               ],
             ),
           ),
         ),
         if (!isLast)
-          const Divider(height: 1, color: AppColors.border),
+           Divider(height: 1, color: AppColors.border),
       ],
     );
   }
@@ -1009,11 +1015,12 @@ class _MemberRow extends ConsumerWidget {
             .collection('teams')
             .doc(team.id)
             .update({'leadUid': user.uid});
-        if (context.mounted)
+        if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content: Text(
                   '${user.displayName} takım kaptanı yapıldı.'),
               backgroundColor: AppColors.success));
+        }
         break;
       case 'make_unit_lead':
         _showUnitPicker(context, ref);
@@ -1028,11 +1035,12 @@ class _MemberRow extends ConsumerWidget {
             .update({
           'memberIds': FieldValue.arrayRemove([user.uid]),
         });
-        if (context.mounted)
+        if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content: Text(
                   '${user.displayName} takımdan çıkarıldı.'),
               backgroundColor: AppColors.success));
+        }
         break;
     }
   }
@@ -1043,9 +1051,13 @@ class _MemberRow extends ConsumerWidget {
         ref.read(teamUnitsProvider(team.id)).valueOrNull ?? [];
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: AppColors.surface,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => SafeArea(
+      builder: (ctx) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.7,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1054,7 +1066,7 @@ class _MemberRow extends ConsumerWidget {
                     16, 12, 8, 0),
                 child: Row(
                   children: [
-                    const Text('Birim Sorumlusu Ata',
+                     Text('Birim Sorumlusu Ata',
                         style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -1079,7 +1091,7 @@ class _MemberRow extends ConsumerWidget {
                 ),
               ),
               if (units.isEmpty)
-                const Padding(
+                 Padding(
                   padding: EdgeInsets.all(16),
                   child: Text('Henüz birim eklenmemiş.',
                       style: TextStyle(
@@ -1087,87 +1099,95 @@ class _MemberRow extends ConsumerWidget {
                               AppColors.textSecondary)),
                 )
               else
-                ...units.map((u) {
-                  final name =
-                      u['name'] as String? ?? '';
-                  return ListTile(
-                    leading: const Icon(
-                        Icons.folder_outlined,
-                        color: AppColors.teamOrange,
-                        size: 18),
-                    title: Text(name,
-                        style: const TextStyle(
-                            color:
-                                AppColors.textPrimary)),
-                    trailing: isAdmin
-                        ? PopupMenuButton<String>(
-                            icon: const Icon(
-                                Icons.more_vert,
-                                size: 16,
-                                color: AppColors
-                                    .textSecondary),
-                            onSelected: (action) {
-                              Navigator.pop(ctx);
-                              if (action == 'edit') {
-                                _editUnitDialog(
-                                    context,
-                                    ref,
-                                    u['id'] as String,
-                                    name);
-                              } else if (action ==
-                                  'delete') {
-                                _deleteUnit(
-                                    context,
-                                    ref,
-                                    u['id'] as String,
-                                    name);
-                              }
-                            },
-                            itemBuilder: (_) => const [
-                              PopupMenuItem(
-                                  value: 'edit',
-                                  child: Text(
-                                      'Düzenle')),
-                              PopupMenuItem(
-                                  value: 'delete',
-                                  child: Text('Sil',
-                                      style: TextStyle(
-                                          color: AppColors
-                                              .error))),
-                            ],
-                          )
-                        : null,
-                    onTap: () async {
-                      Navigator.pop(ctx);
-                      final userRef = ref
-                          .read(firestoreProvider)
-                          .collection('users')
-                          .doc(user.uid);
-                      final userDoc =
-                          await userRef.get();
-                      final current =
-                          (userDoc.data()?[
-                                  'unitResponsibilities']
-                              as List?) ??
-                              <String>[];
-                      final updated = <String>{
-                        ...current
-                            .map((e) => e.toString()),
-                        name
-                      }.toList();
-                      await userRef.update({
-                        'unitResponsibilities': updated
-                      });
-                      if (context.mounted)
-                        ScaffoldMessenger.of(context)
-                            .showSnackBar(SnackBar(
-                                content: Text(
-                                    '${user.displayName} → $name sorumlusu'),
-                                backgroundColor:
-                                    AppColors.success));
-                    },
-                  );
-                }),
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: units.map((u) {
+                      final name =
+                          u['name'] as String? ?? '';
+                      return ListTile(
+                        leading: const Icon(
+                            Icons.folder_outlined,
+                            color: AppColors.teamOrange,
+                            size: 18),
+                        title: Text(name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style:  TextStyle(
+                                color:
+                                    AppColors.textPrimary)),
+                        trailing: isAdmin
+                            ? PopupMenuButton<String>(
+                                icon:  Icon(
+                                    Icons.more_vert,
+                                    size: 16,
+                                    color: AppColors
+                                        .textSecondary),
+                                onSelected: (action) {
+                                  Navigator.pop(ctx);
+                                  if (action == 'edit') {
+                                    _editUnitDialog(
+                                        context,
+                                        ref,
+                                        u['id'] as String,
+                                        name);
+                                  } else if (action ==
+                                      'delete') {
+                                    _deleteUnit(
+                                        context,
+                                        ref,
+                                        u['id'] as String,
+                                        name);
+                                  }
+                                },
+                                itemBuilder: (_) => const [
+                                  PopupMenuItem(
+                                      value: 'edit',
+                                      child: Text(
+                                          'Düzenle')),
+                                  PopupMenuItem(
+                                      value: 'delete',
+                                      child: Text('Sil',
+                                          style: TextStyle(
+                                              color: AppColors
+                                                  .error))),
+                                ],
+                              )
+                            : null,
+                        onTap: () async {
+                          Navigator.pop(ctx);
+                          final userRef = ref
+                              .read(firestoreProvider)
+                              .collection('users')
+                              .doc(user.uid);
+                          final userDoc =
+                              await userRef.get();
+                          final current =
+                              (userDoc.data()?[
+                                      'unitResponsibilities']
+                                  as List?) ??
+                                  <String>[];
+                          final updated = <String>{
+                            ...current
+                                .map((e) => e.toString()),
+                            name
+                          }.toList();
+                          await userRef.update({
+                            'unitResponsibilities': updated
+                          });
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context)
+                                .showSnackBar(SnackBar(
+                                    content: Text(
+                                        '${user.displayName} → $name sorumlusu'),
+                                    backgroundColor:
+                                        AppColors.success));
+                          }
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
             ],
           ),
         ),
@@ -1178,7 +1198,7 @@ class _MemberRow extends ConsumerWidget {
   Future<void> _addUnitDialog(
       BuildContext context, WidgetRef ref) async {
     final ctrl = TextEditingController();
-    final result = await showDialog<bool>(
+    await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Yeni Birim'),

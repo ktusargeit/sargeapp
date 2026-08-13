@@ -13,7 +13,14 @@ service firebase.storage {
         firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Users can upload their own profile photos. Readable by anyone (including guests).
+    // Helper: admin or unit lead (team lead).
+    function isAdminOrYetkili() {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['admin', 'unit_lead'];
+    }
+
+    // Users can upload their own profile photos. Readable by anyone.
     // Upload path is always profile_photos/{uid}.jpg — match exactly.
     match /profile_photos/{photoFile} {
       allow read: if true;
@@ -21,7 +28,6 @@ service firebase.storage {
     }
 
     // Users can upload their own cover photos. Readable by anyone.
-    // Upload path is always cover_photos/{uid}.jpg — match exactly.
     match /cover_photos/{photoFile} {
       allow read: if true;
       allow write: if isSignedIn() && photoFile == request.auth.uid + '.jpg';
@@ -39,17 +45,17 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
-    // Helper: is the signed-in user an admin or yetkili (team lead)?
-    function isAdminOrYetkili() {
-      return isSignedIn() &&
-        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
-        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['admin', 'unit_lead'];
-    }
-
     // Announcements - public read, admin/yetkili write.
     match /announcements/{allPaths=**} {
       allow read: if true;
       allow write: if isAdminOrYetkili();
+    }
+
+    // Images attached to comments on announcements.
+    // Any signed-in user can comment, so any signed-in user can upload here.
+    match /announcement_comments/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn();
     }
 
     // About section member photos - public read, admin write.
@@ -64,16 +70,46 @@ service firebase.storage {
       allow write: if isSignedIn();
     }
 
-    // Reports (bug reports) — signed-in users can upload their own report images.
+    // Reports (bug reports / suggestions) — signed-in users can upload their own
+    // report images. Reading must also be allowed for any signed-in user so that
+    // a non-admin member can view the photo they attached to their own
+    // report/suggestion (previously read was admin-only, which surfaced as
+    // `firebase_storage/unauthorized` for normal users).
     match /reports/{allPaths=**} {
-      allow read: if isAdmin();
+      allow read: if isSignedIn();
       allow write: if isSignedIn();
     }
 
-    // Default: read for everyone, write for admin.
-    match /{allPaths=**} {
+    // Images attached to replies/messages inside a report thread.
+    // Signed-in users can reply to their own reports and admins reply to anyone.
+    match /report_messages/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    // Task header images - created by admin when assigning a task.
+    match /tasks/{allPaths=**} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    // Images attached to task comments. Any signed-in user can comment on a task.
+    match /task_comments/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // Default: read for everyone. Write is intentionally left un-granted here.
+    //
+    // Cloud Storage rules use AND semantics across overlapping `match` blocks,
+    // so a catch-all `allow write: if isAdmin()` would ALSO apply to the more
+    // specific signed-in-only write rules above (task_comments, report_messages,
+    // announcement_comments, depo_urunler, reports, team_photos, ...) and block
+    // non-admin members with `firebase_storage/unauthorized`. Removing the
+    // catch-all write means unmatched paths simply default to "deny" (secure),
+    // while every actual upload path above keeps its own explicit write rule.
+    match /{allPaths=**} {
+      allow read: if true;
     }
   }
 }

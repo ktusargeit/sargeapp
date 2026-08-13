@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/auth_providers.dart';
 
@@ -53,22 +54,56 @@ class NotificationService {
   NotificationService(this._firestore);
 
   /// Send a notification to a specific user.
+  ///
+  /// [senderUid] defaults to the currently signed-in user. This value is
+  /// required by the Firestore security rules (`senderUid == request.auth.uid`)
+  /// so that any signed-in user can create a notification about their own
+  /// activity (comments, task submissions, reports, etc.).
   Future<void> send({
     required String recipientId,
     required String title,
     required String body,
     String? type,
     String? relatedId,
+    String? senderUid,
   }) async {
+    final uid = senderUid ?? FirebaseAuth.instance.currentUser?.uid;
     await _firestore.collection('notifications').add({
       'recipientId': recipientId,
       'title': title,
       'body': body,
       'type': type,
       'relatedId': relatedId,
+      'senderUid': uid,
       'isRead': false,
       'createdAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  /// Notify admins and unit leads (used after a user submits a report,
+  /// suggestion, or team application).
+  Future<void> notifyAdmins({
+    required String title,
+    required String body,
+    String? type,
+    String? relatedId,
+    String? senderUid,
+  }) async {
+    final uid = senderUid ?? FirebaseAuth.instance.currentUser?.uid;
+    final snap = await _firestore
+        .collection('users')
+        .where('role', whereIn: ['admin', 'unit_lead'])
+        .get();
+    for (final doc in snap.docs) {
+      await send(
+        recipientId: doc.id,
+        title: title,
+        body: body,
+        type: type,
+        relatedId: relatedId,
+        senderUid: uid,
+      );
+    }
   }
 }
 

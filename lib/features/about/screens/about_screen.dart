@@ -41,10 +41,10 @@ class AboutScreen extends ConsumerWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const SizedBox(height: 40),
-                        const Icon(Icons.edit_note,
+                         Icon(Icons.edit_note,
                             size: 48, color: AppColors.textSecondary),
                         const SizedBox(height: 12),
-                        const Text(
+                         Text(
                             'Henüz hakkımızda içeriği eklenmemiş.',
                             style: TextStyle(
                                 color: AppColors.textSecondary,
@@ -67,7 +67,7 @@ class AboutScreen extends ConsumerWidget {
                     ),
                   );
                 }
-                return const Center(
+                return  Center(
                   child: Text('Henüz içerik eklenmemiş.',
                       style: TextStyle(
                           color: AppColors.textSecondary)),
@@ -83,7 +83,7 @@ class AboutScreen extends ConsumerWidget {
                                   CrossAxisAlignment.start,
                               children: [
                                 Text(s.title,
-                                    style: const TextStyle(
+                                    style:  TextStyle(
                                         color:
                                             AppColors.textPrimary,
                                         fontSize: 18,
@@ -91,7 +91,7 @@ class AboutScreen extends ConsumerWidget {
                                             FontWeight.w700)),
                                 const SizedBox(height: 8),
                                 Text(s.content,
-                                    style: const TextStyle(
+                                    style:  TextStyle(
                                         color: AppColors
                                             .textSecondary,
                                         fontSize: 14,
@@ -107,7 +107,7 @@ class AboutScreen extends ConsumerWidget {
                 Center(child: Text('Hata: $e')),
           ),
           const SizedBox(height: 20),
-          const Text('ONURSAL ÜYELERİMİZ',
+           Text('ONURSAL ÜYELERİMİZ',
               style: TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 11,
@@ -119,7 +119,7 @@ class AboutScreen extends ConsumerWidget {
               final honorary =
                   members.where((m) => m.type == MemberType.honorary).toList();
               if (honorary.isEmpty) {
-                return const Padding(
+                return  Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
                   child: Text('Henüz onursal üye eklenmemiş.',
                       style: TextStyle(
@@ -144,17 +144,17 @@ class AboutScreen extends ConsumerWidget {
                                     : null,
                                 child: m.photoUrl == null ||
                                         m.photoUrl!.isEmpty
-                                    ? const Icon(Icons.person,
+                                    ?  Icon(Icons.person,
                                         color: AppColors.textSecondary)
                                     : null),
                             const SizedBox(height: 4),
                             Text(m.name,
-                                style: const TextStyle(
+                                style:  TextStyle(
                                     color: AppColors.textPrimary,
                                     fontSize: 12)),
                             if (m.role != null)
                               Text(m.role!,
-                                  style: const TextStyle(
+                                  style:  TextStyle(
                                       color: AppColors.textSecondary,
                                       fontSize: 10)),
                           ]),
@@ -178,7 +178,7 @@ void _showHonoraryDetail(BuildContext context, AboutMember m) {
     context: context,
     builder: (ctx) => AlertDialog(
       title: Text(m.name,
-          style: const TextStyle(
+          style:  TextStyle(
               color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
       content: SingleChildScrollView(
         child: Column(
@@ -194,7 +194,7 @@ void _showHonoraryDetail(BuildContext context, AboutMember m) {
               ),
             if (m.role != null) ...[
               const SizedBox(height: 12),
-              const Text('Görevi / Ünvanı',
+               Text('Görevi / Ünvanı',
                   style: TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 11,
@@ -203,7 +203,7 @@ void _showHonoraryDetail(BuildContext context, AboutMember m) {
               const SizedBox(height: 4),
               Text(m.role!,
                   style:
-                      const TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+                       TextStyle(color: AppColors.textPrimary, fontSize: 14)),
             ],
           ],
         ),
@@ -217,92 +217,3 @@ void _showHonoraryDetail(BuildContext context, AboutMember m) {
   );
 }
 
-/// Default content shown when Firestore has no about sections yet.
-class _DefaultAboutContent extends StatelessWidget {
-  const _DefaultAboutContent();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('SARGE Kulübü',
-            style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w700)),
-        const SizedBox(height: 8),
-        const Text(
-          'SARGE, Savunma ve ArGe Teknolojileri Kulübü olarak '
-          'öğrencilerin savunma sanayii, mühendislik ve teknoloji alanlarında '
-          'kendilerini geliştirmelerini amaçlayan bir üniversite kulübüdür.',
-          style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 14,
-              height: 1.5),
-        ),
-        const SizedBox(height: 24),
-        const Text('Amacımız',
-            style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w700)),
-        const SizedBox(height: 8),
-        const Text(
-          '• Öğrencileri savunma sanayii ve ArGe konularında bilinçlendirmek\n'
-          '• Takım çalışması ve proje yönetimi becerilerini geliştirmek\n'
-          '• Üniversite-sanayi iş birliğini güçlendirmek\n'
-          '• Öğrencilerin teknik ve sosyal gelişimine katkıda bulunmak',
-          style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 14,
-              height: 1.6),
-        ),
-        const SizedBox(height: 24),
-        const Text('Vizyonumuz',
-            style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w700)),
-        const SizedBox(height: 8),
-        const Text(
-          'Türkiye\'nin savunma sanayii alanında yetişmiş insan gücüne '
-          'katkı sağlayan, yenilikçi ve öncü bir öğrenci topluluğu olmak.',
-          style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 14,
-              height: 1.5),
-        ),
-        const SizedBox(height: 24),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('İletişim',
-                  style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600)),
-              SizedBox(height: 8),
-              Text(
-                'E-posta: sarge@edu.tr\n'
-                'Adres: Üniversite Kampüsü, Mühendislik Fakültesi\n'
-                'Sosyal Medya: @sargekulubu',
-                style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
-                    height: 1.5),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}

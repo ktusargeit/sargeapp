@@ -72,7 +72,7 @@ class SafeNetworkImage extends StatelessWidget {
       width: size ?? width,
       height: size ?? height,
       color: AppColors.surface2,
-      child: const Center(
+      child:  Center(
         child: Icon(Icons.broken_image_outlined,
             size: 24, color: AppColors.textSecondary),
       ),
