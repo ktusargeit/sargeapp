@@ -125,7 +125,7 @@ class _AdminMemberDetailScreenState
         const SizedBox(height: 20),
 
         // ── Rol ─────────────────────────────────────────────────────────────
-        _SectionTitle(icon: Icons.badge_outlined, title: 'Rol'),
+        const _SectionTitle(icon: Icons.badge_outlined, title: 'Rol'),
         const SizedBox(height: 8),
         if (caps.canChangeRoles)
           _RoleEditor(
@@ -138,13 +138,13 @@ class _AdminMemberDetailScreenState
         const SizedBox(height: 20),
 
         // ── Puan ────────────────────────────────────────────────────────────
-        _SectionTitle(icon: Icons.stars_outlined, title: 'Puan'),
+        const _SectionTitle(icon: Icons.stars_outlined, title: 'Puan'),
         const SizedBox(height: 8),
         _PointsEditor(user: user, canEdit: caps.canEditPoints),
         const SizedBox(height: 20),
 
         // ── Hesap (tehlike bölgesi) ─────────────────────────────────────────
-        _SectionTitle(
+        const _SectionTitle(
           icon: Icons.shield_outlined,
           title: 'Hesap Yönetimi',
           color: AppColors.error,
@@ -161,7 +161,7 @@ class _AdminMemberDetailScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Tehlike bölgesi',
                   style: TextStyle(
                     color: AppColors.error,
@@ -442,11 +442,11 @@ class _HeaderCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(Icons.stars, size: 16, color: AppColors.sargeGold),
+                    const Icon(Icons.stars, size: 16, color: AppColors.sargeGold),
                     const SizedBox(width: 4),
                     Text(
                       '${user.points} puan',
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: AppColors.sargeGold,
                         fontSize: 14,
                         fontWeight: FontWeight.w700,

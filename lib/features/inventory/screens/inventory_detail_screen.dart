@@ -93,13 +93,13 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
                 PopupMenuItem(
                     value: 'edit',
                     child: Row(children: [
-                      Icon(Icons.edit_outlined,
+                      const Icon(Icons.edit_outlined,
                           size: 18, color: AppColors.primaryGreen),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text('Düzenle',
                           style: TextStyle(color: AppColors.textPrimary)),
                     ])),
-                PopupMenuItem(
+                const PopupMenuItem(
                     value: 'delete',
                     child: Row(children: [
                       Icon(Icons.delete_outline,
@@ -259,13 +259,17 @@ class _ItemDetailView extends StatelessWidget {
         if (item.locationImageUrl != null &&
             item.locationImageUrl!.isNotEmpty) ...[
           const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-            child: Image.network(
-              item.locationImageUrl!,
-              width: double.infinity,
-              height: 200,
-              fit: BoxFit.cover,
+          // Location photo – tap to view full screen
+          GestureDetector(
+            onTap: () => _showFullScreenImage(context, item.locationImageUrl!),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+              child: Image.network(
+                item.locationImageUrl!,
+                width: double.infinity,
+                height: 200,
+                fit: BoxFit.cover,
+              ),
             ),
           ),
         ],

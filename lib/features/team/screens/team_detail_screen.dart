@@ -816,7 +816,7 @@ class _UnitCard extends ConsumerWidget {
                               color: AppColors.textSecondary, fontSize: 12),
                         ),
                         const SizedBox(width: 10),
-                        Icon(Icons.star,
+                        const Icon(Icons.star,
                             size: 13, color: AppColors.warning),
                         const SizedBox(width: 3),
                         Expanded(
@@ -871,7 +871,7 @@ class _UnitCardLeadName extends ConsumerWidget {
         user?.displayName ?? 'Bilinmiyor',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(
+        style: const TextStyle(
           color: AppColors.warning,
           fontSize: 12,
           fontWeight: FontWeight.w600,
@@ -1335,7 +1335,7 @@ class _MemberRow extends ConsumerWidget {
               ),
               if (units.isEmpty)
                  Padding(
-                  padding: EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
                   child: Text('Henüz birim eklenmemiş.',
                       style: TextStyle(
                           color:

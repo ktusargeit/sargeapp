@@ -118,7 +118,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
                Padding(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Text('Lokasyon Seç',
                     style: TextStyle(
                         fontSize: 16,
@@ -700,7 +700,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                                 size: 28,
                                                 color: AppColors
                                                     .textSecondary),
-                                            SizedBox(height: 4),
+                                            const SizedBox(height: 4),
                                             Text('Kamera',
                                                 style: TextStyle(
                                                     fontSize: 10,
@@ -734,7 +734,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                           size: 28,
                                           color: AppColors
                                               .textSecondary),
-                                      SizedBox(height: 4),
+                                      const SizedBox(height: 4),
                                       Text('Galeri',
                                           style: TextStyle(
                                               fontSize: 10,

@@ -242,7 +242,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 text: 'ÖNEMLİ: ',
                                 style: TextStyle(
                                   color: AppColors.warning,
-                                  fontSize: 12,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
@@ -253,7 +253,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     'Reset your password for ',
                                 style: TextStyle(
                                   color: AppColors.textSecondary,
-                                  fontSize: 11,
+                                  fontSize: 14,
                                   height: 1.5,
                                 ),
                               ),
@@ -261,7 +261,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 text: 'SargeApp',
                                 style: TextStyle(
                                   color: AppColors.error,
-                                  fontSize: 12,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
@@ -269,7 +269,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 text: '"',
                                 style: TextStyle(
                                   color: AppColors.textSecondary,
-                                  fontSize: 11,
+                                  fontSize: 14,
                                   height: 1.5,
                                 ),
                               ),

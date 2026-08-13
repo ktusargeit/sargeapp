@@ -119,7 +119,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
                     ),
                     child: Text(
                       '${unit.memberUids.length} üye',
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: AppColors.teamAccent,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -143,7 +143,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(Icons.star, size: 16, color: AppColors.warning),
+                  const Icon(Icons.star, size: 16, color: AppColors.warning),
                   const SizedBox(width: 6),
                   Text(
                     'Birim Sorumlusu',
@@ -447,7 +447,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
                           leading: SafeAvatar(url: u.photoUrl, radius: 16),
                           title: Text(u.displayName),
                           trailing: unit.unitLeadUid == u.uid
-                              ? Icon(Icons.check_circle,
+                              ? const Icon(Icons.check_circle,
                                   color: AppColors.success, size: 18)
                               : null,
                           onTap: () => Navigator.pop(ctx, u.uid),
@@ -550,7 +550,7 @@ class _UnitLeadName extends ConsumerWidget {
     return profileAsync.when(
       data: (user) => Text(
         user?.displayName ?? 'Bilinmiyor',
-        style: TextStyle(
+        style: const TextStyle(
           color: AppColors.warning,
           fontSize: 13,
           fontWeight: FontWeight.w600,

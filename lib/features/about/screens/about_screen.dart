@@ -120,7 +120,7 @@ class AboutScreen extends ConsumerWidget {
                   members.where((m) => m.type == MemberType.honorary).toList();
               if (honorary.isEmpty) {
                 return  Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   child: Text('Henüz onursal üye eklenmemiş.',
                       style: TextStyle(
                           color: AppColors.textSecondary,

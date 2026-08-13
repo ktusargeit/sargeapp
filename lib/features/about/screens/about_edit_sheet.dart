@@ -36,8 +36,8 @@ class _AboutEditSheetState extends ConsumerState<AboutEditSheet> {
       builder: (context, scrollController) {
         return Column(children: [
           Container(margin: const EdgeInsets.only(top: 12, bottom: 8), width: 36, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
-           Padding(padding: EdgeInsets.symmetric(horizontal: 20, vertical: 4), child: Row(children: [
-            Icon(Icons.edit_outlined, color: AppColors.primaryGreen, size: 18), SizedBox(width: 8),
+           Padding(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4), child: Row(children: [
+            const Icon(Icons.edit_outlined, color: AppColors.primaryGreen, size: 18), const SizedBox(width: 8),
             Text('Hakkımızda Sayfasını Düzenle', style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
           ])),
            Divider(color: AppColors.border, height: 1),

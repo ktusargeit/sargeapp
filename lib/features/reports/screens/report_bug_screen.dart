@@ -1249,7 +1249,7 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                     // Messages
                     if (messages.isEmpty)
                        Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20),
+                        padding: const EdgeInsets.symmetric(vertical: 20),
                         child: Center(
                           child: Text('Henüz mesaj yok.',
                               style: TextStyle(
@@ -1454,11 +1454,11 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                             hintStyle: TextStyle(
                                 color: AppColors.textSecondary, fontSize: 13),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(20)),
+                              borderRadius: const BorderRadius.all(Radius.circular(20)),
                               borderSide: BorderSide(color: AppColors.border),
                             ),
                             contentPadding:
-                                EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                                const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                             isDense: true,
                           ),
                         ),

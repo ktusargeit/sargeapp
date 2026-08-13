@@ -59,9 +59,17 @@ class AppRouter {
         // Still loading auth state -> don't redirect yet.
         if (authState.isLoading) return null;
 
-        // Logged in: only redirect away from login/register/splash.
+        // Logged in: only redirect away from login/register.
+        //
+        // NOTE: '/splash' is intentionally NOT redirected here. If we
+        // redirected /splash → /dashboard for an already-signed-in user, the
+        // dashboard would become the *initial* route (no page transition), so
+        // the login/splash fade-slide animation would never run on app open.
+        // Letting splash always render and then `context.go('/dashboard')`
+        // keeps the ShellRoute's CustomTransitionPage animation on every
+        // startup (manual login AND persisted auto-login).
         if (isLoggedIn) {
-          if (path == '/login' || path == '/register' || path == '/splash') {
+          if (path == '/login' || path == '/register') {
             return '/dashboard';
           }
           return null;
@@ -149,8 +157,20 @@ class AppRouter {
           pageBuilder: (context, state, child) => CustomTransitionPage<void>(
             key: state.pageKey,
             child: AppShell(key: ValueKey(state.matchedLocation), child: child),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) =>
-                FadeTransition(opacity: animation, child: child),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              // Fade + slight upward slide on entry (the "entry animation").
+              final slide = Tween<Offset>(
+                begin: const Offset(0, 0.04),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              ));
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(position: slide, child: child),
+              );
+            },
             transitionDuration: const Duration(milliseconds: 350),
           ),
           routes: [

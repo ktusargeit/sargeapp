@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
-import '../../../core/widgets/full_screen_image_view.dart';
 import '../../team/models/team_models.dart';
 import '../../team/providers/team_providers.dart';
 import '../models/depo_models.dart';
@@ -265,8 +264,9 @@ class _FilterChipGroup extends StatelessWidget {
   }
 }
 
-/// Product image with tap-to-zoom. Supports a single image or a gallery of
-/// images (comma-separated or a `List`), with a proper placeholder on error.
+/// Static product image (no separate tap handler — the whole card navigates
+/// to the detail screen). Supports a single image or a gallery of images
+/// (comma-separated or a `List`), with a proper placeholder on error.
 class _ProductImage extends StatelessWidget {
   final DepoItem item;
   const _ProductImage({required this.item});
@@ -298,44 +298,16 @@ class _ProductImage extends StatelessWidget {
       );
     }
 
-    return GestureDetector(
-      onTap: () => showFullScreenImageViewer(
-        context,
-        urls: urls,
-        initialIndex: 0,
-      ),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.network(
-            urls.first,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            errorBuilder: (_, __, ___) => Container(
-              color: AppColors.surface2,
-              child:  Center(
-                child: Icon(Icons.image_not_supported_outlined,
-                    size: 28, color: AppColors.textSecondary),
-              ),
-            ),
-          ),
-          // Visual hint that this area opens the full-screen zoom viewer.
-          Positioned(
-            right: 4,
-            bottom: 4,
-            child: IgnorePointer(
-              child: Container(
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.55),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Icon(Icons.zoom_in,
-                    size: 14, color: Colors.white),
-              ),
-            ),
-          ),
-        ],
+    return Image.network(
+      urls.first,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      errorBuilder: (_, __, ___) => Container(
+        color: AppColors.surface2,
+        child:  Center(
+          child: Icon(Icons.image_not_supported_outlined,
+              size: 28, color: AppColors.textSecondary),
+        ),
       ),
     );
   }
@@ -363,10 +335,9 @@ class _ItemCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Image fills most of the card. It has its own nested
-              // GestureDetector, so tapping DIRECTLY on the image opens the
-              // full-screen zoom viewer; tapping anywhere else (footer/empty
-              // area) resolves to the card-wide detail onTap above.
+              // Image fills most of the card. It is NOT interactive on its
+              // own — tapping anywhere (including the image) resolves to the
+              // card-wide detail onTap above.
               Expanded(
                 child: _ProductImage(item: item),
               ),

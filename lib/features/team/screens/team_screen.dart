@@ -272,13 +272,13 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
               width: double.maxFinite,
               child: applying
                   ?  Padding(
-                      padding: EdgeInsets.symmetric(vertical: 40),
+                      padding: const EdgeInsets.symmetric(vertical: 40),
                       child: Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            CircularProgressIndicator(color: AppColors.teamOrange),
-                            SizedBox(height: 16),
+                            const CircularProgressIndicator(color: AppColors.teamOrange),
+                            const SizedBox(height: 16),
                             Text('Başvurunuz gönderiliyor...',
                                 style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                           ],

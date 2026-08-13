@@ -20,7 +20,7 @@ class SettingsScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(AppConstants.spacingMd),
           children: [
              Padding(
-              padding: EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: 12),
               child: Text('Ayarlar', style: TextStyle(color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.w700)),
             ),
             _SettingsSection(title: 'Hesap', children: [

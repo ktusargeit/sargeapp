@@ -148,7 +148,7 @@ class _UserTitleManagementSheet extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(vertical: 8),
             children: [
                Padding(
-                padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                 child: Text(
                   'Ünvan Seç',
                   style: TextStyle(
