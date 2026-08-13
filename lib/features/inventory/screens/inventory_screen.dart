@@ -347,55 +347,63 @@ class _ItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-        border: Border.all(color: AppColors.border),
-      ),
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(AppConstants.radiusMd),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Image fills most of the card. Tapping it opens the full-screen
-          // zoomable viewer; it is intentionally NOT the detail route.
-          Expanded(
-            child: _ProductImage(item: item),
+      child: InkWell(
+        // Card-wide tap → product detail screen.
+        onTap: () => context.push('/inventory/detail/${item.id}'),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+            border: Border.all(color: AppColors.border),
           ),
-          // Minimal text footer. Tapping it opens the detail screen.
-          InkWell(
-            onTap: () => context.push('/inventory/detail/${item.id}'),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(6, 4, 6, 4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(item.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style:  TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600)),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 4, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: AppColors.depoAccent.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                    child: Text(item.status,
-                        style: const TextStyle(
-                            color: AppColors.depoAccent,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600)),
-                  ),
-                ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Image fills most of the card. It has its own nested
+              // GestureDetector, so tapping DIRECTLY on the image opens the
+              // full-screen zoom viewer; tapping anywhere else (footer/empty
+              // area) resolves to the card-wide detail onTap above.
+              Expanded(
+                child: _ProductImage(item: item),
               ),
-            ),
+              // Static text footer (no separate onTap — the whole card
+              // already navigates to the detail screen).
+              Padding(
+                padding: const EdgeInsets.fromLTRB(6, 4, 6, 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(item.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:  TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: AppColors.depoAccent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: Text(item.status,
+                          style: const TextStyle(
+                              color: AppColors.depoAccent,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

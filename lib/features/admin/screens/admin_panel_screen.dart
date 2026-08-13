@@ -14,13 +14,6 @@ import '../../team/models/team_models.dart';
 import '../../team/providers/team_providers.dart';
 import '../admin_permissions.dart';
 
-/// Extra security PIN required to open the Admin Panel.
-///
-/// This is intentionally a simple club-level gate (not a substitute for the
-/// server-side `isAdmin()` Firestore rules). It prevents accidental/mistaken
-/// entry from an admin's unlocked device.
-const String adminPanelPin = '2719';
-
 /// Comprehensive "Admin Kontrol Paneli".
 ///
 /// Tabbed structure:
@@ -37,61 +30,6 @@ class AdminPanelScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> {
-  bool _unlocked = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _promptForPin());
-  }
-
-  Future<void> _promptForPin() async {
-    final ctrl = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Admin Paneli'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Yönetim paneline erişmek için güvenlik kodunu girin.',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: ctrl,
-              autofocus: true,
-              obscureText: true,
-              keyboardType: TextInputType.number,
-              style: TextStyle(color: AppColors.textPrimary),
-              decoration: const InputDecoration(
-                hintText: 'Güvenlik kodu',
-                prefixIcon: Icon(Icons.lock_outline, size: 18),
-              ),
-              onSubmitted: (_) => Navigator.pop(ctx, ctrl.text == adminPanelPin),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Vazgeç'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text == adminPanelPin),
-            child: const Text('Giriş'),
-          ),
-        ],
-      ),
-    );
-
-    if (ok == true && mounted) {
-      setState(() => _unlocked = true);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final caps = ref.watch(adminCapabilitiesProvider);
@@ -112,43 +50,38 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> {
         title: const Text('Admin Kontrol Paneli'),
         backgroundColor: AppColors.surface,
       ),
-      body: !_unlocked
-          ? Center(
-              child: Text('Panel kilitli.',
-                  style: TextStyle(color: AppColors.textSecondary)),
-            )
-          : DefaultTabController(
-              length: 5,
-              child: Column(
+      body: DefaultTabController(
+        length: 5,
+        child: Column(
+          children: [
+            TabBar(
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              labelColor: AppColors.sargeGold,
+              unselectedLabelColor: AppColors.textSecondary,
+              indicatorColor: AppColors.sargeGold,
+              tabs: const [
+                Tab(text: 'Üyeler'),
+                Tab(text: 'Takım & Birim'),
+                Tab(text: 'Başvurular'),
+                Tab(text: 'Bekleyen İşler'),
+                Tab(text: 'İstatistikler'),
+              ],
+            ),
+            const Expanded(
+              child: TabBarView(
                 children: [
-                  TabBar(
-                    isScrollable: true,
-                    tabAlignment: TabAlignment.start,
-                    labelColor: AppColors.sargeGold,
-                    unselectedLabelColor: AppColors.textSecondary,
-                    indicatorColor: AppColors.sargeGold,
-                    tabs: const [
-                      Tab(text: 'Üyeler'),
-                      Tab(text: 'Takım & Birim'),
-                      Tab(text: 'Başvurular'),
-                      Tab(text: 'Bekleyen İşler'),
-                      Tab(text: 'İstatistikler'),
-                    ],
-                  ),
-                  const Expanded(
-                    child: TabBarView(
-                      children: [
-                        _MemberManagementTab(),
-                        _TeamManagementTab(),
-                        _ApplicationsTab(),
-                        _PendingContentTab(),
-                        _SystemStatsTab(),
-                      ],
-                    ),
-                  ),
+                  _MemberManagementTab(),
+                  _TeamManagementTab(),
+                  _ApplicationsTab(),
+                  _PendingContentTab(),
+                  _SystemStatsTab(),
                 ],
               ),
             ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -272,7 +205,7 @@ class _MemberCard extends ConsumerWidget {
                           ),
                         ),
                         if (user.isSuspended)
-                          _Tag(text: 'ASKIDA', color: AppColors.error),
+                          const _Tag(text: 'ASKIDA', color: AppColors.error),
                         _Tag(
                           text: roleLabel(user.role),
                           color: AppColors.panelBlue,
@@ -292,7 +225,7 @@ class _MemberCard extends ConsumerWidget {
                         const SizedBox(width: 10),
                         Text(
                           '${user.points} puan',
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: AppColors.sargeGold,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -442,7 +375,7 @@ class _TeamCard extends ConsumerWidget {
                     : null,
               ),
               child: team.photoUrl == null || team.photoUrl!.isEmpty
-                  ? Icon(Icons.groups_outlined,
+                  ? const Icon(Icons.groups_outlined,
                       size: 22, color: AppColors.teamAccent)
                   : null,
             ),

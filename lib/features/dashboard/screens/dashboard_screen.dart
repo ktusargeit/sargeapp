@@ -53,7 +53,7 @@ class DashboardScreen extends ConsumerWidget {
                     const EdgeInsets.all(AppConstants.spacingMd),
                 children: [
                    Padding(
-                    padding: EdgeInsets.only(left: 4, bottom: 8),
+                    padding: const EdgeInsets.only(left: 4, bottom: 8),
                     child: Text(
                       'HAFTALIK LİDERLİK TABLOSU',
                       style: TextStyle(
@@ -68,7 +68,7 @@ class DashboardScreen extends ConsumerWidget {
                   const SizedBox(height: AppConstants.spacingLg),
                   if (!isGuest && appUser != null) ...[
                      Padding(
-                      padding: EdgeInsets.only(left: 4, bottom: 8),
+                      padding: const EdgeInsets.only(left: 4, bottom: 8),
                       child: Text(
                         'GÖREVLERİM',
                         style: TextStyle(
@@ -83,7 +83,7 @@ class DashboardScreen extends ConsumerWidget {
                     const SizedBox(height: AppConstants.spacingLg),
                   ],
                    Padding(
-                    padding: EdgeInsets.only(left: 4, bottom: 8),
+                    padding: const EdgeInsets.only(left: 4, bottom: 8),
                     child: Text(
                       'DUYURULAR & ETKİNLİKLER',
                       style: TextStyle(
@@ -363,9 +363,9 @@ class _GuestBanner extends StatelessWidget {
         ),
         child:  Row(
           children: [
-            Icon(Icons.rocket_launch_outlined,
+            const Icon(Icons.rocket_launch_outlined,
                 color: AppColors.panelBlue, size: 18),
-            SizedBox(width: 10),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
                 "SARGE'a Katıl! Ücretsiz üye ol →",
@@ -404,9 +404,9 @@ class _JoinCtaCard extends StatelessWidget {
         children: [
            Row(
             children: [
-              Icon(Icons.emoji_events_outlined,
+              const Icon(Icons.emoji_events_outlined,
                   color: AppColors.panelBlue, size: 20),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text('SARGE Topluluğuna Katıl',
                   style: TextStyle(
                       color: AppColors.textPrimary,
@@ -597,7 +597,7 @@ class _LeaderboardCardState extends ConsumerState<_LeaderboardCard> {
                       .toList();
               if (filtered.isEmpty) {
                 return  Padding(
-                  padding: EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(24),
                   child: Center(
                     child: Text('Henüz puan verisi yok.',
                         style: TextStyle(color: AppColors.textSecondary)),
@@ -1417,6 +1417,8 @@ class _AnnouncementDetailSheetState
         final storageRef = FirebaseStorage.instance
             .ref()
             .child('announcement_comments/$tempId.jpg');
+        debugPrint(
+            '[announcement-comment-upload] path=${storageRef.fullPath} uid=${ref.read(authStateProvider).value?.uid}');
         if (kIsWeb && img.bytes != null) {
           await storageRef.putData(img.bytes!);
         } else if (img.dartFile != null) {
@@ -1604,11 +1606,11 @@ class _AnnouncementDetailSheetState
                    Divider(color: AppColors.border),
                   // Comments header
                    Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Row(
                       children: [
-                        Text('💬', style: TextStyle(fontSize: 14)),
-                        SizedBox(width: 6),
+                        const Text('💬', style: TextStyle(fontSize: 14)),
+                        const SizedBox(width: 6),
                         Text(
                           'Yorumlar',
                           style: TextStyle(
@@ -1776,7 +1778,7 @@ class _AnnouncementCommentsList extends ConsumerWidget {
         final comments = snapshot.data?.docs ?? [];
         if (comments.isEmpty) {
           return  Padding(
-            padding: EdgeInsets.symmetric(vertical: 20),
+            padding: const EdgeInsets.symmetric(vertical: 20),
             child: Center(
               child: Text('Henüz yorum yapılmadı.',
                   style: TextStyle(

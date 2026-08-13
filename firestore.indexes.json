@@ -72,6 +72,14 @@
         {"fieldPath": "applicantUid", "order": "ASCENDING"},
         {"fieldPath": "status", "order": "ASCENDING"}
       ]
+    },
+    {
+      "collectionGroup": "units",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "teamId", "order": "ASCENDING"},
+        {"fieldPath": "name", "order": "ASCENDING"}
+      ]
     }
   ],
   "fieldOverrides": []

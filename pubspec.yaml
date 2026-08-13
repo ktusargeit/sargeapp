@@ -37,7 +37,7 @@ dev_dependencies:
   flutter_launcher_icons: ^0.13.1
 
 flutter_launcher_icons:
-  image_path: "assets/icons/sarge_ico.ico"
+  image_path: "assets/images/sarge_logo.png"
   android: true
   ios: true
   adaptive_icon_background: "#111111"

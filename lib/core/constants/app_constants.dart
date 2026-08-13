@@ -2,7 +2,7 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'SARGE';
-static const String appVersion = '2.9 Beta';
+static const String appVersion = '3.1.4';
 
   // Inventory ID prefix
   static const String inventoryIdPrefix = 'SARGE-INV-';

@@ -884,6 +884,8 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
       final storageRef = FirebaseStorage.instance
           .ref()
           .child('task_comments/$tempId.jpg');
+      debugPrint(
+          '[task-comment-upload] path=${storageRef.fullPath} uid=${ref.read(authStateProvider).value?.uid}');
       if (kIsWeb && img.bytes != null) {
         await storageRef.putData(img.bytes!);
       } else if (img.dartFile != null) {
@@ -1227,11 +1229,11 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
                 ),
                  Divider(color: AppColors.border, height: 1),
                  Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   child: Row(
                     children: [
-                      Text('💬', style: TextStyle(fontSize: 14)),
-                      SizedBox(width: 6),
+                      const Text('💬', style: TextStyle(fontSize: 14)),
+                      const SizedBox(width: 6),
                       Text('Yorumlar',
                           style: TextStyle(
                               color: AppColors.textPrimary,

@@ -147,7 +147,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         child: TextButton(
                           onPressed: () => _showForgotPasswordDialog(context),
                           child: const Text('Şifremi Unuttum',
-                              style: TextStyle(color: AppColors.primaryGreen, fontSize: 12)),
+                              style: TextStyle(color: AppColors.primaryGreen, fontSize: 14, fontWeight: FontWeight.w600)),
                         ),
                       ),
                       const SizedBox(height: AppConstants.spacingSm),
@@ -232,13 +232,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child:  Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('⚠️', style: TextStyle(fontSize: 18)),
-                      SizedBox(width: 10),
+                      const Text('⚠️', style: TextStyle(fontSize: 18)),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Text.rich(
                           TextSpan(
                             children: [
-                              TextSpan(
+                              const TextSpan(
                                 text: 'ÖNEMLİ: ',
                                 style: TextStyle(
                                   color: AppColors.warning,
@@ -257,7 +257,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   height: 1.5,
                                 ),
                               ),
-                              TextSpan(
+                              const TextSpan(
                                 text: 'SargeApp',
                                 style: TextStyle(
                                   color: AppColors.error,
