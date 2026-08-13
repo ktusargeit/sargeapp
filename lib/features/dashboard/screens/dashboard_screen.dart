@@ -1417,8 +1417,6 @@ class _AnnouncementDetailSheetState
         final storageRef = FirebaseStorage.instance
             .ref()
             .child('announcement_comments/$tempId.jpg');
-        debugPrint(
-            '[announcement-comment-upload] path=${storageRef.fullPath} uid=${ref.read(authStateProvider).value?.uid}');
         if (kIsWeb && img.bytes != null) {
           await storageRef.putData(img.bytes!);
         } else if (img.dartFile != null) {
