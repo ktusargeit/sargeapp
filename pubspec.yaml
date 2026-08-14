@@ -1,7 +1,7 @@
 name: sarge_depo_app
 description: SARGE Club Warehouse (Depo) Management Application
 publish_to: 'none'
-version: 4.0.0+2
+version: 4.0.1+3
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

@@ -280,26 +280,32 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isAdmin();
       // `editTeamStory` / `manageTeams` granted roles can update; only admin deletes.
-      allow update: if isAdmin() || can('editTeamStory') || can('manageTeams');
+      // Any signed-in user may also update ONLY `pastMemberIds` — the two-way
+      // "Geçmiş Takımlarım" link written by PastTeamLinkService.
+      allow update: if isAdmin() || can('editTeamStory') || can('manageTeams') || (
+        isSignedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pastMemberIds'])
+      );
       allow delete: if isAdmin();
     }
 
     // ---------- CLUB INFO (story + gallery + contact) ----------
     match /club_info/{id} {
-      allow read: if true;
+      allow read: if isSignedIn();
       allow create, update, delete: if can('editClubStory');
     }
 
     // ---------- HONORARY MEMBERS ----------
     match /honorary_members/{id} {
-      allow read: if true;
+      allow read: if isSignedIn();
       allow create, update, delete: if can('addHonoraryMember');
     }
 
     // ---------- ROLE PERMISSIONS (runtime RBAC overrides) ----------
+    // Sensitive: only Admin (and Başkan / board_president) may read or write
+    // these runtime RBAC overrides.
     match /role_permissions/{role} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isAdmin();
+      allow read, create, update, delete: if isRoleManager();
     }
 
     // ---------- ANNOUNCEMENTS ----------
