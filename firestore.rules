@@ -70,22 +70,21 @@ service cloud.firestore {
     }
 
     // ---------- DEPO (inventory) ----------
-    match /depo_birimler/{id} {
+    // These names mirror what the app actually uses (depo_providers.dart).
+    // Older rules referenced legacy names (depo_birimler, depo_kategoriler,
+    // depo_unitler, depo_lokasyon_options) that no longer exist, which caused
+    // `permission-denied` for normal users (e.g. the location picker sheet).
+    match /depo_lokasyonlar/{id} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
     }
 
-    match /depo_kategoriler/{id} {
+    match /inventory_categories/{id} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
     }
 
-    match /depo_unitler/{id} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
-    }
-
-    match /depo_lokasyon_options/{id} {
+    match /inventory_statuses/{id} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
     }
@@ -179,12 +178,21 @@ service cloud.firestore {
     }
 
     // ---------- ABOUT ----------
-    match /about_us/{id} {
+    // Collection names mirror the app (about_providers.dart): aboutSections
+    // and aboutMembers (previously about_us / about_members → denied reads).
+    match /aboutSections/{id} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
     }
 
-    match /about_members/{id} {
+    match /aboutMembers/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------- CONTACT ----------
+    // Public read, admin-only edit.
+    match /contact/{id} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
     }
@@ -221,7 +229,32 @@ service cloud.firestore {
           get(/databases/$(database)/documents/teams/$(resource.data.teamId)).data.leadUid == request.auth.uid;
       }
 
-      allow create: if isAdmin();
+      // Captain is determined by `teams/{teamId}.leadUid` (NOT a global role
+      // field), so a captain may create a task in any team they lead.
+      function isCaptainOfTeam(teamId) {
+        return isSignedIn() &&
+          teamId is string &&
+          exists(/databases/$(database)/documents/teams/$(teamId)) &&
+          get(/databases/$(database)/documents/teams/$(teamId)).data.leadUid == request.auth.uid;
+      }
+
+      // A unit lead may only create a task whose unitId points at a unit they
+      // explicitly lead (`units/{unitId}.unitLeadUid`), which is the precise
+      // source of truth (a single user can lead multiple units).
+      function isUnitLeadOfUnit(unitId) {
+        return isSignedIn() &&
+          unitId is string &&
+          exists(/databases/$(database)/documents/units/$(unitId)) &&
+          get(/databases/$(database)/documents/units/$(unitId)).data.unitLeadUid == request.auth.uid;
+      }
+
+      // Admin → anything.
+      // Captain → only tasks in teams they lead (with or without a unitId).
+      // Unit lead → only tasks whose unitId is a unit they lead.
+      // Everyone else → denied.
+      allow create: if isAdmin() ||
+        isCaptainOfTeam(request.resource.data.teamId) ||
+        isUnitLeadOfUnit(request.resource.data.unitId);
 
       allow update: if isAdmin() || (
         isSignedIn() &&

@@ -120,6 +120,11 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     final profileStillLoading = authUser != null && appUser == null;
     final teamsAsync = ref.watch(clubTeamsProvider);
     final visibleTeams = teamsAsync.valueOrNull ?? [];
+    final isUnitLead = appUser?.isUnitLead ?? false;
+    // A captain is whoever leads at least one team (`teams/{id}.leadUid`),
+    // mirroring the Firestore rules.
+    final isCaptain =
+        currentUid != null && visibleTeams.any((t) => t.leadUid == currentUid);
 
     return Scaffold(
       backgroundColor: AppColors.tasksBg,
@@ -269,9 +274,9 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
               pointsColor: _pointsColor,
               currentUid: currentUid,
               isAdmin: isAdmin,
-              isUnitLead: appUser?.isUnitLead ?? false,
+              isUnitLead: isUnitLead,
             ),
-      floatingActionButton: isAdmin
+      floatingActionButton: (isAdmin || isUnitLead || isCaptain)
           ? FloatingActionButton.extended(
               onPressed: () => _showAddTaskDialog(context),
               backgroundColor: AppColors.tasksAccent,
@@ -923,15 +928,18 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
   List<PickedImage> _commentImages = [];
   bool _sending = false;
 
+  // Optimistically rendered comments while their images are still uploading.
+  final List<_PendingComment> _pendingComments = [];
+
   @override
   void dispose() {
     _commentCtrl.dispose();
     super.dispose();
   }
 
-  Future<List<String>> _uploadCommentImages() async {
+  Future<List<String>> _uploadCommentImages(List<PickedImage> images) async {
     final urls = <String>[];
-    for (final img in _commentImages) {
+    for (final img in images) {
       final tempId = 'task_comment_${DateTime.now().microsecondsSinceEpoch}';
       final storageRef = FirebaseStorage.instance
           .ref()
@@ -952,15 +960,31 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
     final text = _commentCtrl.text.trim();
     if (text.isEmpty && _commentImages.isEmpty) return;
 
-    setState(() => _sending = true);
-    try {
-      final user = ref.read(authStateProvider).value;
-      final uid = user?.uid ?? '';
-      final name = user?.displayName ?? 'Kullanıcı';
-      final isAdmin = ref.read(isAdminProvider);
-      final firestore = ref.read(firestoreProvider);
+    final user = ref.read(authStateProvider).value;
+    final uid = user?.uid ?? '';
+    final name = user?.displayName ?? 'Kullanıcı';
+    final isAdmin = ref.read(isAdminProvider);
+    final firestore = ref.read(firestoreProvider);
 
-      final imageUrls = await _uploadCommentImages();
+    // Optimistic UI: show the comment (with its locally-selected images)
+    // immediately, then upload + persist in the background. This removes the
+    // "nothing happens until upload finishes, then it suddenly appears" lag.
+    final pending = _PendingComment(
+      text: text,
+      senderUid: uid,
+      senderName: name,
+      isAdmin: isAdmin,
+      images: List<PickedImage>.from(_commentImages),
+    );
+    setState(() {
+      _pendingComments.add(pending);
+      _commentImages = [];
+      _sending = true;
+    });
+    _commentCtrl.clear();
+
+    try {
+      final imageUrls = await _uploadCommentImages(pending.images);
 
       await firestore
           .collection('tasks')
@@ -1004,17 +1028,23 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
         // Notification is best-effort; a failure here must not block the comment.
       }
 
-      _commentCtrl.clear();
-      setState(() => _commentImages = []);
     } catch (e) {
       if (mounted) {
+        setState(() => _pendingComments.remove(pending));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Yorum gönderilemedi: $e'),
               backgroundColor: AppColors.error),
         );
       }
     } finally {
-      if (mounted) setState(() => _sending = false);
+      if (mounted) {
+        setState(() {
+          // The Firestore stream now owns the persisted comment; drop the
+          // optimistic copy so it isn't rendered twice.
+          _pendingComments.remove(pending);
+          _sending = false;
+        });
+      }
     }
   }
 
@@ -1295,7 +1325,10 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
                   ),
                 ),
                 Expanded(
-                  child: _TaskCommentsList(taskId: widget.taskId),
+                  child: _TaskCommentsList(
+                    taskId: widget.taskId,
+                    pendingComments: _pendingComments,
+                  ),
                 ),
                 _CommentInputBar(
                   controller: _commentCtrl,
@@ -1370,10 +1403,34 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
   }
 }
 
+/// An in-flight comment whose images are still uploading to Storage.
+///
+/// Rendered optimistically so the author sees instant feedback instead of a
+/// silent delay until the upload completes.
+class _PendingComment {
+  final String text;
+  final String senderUid;
+  final String senderName;
+  final bool isAdmin;
+  final List<PickedImage> images;
+
+  const _PendingComment({
+    required this.text,
+    required this.senderUid,
+    required this.senderName,
+    required this.isAdmin,
+    required this.images,
+  });
+}
+
 /// Comments list for a task (subcollection).
 class _TaskCommentsList extends ConsumerWidget {
   final String taskId;
-  const _TaskCommentsList({required this.taskId});
+  final List<_PendingComment> pendingComments;
+  const _TaskCommentsList({
+    required this.taskId,
+    this.pendingComments = const [],
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1391,20 +1448,103 @@ class _TaskCommentsList extends ConsumerWidget {
               child: CircularProgressIndicator(color: AppColors.tasksAccent));
         }
         final comments = snapshot.data?.docs ?? [];
-        if (comments.isEmpty) {
+        if (comments.isEmpty && pendingComments.isEmpty) {
           return  Center(
               child: Text('Henüz yorum yapılmadı.',
                   style: TextStyle(color: AppColors.textSecondary, fontSize: 13)));
         }
+
+        final totalCount = pendingComments.length + comments.length;
         return ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          itemCount: comments.length,
+          itemCount: totalCount,
           itemBuilder: (_, i) {
-            final data = comments[i].data();
+            if (i < pendingComments.length) {
+              return _PendingCommentTile(comment: pendingComments[i]);
+            }
+            final data = comments[i - pendingComments.length].data();
             return CommentTile(data: data);
           },
         );
       },
+    );
+  }
+}
+
+/// Renders an optimistic comment using locally-available image bytes/files.
+class _PendingCommentTile extends StatelessWidget {
+  final _PendingComment comment;
+  const _PendingCommentTile({required this.comment});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          UserAvatar(
+            uid: comment.senderUid,
+            name: comment.senderName,
+            radius: 14,
+            isAdmin: comment.isAdmin,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        comment.senderName,
+                        style:  TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const SizedBox(
+                      width: 10,
+                      height: 10,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 1.5, color: AppColors.tasksAccent),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                if (comment.text.isNotEmpty)
+                  Text(
+                    comment.text,
+                    style:  TextStyle(
+                        color: AppColors.textPrimary, fontSize: 13),
+                  ),
+                if (comment.images.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: comment.images.map((img) {
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: PlatformImageFile(
+                          bytes: img.bytes,
+                          file: img.dartFile,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1570,6 +1710,56 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
     if (img != null && mounted) setState(() => _pickedImage = img);
   }
 
+  /// Teams the current user is allowed to assign tasks into.
+  ///
+  /// Mirrors the Firestore rules:
+  ///  * Admin → every team.
+  ///  * Captain (teams/{id}.leadUid == uid) → teams they lead.
+  ///  * Unit lead (units/{id}.unitLeadUid == uid) → teams that contain one of
+  ///    the units they lead.
+  List<ClubTeam> _visibleTeams(List<ClubTeam> teams) {
+    final uid = ref.read(authStateProvider).value?.uid;
+    final appUser = ref.read(currentAppUserProvider).value;
+    if (appUser?.isAdmin ?? false) return teams;
+    if (uid == null) return const [];
+
+    final led = teams.where((t) => t.leadUid == uid).toList();
+    if (led.isNotEmpty) return led;
+
+    final allUnits = ref.read(teamUnitListProvider).valueOrNull ?? const [];
+    final ledTeamIds = allUnits
+        .where((u) => u['unitLeadUid'] == uid)
+        .map((u) => u['teamId'] as String)
+        .toSet();
+    return teams.where((t) => ledTeamIds.contains(t.id)).toList();
+  }
+
+  /// Units the current user may target within [teamId].
+  Set<String> _allowedUnitIdsFor(String teamId) {
+    final uid = ref.read(authStateProvider).value?.uid;
+    final appUser = ref.read(currentAppUserProvider).value;
+    final allUnits = ref.read(teamUnitListProvider).valueOrNull ?? const [];
+    final teamScoped =
+        allUnits.where((u) => u['teamId'] == teamId).toList();
+
+    if (appUser?.isAdmin ?? false) {
+      return teamScoped.map((u) => u['id'] as String).toSet();
+    }
+    if (uid == null) return const {};
+
+    final isCaptain = ref
+        .read(clubTeamsProvider)
+        .valueOrNull
+        ?.any((t) => t.id == teamId && t.leadUid == uid) ??
+        false;
+    if (isCaptain) return teamScoped.map((u) => u['id'] as String).toSet();
+
+    return teamScoped
+        .where((u) => u['unitLeadUid'] == uid)
+        .map((u) => u['id'] as String)
+        .toSet();
+  }
+
   @override
   Widget build(BuildContext context) {
     final teamsAsync = ref.watch(clubTeamsProvider);
@@ -1583,22 +1773,33 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               teamsAsync.when(
-                data: (teams) => DropdownButtonFormField<ClubTeam>(
-                  dropdownColor: AppColors.surface2,
-                  style:  TextStyle(color: AppColors.textPrimary),
-                  decoration: const InputDecoration(
-                      labelText: 'Takım *', hintText: 'Takım seçin'),
-                  initialValue: _selectedTeam,
-                  items: teams
-                      .map((t) => DropdownMenuItem(value: t, child: Text(t.name)))
-                      .toList(),
-                  onChanged: (v) => setState(() {
-                    _selectedTeam = v;
-                    _selectedUnit = null;
-                    _selectedUid = null;
-                    _selectedName = null;
-                  }),
-                ),
+                data: (teams) {
+                  final availableTeams = _visibleTeams(teams);
+                  if (availableTeams.isEmpty) {
+                    return  Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text('Görev atayabileceğiniz bir takım yok.',
+                          style: TextStyle(
+                              color: AppColors.textSecondary, fontSize: 13)),
+                    );
+                  }
+                  return DropdownButtonFormField<ClubTeam>(
+                    dropdownColor: AppColors.surface2,
+                    style:  TextStyle(color: AppColors.textPrimary),
+                    decoration: const InputDecoration(
+                        labelText: 'Takım *', hintText: 'Takım seçin'),
+                    initialValue: _selectedTeam,
+                    items: availableTeams
+                        .map((t) => DropdownMenuItem(value: t, child: Text(t.name)))
+                        .toList(),
+                    onChanged: (v) => setState(() {
+                      _selectedTeam = v;
+                      _selectedUnit = null;
+                      _selectedUid = null;
+                      _selectedName = null;
+                    }),
+                  );
+                },
                 loading: () => const CircularProgressIndicator(),
                 error: (e, _) => Text('Hata: $e'),
               ),
@@ -1607,6 +1808,7 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
                 _TeamUnitSelector(
                   teamId: _selectedTeam!.id,
                   value: _selectedUnit,
+                  allowedUnitIds: _allowedUnitIdsFor(_selectedTeam!.id),
                   onChanged: (u) => setState(() {
                     _selectedUnit = u;
                     _selectedUid = null;
@@ -1713,6 +1915,17 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
   Future<void> _submit() async {
     final title = _titleCtrl.text.trim();
     final requiresPerson = !_assignWholeTeam && _selectedUid == null;
+
+    // Client-side authorization guard (defense in depth — the Firestore rules
+    // are the real enforcement). A unit lead can only target their own unit.
+    if (_selectedUnit != null &&
+        _selectedTeam != null &&
+        !_allowedUnitIdsFor(_selectedTeam!.id).contains(_selectedUnit!['id'])) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Bu birime görev atama yetkiniz yok.'),
+          backgroundColor: AppColors.error));
+      return;
+    }
 
     if (title.isEmpty || (_selectedTeam == null) || requiresPerson) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -1829,31 +2042,43 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
 class _TeamUnitSelector extends ConsumerWidget {
   final String teamId;
   final Map<String, dynamic>? value;
+  final Set<String>? allowedUnitIds;
   final ValueChanged<Map<String, dynamic>?> onChanged;
 
-  const _TeamUnitSelector({required this.teamId, required this.value, required this.onChanged});
+  const _TeamUnitSelector({
+    required this.teamId,
+    required this.value,
+    this.allowedUnitIds,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final unitsAsync = ref.watch(teamUnitsProvider(teamId));
     return unitsAsync.when(
-      data: (units) => DropdownButtonFormField<Map<String, dynamic>>(
-        dropdownColor: AppColors.surface2,
-        style:  TextStyle(color: AppColors.textPrimary),
-        decoration: const InputDecoration(
-            labelText: 'Birim', hintText: 'Birim seçin (isteğe bağlı)'),
-        initialValue: value,
-        items: [
-           DropdownMenuItem<Map<String, dynamic>>(
-            value: null,
-            child: Text('Birim seçilmedi',
-                style: TextStyle(color: AppColors.textSecondary)),
-          ),
-          ...units.map((u) => DropdownMenuItem(
-              value: u, child: Text(u['name'] as String? ?? ''))),
-        ],
-        onChanged: onChanged,
-      ),
+      data: (units) {
+        // When a filter is present, only the user's authorized units appear.
+        final visible = allowedUnitIds == null
+            ? units
+            : units.where((u) => allowedUnitIds!.contains(u['id'])).toList();
+        return DropdownButtonFormField<Map<String, dynamic>>(
+          dropdownColor: AppColors.surface2,
+          style:  TextStyle(color: AppColors.textPrimary),
+          decoration: const InputDecoration(
+              labelText: 'Birim', hintText: 'Birim seçin (isteğe bağlı)'),
+          initialValue: value,
+          items: [
+             DropdownMenuItem<Map<String, dynamic>>(
+              value: null,
+              child: Text('Birim seçilmedi',
+                  style: TextStyle(color: AppColors.textSecondary)),
+            ),
+            ...visible.map((u) => DropdownMenuItem(
+                value: u, child: Text(u['name'] as String? ?? ''))),
+          ],
+          onChanged: onChanged,
+        );
+      },
       loading: () => const CircularProgressIndicator(),
       error: (_, __) => const SizedBox.shrink(),
     );

@@ -903,6 +903,28 @@ class _MembersTab extends ConsumerStatefulWidget {
 class _MembersTabState extends ConsumerState<_MembersTab> {
   String? _filterUnitId;
 
+  /// Returns true when [responsibilities] (unit names a member is responsible
+  /// for) contains the currently selected `_filterUnitId`. Units are matched by
+  /// name against the raw `Map<String, dynamic>` list from `teamUnitsProvider`,
+  /// avoiding any unsafe cast to `Map<String, String>`.
+  bool _matchesUnitFilter(
+      List<String> responsibilities, List<Map<String, dynamic>>? units) {
+    if (responsibilities.isEmpty) return false;
+    if (units == null || units.isEmpty) return false;
+    for (final r in responsibilities) {
+      final matches = units.any((u) {
+        final name = u['name'];
+        final id = u['id'];
+        return name is String &&
+            id is String &&
+            name == r &&
+            id == _filterUnitId;
+      });
+      if (matches) return true;
+    }
+    return false;
+  }
+
   void _showAddMemberDialog(BuildContext context) {
     final allUsers = ref.read(allUsersProvider).valueOrNull ?? [];
     final currentMemberIds = widget.team.memberIds;
@@ -1070,23 +1092,15 @@ class _MembersTabState extends ConsumerState<_MembersTab> {
                           .entries
                           .map((e) {
                         final user = e.value;
-                        // If unit filter is active, skip non-matching
+                        // If unit filter is active, skip non-matching members.
+                        // `teamUnitsProvider` yields List<Map<String, dynamic>>,
+                        // so the filter must keep values as `dynamic` (not cast
+                        // the whole map to Map<String, String>, whose values can
+                        // be Timestamp/int/bool/nested maps in real Firestore docs).
                         if (_filterUnitId != null &&
-                            !(user.unitResponsibilities
-                                .any((r) {
-                              final matchingUnit =
-                                  unitsAsync.valueOrNull
-                                          ?.firstWhere(
-                                        (u) =>
-                                            u['name'] == r,
-                                        orElse: () => {
-                                          'id': ''
-                                        },
-                                      ) ??
-                                      {};
-                              return matchingUnit['id'] ==
-                                  _filterUnitId;
-                            }))) {
+                            !_matchesUnitFilter(
+                                user.unitResponsibilities,
+                                unitsAsync.valueOrNull)) {
                           return const SizedBox.shrink();
                         }
                         return _MemberRow(

@@ -127,6 +127,7 @@ final teamUnitListProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
               'id': d.id,
               'name': data['name'] as String? ?? '',
               'teamId': data['teamId'] as String? ?? '',
+              'unitLeadUid': data['unitLeadUid'] as String? ?? '',
             };
           }).toList());
 });
@@ -150,6 +151,7 @@ final teamUnitsProvider = StreamProvider.family<List<Map<String, dynamic>>, Stri
             'id': d.id,
             'name': data['name'] as String? ?? '',
             'teamId': data['teamId'] as String? ?? '',
+            'unitLeadUid': data['unitLeadUid'] as String? ?? '',
           };
         }).toList();
         units.sort(
