@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/auth_providers.dart';
+import '../../../core/utils/operation_feedback.dart';
 import '../models/depo_models.dart';
 import '../providers/depo_providers.dart';
 import 'inventory_add_screen.dart';
@@ -41,24 +42,16 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
       ),
     );
     if (confirmed != true) return;
-    try {
-      await ref.read(depoRepositoryProvider).deleteItem(widget.itemId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Ürün silindi.'),
-              backgroundColor: AppColors.success),
-        );
-        context.pop();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Silinemedi: $e'),
-              backgroundColor: AppColors.error),
-        );
-      }
+    if (!mounted) return;
+
+    final ok = await runDeleteWithFeedback(
+      context: context,
+      successMessage: 'Ürün başarıyla silindi.',
+      operation: () =>
+          ref.read(depoRepositoryProvider).deleteItem(widget.itemId),
+    );
+    if (ok && mounted) {
+      context.pop();
     }
   }
 

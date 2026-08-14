@@ -11,6 +11,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/models/app_user.dart';
 import '../../../core/models/user_profile_models.dart';
 import '../../../core/utils/image_utils.dart';
+import '../../../core/widgets/full_screen_image_view.dart';
 import '../../team/providers/team_providers.dart';
 
 final _dateFormat = DateFormat('dd.MM.yyyy');
@@ -186,44 +187,7 @@ class _ProfileHero extends ConsumerStatefulWidget {
 }
 
 class _ProfileHeroState extends ConsumerState<_ProfileHero> {
-  bool _uploadingPhoto = false;
   bool _uploadingCover = false;
-
-  Future<void> _pickPhoto() async {
-    if (!widget.isOwnProfile) return;
-    final picked = await PickedImage.pick(ImageSource.gallery);
-    if (picked == null) return;
-    setState(() => _uploadingPhoto = true);
-    try {
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('profile_photos/${widget.user.uid}.jpg');
-      if (kIsWeb && picked.bytes != null) {
-        await storageRef.putData(picked.bytes!);
-      } else if (picked.dartFile != null) {
-        await storageRef.putFile(picked.dartFile!);
-      }
-      final url = await storageRef.getDownloadURL();
-      await ref
-          .read(firestoreProvider)
-          .collection('users')
-          .doc(widget.user.uid)
-          .update({'photoUrl': url});
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Profil fotoğrafı güncellendi.'),
-            backgroundColor: AppColors.success));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Fotoğraf yüklenemedi: $e'),
-            backgroundColor: AppColors.error));
-      }
-    } finally {
-      if (mounted) setState(() => _uploadingPhoto = false);
-    }
-  }
 
   Future<void> _pickCover() async {
     if (!widget.isOwnProfile) return;
@@ -416,7 +380,9 @@ class _ProfileHeroState extends ConsumerState<_ProfileHero> {
     final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
 
     return GestureDetector(
-      onTap: widget.isOwnProfile ? _pickPhoto : null,
+      // Tapping the avatar always opens the full-screen viewer; editing is
+      // only reached via the top-right "Düzenle" button.
+      onTap: hasPhoto ? () => openNetworkImageViewer(context, photoUrl) : null,
       child: Container(
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
@@ -435,13 +401,10 @@ class _ProfileHeroState extends ConsumerState<_ProfileHero> {
           radius: 46,
           backgroundColor: AppColors.surface2,
           backgroundImage: hasPhoto ? NetworkImage(photoUrl) : null,
-          child: _uploadingPhoto
-              ? const CircularProgressIndicator(
-                  strokeWidth: 2, color: AppColors.sargeGold)
-              : (!hasPhoto
-                  ?  Icon(Icons.person_outline,
-                      size: 46, color: AppColors.textSecondary)
-                  : null),
+          child: !hasPhoto
+              ?  Icon(Icons.person_outline,
+                  size: 46, color: AppColors.textSecondary)
+              : null,
         ),
       ),
     );
@@ -773,9 +736,17 @@ class _AboutTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final teamsAsync = ref.watch(clubTeamsProvider);
+    final unitsAsync = ref.watch(teamUnitListProvider);
     final teams = teamsAsync.valueOrNull ?? [];
+    final units = unitsAsync.valueOrNull ?? const [];
     final myTeams =
         teams.where((t) => user.teamIds.contains(t.id)).toList();
+    final isAdmin = user.role == 'admin' ||
+        user.activeTitles.any((t) => t.titleType == TitleType.admin);
+
+    // Birim sorumlulukları: units koleksiyonunda unitLeadUid == user.uid.
+    final ledUnits =
+        units.where((u) => u['unitLeadUid'] == user.uid).toList();
 
     return Padding(
       padding: const EdgeInsets.all(AppConstants.spacingMd),
@@ -832,36 +803,25 @@ class _AboutTab extends ConsumerWidget {
           const SizedBox(height: AppConstants.spacingLg),
           _SectionTitleWithCard(
             header: const _SectionHeader(title: 'GÜNCEL TAKIMLAR & ROLLER'),
-            child: myTeams.isEmpty
+            child: (myTeams.isEmpty && !isAdmin)
                 ? const _EmptyCard(
                     'Aktif takım bulunmuyor.', icon: Icons.groups_outlined)
                 : Column(
                     children: [
+                      if (isAdmin) const _AdminBadgeRow(),
                       for (var i = 0; i < myTeams.length; i++)
                         _TeamCard(
                           team: myTeams[i],
                           isCaptain: myTeams[i].leadUid == user.uid,
+                          ledUnitNames: ledUnits
+                              .where((u) => u['teamId'] == myTeams[i].id)
+                              .map((u) => u['name'] as String? ?? '')
+                              .where((n) => n.isNotEmpty)
+                              .toList(),
                           isLast: i == myTeams.length - 1,
                         ),
                     ],
                   ),
-          ),
-          const SizedBox(height: AppConstants.spacingLg),
-          _SectionTitleWithCard(
-            header: const _SectionHeader(title: 'BİRİM SORUMLULUKLARI'),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: user.unitResponsibilities.isEmpty
-                  ? const _EmptyCard('Sorumluluk eklenmemiş.',
-                      icon: Icons.assignment_outlined)
-                  : Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: user.unitResponsibilities
-                          .map((r) => _TagChip(label: r))
-                          .toList(),
-                    ),
-            ),
           ),
           const SizedBox(height: AppConstants.spacingLg),
           _SectionTitleWithCard(
@@ -888,16 +848,29 @@ class _AboutTab extends ConsumerWidget {
 class _TeamCard extends StatelessWidget {
   final dynamic team;
   final bool isCaptain;
+  final List<String> ledUnitNames;
   final bool isLast;
   const _TeamCard({
     required this.team,
     required this.isCaptain,
+    this.ledUnitNames = const [],
     required this.isLast,
   });
 
   @override
   Widget build(BuildContext context) {
     final photoUrl = team.photoUrl as String?;
+    final roleLabel = isCaptain
+        ? 'Kaptan'
+        : (ledUnitNames.isNotEmpty
+            ? 'Birim Sorumlusu: ${ledUnitNames.join(', ')}'
+            : 'Üye');
+    final roleColor = isCaptain
+        ? AppColors.warning
+        : (ledUnitNames.isNotEmpty
+            ? AppColors.teamAccent
+            : AppColors.textSecondary);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
@@ -930,14 +903,13 @@ class _TeamCard extends StatelessWidget {
                         fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
                 Text(
-                  isCaptain ? 'Kaptan' : 'Üye',
+                  roleLabel,
                   style: TextStyle(
-                    color: isCaptain
-                        ? AppColors.warning
-                        : AppColors.textSecondary,
+                    color: roleColor,
                     fontSize: 12,
-                    fontWeight:
-                        isCaptain ? FontWeight.w700 : FontWeight.w400,
+                    fontWeight: (isCaptain || ledUnitNames.isNotEmpty)
+                        ? FontWeight.w700
+                        : FontWeight.w400,
                   ),
                 ),
               ],
@@ -958,7 +930,76 @@ class _TeamCard extends StatelessWidget {
                       color: AppColors.warning,
                       fontSize: 9,
                       fontWeight: FontWeight.w800)),
+            )
+          else if (ledUnitNames.isNotEmpty)
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.teamAccent.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                    color: AppColors.teamAccent.withValues(alpha: 0.5)),
+              ),
+              child: const Text('SORUMLU',
+                  style: TextStyle(
+                      color: AppColors.teamAccent,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800)),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdminBadgeRow extends StatelessWidget {
+  const _AdminBadgeRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.error.withValues(alpha: 0.5)),
+            ),
+            child: const Icon(Icons.admin_panel_settings,
+                color: AppColors.error, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Admin',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.error.withValues(alpha: 0.5)),
+            ),
+            child: const Text('SİSTEM YÖNETİCİSİ',
+                style: TextStyle(
+                    color: AppColors.error,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800)),
+          ),
         ],
       ),
     );
@@ -1016,37 +1057,6 @@ class _TitleRow extends StatelessWidget {
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TagChip extends StatelessWidget {
-  final String label;
-  const _TagChip({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: AppColors.teamAccent.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(20),
-        border:
-            Border.all(color: AppColors.teamAccent.withValues(alpha: 0.45)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.verified_outlined,
-              size: 14, color: AppColors.teamAccent),
-          const SizedBox(width: 5),
-          Text(label,
-              style:  TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600)),
         ],
       ),
     );

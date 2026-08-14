@@ -4,6 +4,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/auth_providers.dart';
+import '../../../core/utils/image_utils.dart';
 import '../models/depo_models.dart';
 
 /// Stream of all inventory items.
@@ -156,12 +157,33 @@ class DepoRepository {
   Future<String> _uploadImage(String path,
       {File? file, Uint8List? bytes}) async {
     final ref = _storage.ref().child(path);
-    if (kIsWeb && bytes != null) {
+    // Client-side compression: max-1280px JPEG at ~75% quality.
+    final compressed = await _compressedBytes(file: file, bytes: bytes);
+    if (compressed.isNotEmpty) {
+      await ref.putData(compressed);
+    } else if (bytes != null) {
       await ref.putData(bytes);
     } else if (file != null) {
       await ref.putFile(file);
     }
     return ref.getDownloadURL();
+  }
+
+  /// Reads [file]/[bytes] and returns JPEG bytes ≤1280px wide; empty if no data.
+  Future<Uint8List> _compressedBytes({File? file, Uint8List? bytes}) async {
+    try {
+      final PickedImage img;
+      if (file != null) {
+        img = PickedImage(dartFile: file);
+      } else if (bytes != null) {
+        img = PickedImage(bytes: bytes);
+      } else {
+        return Uint8List(0);
+      }
+      return await img.compressedUploadBytes();
+    } catch (_) {
+      return Uint8List(0);
+    }
   }
 
   // Category CRUD
@@ -214,6 +236,34 @@ class DepoRepository {
 
   Future<void> deleteLocation(String id) async {
     await _firestore.collection('depo_lokasyonlar').doc(id).delete();
+  }
+
+  /// Creates a new location with only a name (no image).
+  Future<void> addLocationByName(String name) async {
+    await _firestore.collection('depo_lokasyonlar').add({
+      'name': name.trim(),
+      'description': null,
+      'imageUrl': null,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Renames an existing location.
+  Future<void> updateLocationName(String id, String name) async {
+    await _firestore
+        .collection('depo_lokasyonlar')
+        .doc(id)
+        .update({'name': name.trim()});
+  }
+
+  /// Number of products currently assigned to [locationId].
+  Future<int> countItemsInLocation(String locationId) async {
+    final snap = await _firestore
+        .collection('depo_urunler')
+        .where('locationId', isEqualTo: locationId)
+        .count()
+        .get();
+    return snap.count ?? 0;
   }
 }
 

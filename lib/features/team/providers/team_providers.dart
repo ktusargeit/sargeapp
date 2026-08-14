@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/models/app_user.dart';
+import '../../../core/utils/image_utils.dart';
 import '../../admin/services/user_title_service.dart';
 import '../models/team_models.dart';
 
@@ -71,7 +72,14 @@ class TeamRepository {
   Future<String> uploadReportImage(String reportId,
       {File? file, Uint8List? bytes}) async {
     final ref = _storage.ref().child('reports/$reportId.jpg');
-    if (kIsWeb && bytes != null) {
+    // Client-side compression: max-1280px JPEG at ~75% quality.
+    final PickedImage img = file != null
+        ? PickedImage(dartFile: file)
+        : PickedImage(bytes: bytes);
+    final compressed = await img.compressedUploadBytes();
+    if (compressed.isNotEmpty) {
+      await ref.putData(compressed);
+    } else if (bytes != null) {
       await ref.putData(bytes);
     } else if (file != null) {
       await ref.putFile(file);

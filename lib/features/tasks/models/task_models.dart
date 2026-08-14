@@ -31,6 +31,8 @@ class TaskModel {
   final String? imageUrl;         // task image (uploaded by creator)
   final DateTime? completedAt;    // when submitted/completed (for 24h "recent" window)
   final List<Map<String, dynamic>> comments; // [{senderUid, senderName, text, imageUrl, createdAt, isAdmin}]
+  final String? bulkGroupId;      // groups tasks created in one bulk assignment (team/unit)
+  final String? assignmentMode;   // 'single' | 'team' | 'unit'
 
   const TaskModel({
     required this.id,
@@ -53,6 +55,8 @@ class TaskModel {
     this.imageUrl,
     this.completedAt,
     this.comments = const [],
+    this.bulkGroupId,
+    this.assignmentMode,
   });
 
   factory TaskModel.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -81,6 +85,8 @@ class TaskModel {
               ?.map((e) => Map<String, dynamic>.from(e as Map))
               .toList() ??
           const [],
+      bulkGroupId: data['bulkGroupId'] as String?,
+      assignmentMode: data['assignmentMode'] as String?,
     );
   }
 
@@ -155,5 +161,7 @@ class TaskModel {
         if (assignedBy != null) 'assignedBy': assignedBy,
         'approvedBy': approvedBy,
         'pointsAwarded': pointsAwarded,
+        if (bulkGroupId != null) 'bulkGroupId': bulkGroupId,
+        if (assignmentMode != null) 'assignmentMode': assignmentMode,
       };
 }

@@ -1,9 +1,9 @@
 {
   "name": "functions",
-  "description": "SARGE app push notification sender (Firestore-triggered)",
+  "description": "SARGE app push notification sender (Firestore-triggered) + account deletion cleanup",
   "type": "module",
   "engines": {
-    "node": "18"
+    "node": "20"
   },
   "main": "index.js",
   "dependencies": {

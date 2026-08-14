@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/utils/image_utils.dart';
+import '../../../core/utils/operation_feedback.dart';
 import '../../../core/widgets/platform_image.dart';
 import '../../../core/widgets/full_screen_image_view.dart';
 import '../../../core/widgets/comment_tile.dart';
@@ -450,25 +450,17 @@ class _TaskCard extends ConsumerWidget {
       ),
     );
     if (confirmed != true) return;
+    if (!context.mounted) return;
 
-    try {
-      await ref
+    await runDeleteWithFeedback(
+      context: context,
+      successMessage: 'Görev başarıyla silindi.',
+      operation: () => ref
           .read(firestoreProvider)
           .collection('tasks')
           .doc(task.id)
-          .delete();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Görev silindi.'),
-            backgroundColor: AppColors.success));
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Silinemedi: $e'),
-            backgroundColor: AppColors.error));
-      }
-    }
+          .delete(),
+    );
   }
 
   @override
@@ -927,6 +919,7 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
   final _commentCtrl = TextEditingController();
   List<PickedImage> _commentImages = [];
   bool _sending = false;
+  Map<String, dynamic>? _replyTo;
 
   // Optimistically rendered comments while their images are still uploading.
   final List<_PendingComment> _pendingComments = [];
@@ -946,7 +939,11 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
           .child('task_comments/$tempId.jpg');
       debugPrint(
           '[task-comment-upload] path=${storageRef.fullPath} uid=${ref.read(authStateProvider).value?.uid}');
-      if (kIsWeb && img.bytes != null) {
+      // Client-side compression: always upload a max-1280px JPEG at ~75% quality.
+      final compressed = await img.compressedUploadBytes();
+      if (compressed.isNotEmpty) {
+        await storageRef.putData(compressed);
+      } else if (img.bytes != null) {
         await storageRef.putData(img.bytes!);
       } else if (img.dartFile != null) {
         await storageRef.putFile(img.dartFile!);
@@ -965,6 +962,7 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
     final name = user?.displayName ?? 'Kullanıcı';
     final isAdmin = ref.read(isAdminProvider);
     final firestore = ref.read(firestoreProvider);
+    final replyTo = _replyTo;
 
     // Optimistic UI: show the comment (with its locally-selected images)
     // immediately, then upload + persist in the background. This removes the
@@ -975,10 +973,15 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
       senderName: name,
       isAdmin: isAdmin,
       images: List<PickedImage>.from(_commentImages),
+      replyToId: replyTo?['id'] as String?,
+      replyToText: replyTo?['text'] as String?,
+      replyToAuthor: replyTo?['senderName'] as String?,
+      replyToUid: replyTo?['senderUid'] as String?,
     );
     setState(() {
       _pendingComments.add(pending);
       _commentImages = [];
+      _replyTo = null;
       _sending = true;
     });
     _commentCtrl.clear();
@@ -997,6 +1000,9 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
         'imageUrls': imageUrls,
         'createdAt': FieldValue.serverTimestamp(),
         'isAdmin': isAdmin,
+        'replyToId': pending.replyToId,
+        'replyToText': pending.replyToText,
+        'replyToAuthor': pending.replyToAuthor,
       });
 
       // Notify the assignee + creator (unless the commenter is that person)
@@ -1010,11 +1016,34 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
         final assigneeId = taskData['assignedTo'] as String?;
         final creatorId = taskData['assignedBy'] as String?;
         final notifService = ref.read(notificationServiceProvider);
-        final body = text.isNotEmpty ? text : 'Görevine bir yorum eklendi.';
+        final taskTitle = taskData['title'] as String? ?? 'Görev';
+        final snippet = text.length > 80 ? '${text.substring(0, 80)}...' : text;
+        final body = snippet.isNotEmpty
+            ? '$name, "$taskTitle" görevine yorum yaptı: "$snippet"'
+            : '$name, "$taskTitle" görevine yorum yaptı.';
+        final bulkGroupId = taskData['bulkGroupId'] as String?;
+        // Include the author of the message being replied to (so they get a
+        // push notification when someone answers their comment).
+        final replyToUid = pending.replyToUid;
         final targets = <String>{
           if (assigneeId != null) assigneeId,
           if (creatorId != null) creatorId,
-        }..removeWhere((id) => id.isEmpty || id == uid);
+          if (replyToUid != null) replyToUid,
+        };
+
+        // Bulk-assigned tasks (team/unit): notify every assignee in the group.
+        if (bulkGroupId != null && bulkGroupId.isNotEmpty) {
+          final bulkSnap = await firestore
+              .collection('tasks')
+              .where('bulkGroupId', isEqualTo: bulkGroupId)
+              .get();
+          for (final doc in bulkSnap.docs) {
+            final otherAssignee = doc.data()['assignedTo'] as String?;
+            if (otherAssignee != null) targets.add(otherAssignee);
+          }
+        }
+
+        targets.removeWhere((id) => id.isEmpty || id == uid);
         for (final targetId in targets) {
           await notifService.send(
             recipientId: targetId,
@@ -1328,12 +1357,16 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
                   child: _TaskCommentsList(
                     taskId: widget.taskId,
                     pendingComments: _pendingComments,
+                    currentUid: currentUid,
+                    onReply: (data) => setState(() => _replyTo = data),
                   ),
                 ),
                 _CommentInputBar(
                   controller: _commentCtrl,
                   images: _commentImages,
                   sending: _sending,
+                  replyTo: _replyTo,
+                  onClearReply: () => setState(() => _replyTo = null),
                   onPickImages: () async {
                     final imgs = await PickedImage.pickMultiple();
                     if (imgs.isNotEmpty && mounted) {
@@ -1413,6 +1446,10 @@ class _PendingComment {
   final String senderName;
   final bool isAdmin;
   final List<PickedImage> images;
+  final String? replyToId;
+  final String? replyToText;
+  final String? replyToAuthor;
+  final String? replyToUid;
 
   const _PendingComment({
     required this.text,
@@ -1420,6 +1457,10 @@ class _PendingComment {
     required this.senderName,
     required this.isAdmin,
     required this.images,
+    this.replyToId,
+    this.replyToText,
+    this.replyToAuthor,
+    this.replyToUid,
   });
 }
 
@@ -1427,9 +1468,13 @@ class _PendingComment {
 class _TaskCommentsList extends ConsumerWidget {
   final String taskId;
   final List<_PendingComment> pendingComments;
+  final String? currentUid;
+  final void Function(Map<String, dynamic>) onReply;
   const _TaskCommentsList({
     required this.taskId,
     this.pendingComments = const [],
+    this.currentUid,
+    required this.onReply,
   });
 
   @override
@@ -1462,8 +1507,18 @@ class _TaskCommentsList extends ConsumerWidget {
             if (i < pendingComments.length) {
               return _PendingCommentTile(comment: pendingComments[i]);
             }
-            final data = comments[i - pendingComments.length].data();
-            return CommentTile(data: data);
+            final doc = comments[i - pendingComments.length];
+            final data = doc.data();
+            return CommentTile(
+              data: data,
+              isMine: data['senderUid'] == currentUid,
+              onReply: () => onReply({
+                'id': doc.id,
+                'text': data['text'] as String? ?? '',
+                'senderName': data['senderName'] as String? ?? '',
+                'senderUid': data['senderUid'] as String? ?? '',
+              }),
+            );
           },
         );
       },
@@ -1557,6 +1612,8 @@ class _CommentInputBar extends StatelessWidget {
   final VoidCallback onPickImages;
   final void Function(int) onRemoveImage;
   final VoidCallback onSend;
+  final Map<String, dynamic>? replyTo;
+  final VoidCallback? onClearReply;
 
   const _CommentInputBar({
     required this.controller,
@@ -1565,6 +1622,8 @@ class _CommentInputBar extends StatelessWidget {
     required this.onPickImages,
     required this.onRemoveImage,
     required this.onSend,
+    this.replyTo,
+    this.onClearReply,
   });
 
   @override
@@ -1578,6 +1637,14 @@ class _CommentInputBar extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (replyTo != null) ...[
+            ReplyPreviewBar(
+              author: replyTo!['senderName'] as String? ?? 'Bilinmeyen',
+              text: replyTo!['text'] as String? ?? '',
+              onClear: onClearReply,
+            ),
+            const SizedBox(height: 8),
+          ],
           if (images.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -1684,6 +1751,8 @@ class _AddTaskDialog extends ConsumerStatefulWidget {
   ConsumerState<_AddTaskDialog> createState() => _AddTaskDialogState();
 }
 
+enum _AssignmentMode { single, team, unit }
+
 class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
   final _titleCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
@@ -1695,7 +1764,7 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
   String? _selectedName;
   PickedImage? _pickedImage;
   bool _loading = false;
-  bool _assignWholeTeam = false;
+  _AssignmentMode _mode = _AssignmentMode.single;
 
   @override
   void dispose() {
@@ -1803,8 +1872,53 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
                 loading: () => const CircularProgressIndicator(),
                 error: (e, _) => Text('Hata: $e'),
               ),
+              if (_selectedTeam != null) ...[
+                const SizedBox(height: 12),
+                SegmentedButton<_AssignmentMode>(
+                  segments: const [
+                    ButtonSegment(
+                      value: _AssignmentMode.single,
+                      label: Text('Tekil Üye'),
+                      icon: Icon(Icons.person, size: 16),
+                    ),
+                    ButtonSegment(
+                      value: _AssignmentMode.team,
+                      label: Text('Tüm Takım'),
+                      icon: Icon(Icons.groups, size: 16),
+                    ),
+                    ButtonSegment(
+                      value: _AssignmentMode.unit,
+                      label: Text('Birim'),
+                      icon: Icon(Icons.apartment, size: 16),
+                    ),
+                  ],
+                  selected: {_mode},
+                  onSelectionChanged: (s) => setState(() {
+                    _mode = s.first;
+                    _selectedUid = null;
+                    _selectedName = null;
+                    _selectedUnit = null;
+                  }),
+                  showSelectedIcon: false,
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    textStyle: WidgetStatePropertyAll(
+                      TextStyle(fontSize: 12, color: AppColors.textPrimary),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
-              if (_selectedTeam != null)
+              if (_selectedTeam != null && _mode == _AssignmentMode.single)
+                _TeamMemberSelector(
+                  teamId: _selectedTeam!.id,
+                  selectedUid: _selectedUid,
+                  onChanged: (uid, name) => setState(() {
+                    _selectedUid = uid;
+                    _selectedName = name;
+                  }),
+                ),
+              if (_selectedTeam != null && _mode == _AssignmentMode.unit)
                 _TeamUnitSelector(
                   teamId: _selectedTeam!.id,
                   value: _selectedUnit,
@@ -1813,39 +1927,6 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
                     _selectedUnit = u;
                     _selectedUid = null;
                     _selectedName = null;
-                  }),
-                ),
-              if (_selectedTeam != null) ...[
-                const SizedBox(height: 4),
-                CheckboxListTile(
-                  value: _assignWholeTeam,
-                  contentPadding: EdgeInsets.zero,
-                  title:  Text(
-                    'Takımın tamamına ata',
-                    style: TextStyle(
-                        color: AppColors.textPrimary, fontSize: 14),
-                  ),
-                  subtitle: Text(
-                    'Açıksa "${_selectedTeam!.name}" takımındaki herkese ayrı ayrı görev oluşturulur.',
-                    style:  TextStyle(
-                        color: AppColors.textSecondary, fontSize: 11),
-                  ),
-                  activeColor: AppColors.tasksAccent,
-                  onChanged: (v) => setState(() {
-                    _assignWholeTeam = v ?? false;
-                    _selectedUid = null;
-                    _selectedName = null;
-                  }),
-                ),
-              ],
-              const SizedBox(height: 12),
-              if (_selectedTeam != null && !_assignWholeTeam)
-                _TeamMemberSelector(
-                  teamId: _selectedTeam!.id,
-                  selectedUid: _selectedUid,
-                  onChanged: (uid, name) => setState(() {
-                    _selectedUid = uid;
-                    _selectedName = name;
                   }),
                 ),
               const SizedBox(height: 12),
@@ -1914,7 +1995,9 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
 
   Future<void> _submit() async {
     final title = _titleCtrl.text.trim();
-    final requiresPerson = !_assignWholeTeam && _selectedUid == null;
+    final requiresPerson = _mode == _AssignmentMode.single && _selectedUid == null;
+    // Birim modunda bir birim seçilmesi zorunludur.
+    final requiresUnit = _mode == _AssignmentMode.unit && _selectedUnit == null;
 
     // Client-side authorization guard (defense in depth — the Firestore rules
     // are the real enforcement). A unit lead can only target their own unit.
@@ -1933,6 +2016,12 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
           backgroundColor: AppColors.error));
       return;
     }
+    if (requiresUnit) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Birim seçmelisiniz'),
+          backgroundColor: AppColors.error));
+      return;
+    }
 
     setState(() => _loading = true);
     try {
@@ -1943,7 +2032,42 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
 
       // Resolve the list of (uid, name) recipients.
       final recipients = <({String uid, String name})>[];
-      if (_assignWholeTeam) {
+      if (_mode == _AssignmentMode.unit) {
+        final unitDoc =
+            await firestore.collection('units').doc(_selectedUnit!['id'] as String).get();
+        final memberUids = (unitDoc.data()?['memberUids'] as List?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const <String>[];
+        if (memberUids.isNotEmpty) {
+          for (var i = 0; i < memberUids.length; i += 10) {
+            final chunk = memberUids.sublist(
+                i,
+                i + 10 > memberUids.length ? memberUids.length : i + 10);
+            final snap = await firestore
+                .collection('users')
+                .where(FieldPath.documentId, whereIn: chunk)
+                .get();
+            for (final doc in snap.docs) {
+              final data = doc.data();
+              recipients.add((
+                uid: doc.id,
+                name: (data['displayName'] as String?) ?? 'Üye',
+              ));
+            }
+          }
+          recipients.sort((a, b) => a.name.compareTo(b.name));
+        }
+        if (recipients.isEmpty) {
+          setState(() => _loading = false);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Bu birimde görev atanacak üye yok.'),
+                backgroundColor: AppColors.warning));
+          }
+          return;
+        }
+      } else if (_mode == _AssignmentMode.team) {
         final members = ref.read(teamMembersProvider(_selectedTeam!.id)).valueOrNull;
         if (members == null || members.isEmpty) {
           // Fallback to reading the team doc's memberIds directly.
@@ -1978,19 +2102,29 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
         recipients.add((uid: _selectedUid!, name: _selectedName ?? 'Üye'));
       }
 
-      // Upload task image once and reuse for every task.
+      // Upload task image once (client-side compressed) and reuse for every task.
       String? imageUrl;
       if (_pickedImage != null) {
         final tempId = 'task_${DateTime.now().microsecondsSinceEpoch}';
         final storageRef =
             FirebaseStorage.instance.ref().child('tasks/$tempId.jpg');
-        if (kIsWeb && _pickedImage!.bytes != null) {
-          await storageRef.putData(_pickedImage!.bytes!);
+        final compressed = await _pickedImage!.compressedUploadBytes();
+        if (compressed.isNotEmpty) {
+          await storageRef.putData(compressed);
         } else if (_pickedImage!.dartFile != null) {
           await storageRef.putFile(_pickedImage!.dartFile!);
+        } else if (_pickedImage!.bytes != null) {
+          await storageRef.putData(_pickedImage!.bytes!);
         }
         imageUrl = await storageRef.getDownloadURL();
       }
+
+      // Generate one bulk-group id so all tasks created in this batch share the
+      // same group (used to notify every assignee when a comment is posted on
+      // any one of the copies). Single assignments have no bulk group.
+      final bulkGroupId = _mode != _AssignmentMode.single
+          ? 'bulk_${DateTime.now().microsecondsSinceEpoch}'
+          : null;
 
       // Create a task for each recipient.
       for (final recipient in recipients) {
@@ -2010,6 +2144,8 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
           'unitName': _selectedUnit?['name'],
           'pointsAwarded': false,
           'imageUrl': imageUrl,
+          'bulkGroupId': bulkGroupId,
+          'assignmentMode': _mode.name,
         });
         await notifService.send(
           recipientId: recipient.uid,
@@ -2023,7 +2159,7 @@ class _AddTaskDialogState extends ConsumerState<_AddTaskDialog> {
       if (mounted) Navigator.pop(context);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(_assignWholeTeam
+            content: Text(recipients.length > 1
                 ? '${recipients.length} kişiye görev atandı.'
                 : 'Görev atandı.'),
             backgroundColor: AppColors.success));

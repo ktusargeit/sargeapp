@@ -10,6 +10,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/models/app_user.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/utils/image_utils.dart';
+import '../../../core/utils/operation_feedback.dart';
 import '../../../core/widgets/platform_image.dart';
 import '../../notifications/providers/notification_providers.dart';
 import '../models/team_models.dart';
@@ -701,30 +702,37 @@ class _UnitManagementDialogState extends ConsumerState<_UnitManagementDialog> {
   }
 
   void _deleteUnit(String id, String name) {
-    showDialog(
+    showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Birimi Sil'),
         content: Text('"$name" silinecek.'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: () => Navigator.pop(ctx, false),
               child: const Text('İptal')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () async {
-              await ref
-                  .read(firestoreProvider)
-                  .collection('units')
-                  .doc(id)
-                  .delete();
-              ref.invalidate(teamUnitsProvider(_selectedTeamId!));
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
+            onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Sil'),
           ),
         ],
       ),
-    );
+    ).then((confirmed) async {
+      if (confirmed != true) return;
+      if (!mounted) return;
+      await runDeleteWithFeedback(
+        context: context,
+        successMessage: 'Birim başarıyla silindi.',
+        operation: () async {
+          await ref
+              .read(firestoreProvider)
+              .collection('units')
+              .doc(id)
+              .delete();
+          ref.invalidate(teamUnitsProvider(_selectedTeamId!));
+        },
+      );
+    });
   }
 }

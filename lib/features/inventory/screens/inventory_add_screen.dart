@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/utils/image_utils.dart';
+import '../../../core/utils/operation_feedback.dart';
 import '../../../core/widgets/platform_image.dart';
 import '../../../core/widgets/app_icon_button.dart';
 import '../models/depo_models.dart';
@@ -801,18 +802,142 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
   }
 }
 
-/// Standalone ConsumerWidget for the "Lokasyon Seç" bottom sheet.
+/// Standalone ConsumerStatefulWidget for the "Lokasyon Seç" bottom sheet.
 ///
 /// Being a real widget (not an inline builder closure) means `ref.watch` is
 /// attached to the widget's lifecycle and rebuilds the list as soon as the
 /// `locationsProvider` Firestore stream emits — which fixes the "first open is
 /// stuck on loading, needs re-enter" bug.
-class _LocationPickerSheet extends ConsumerWidget {
+///
+/// Admins/unit leads can also create, rename, and delete locations directly
+/// from this sheet (with confirmation + loading feedback), mirroring the
+/// `depo_lokasyonlar` Firestore rules.
+class _LocationPickerSheet extends ConsumerStatefulWidget {
   const _LocationPickerSheet();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_LocationPickerSheet> createState() =>
+      _LocationPickerSheetState();
+}
+
+class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
+  Future<void> _addLocation() async {
+    final nameCtrl = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Yeni Lokasyon Ekle'),
+        content: TextField(
+          controller: nameCtrl,
+          autofocus: true,
+          style: TextStyle(color: AppColors.textPrimary),
+          decoration: const InputDecoration(
+            labelText: 'Raf/Bölüm Adı',
+            hintText: 'Örn: Raf A-1',
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('İptal')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, nameCtrl.text.trim()),
+            child: const Text('Ekle'),
+          ),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty) return;
+    if (!mounted) return;
+    await runOperationWithFeedback(
+      context: context,
+      loadingMessage: 'Ekleniyor...',
+      successMessage: 'Lokasyon eklendi.',
+      operation: () =>
+          ref.read(depoRepositoryProvider).addLocationByName(name),
+    );
+  }
+
+  Future<void> _editLocation(DepoLocation loc) async {
+    final nameCtrl = TextEditingController(text: loc.name);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Lokasyonu Düzenle'),
+        content: TextField(
+          controller: nameCtrl,
+          autofocus: true,
+          style: TextStyle(color: AppColors.textPrimary),
+          decoration: const InputDecoration(labelText: 'Lokasyon Adı'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('İptal')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, nameCtrl.text.trim()),
+            child: const Text('Kaydet'),
+          ),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty) return;
+    if (!mounted) return;
+    await runOperationWithFeedback(
+      context: context,
+      loadingMessage: 'Güncelleniyor...',
+      successMessage: 'Lokasyon güncellendi.',
+      operation: () =>
+          ref.read(depoRepositoryProvider).updateLocationName(loc.id, name),
+    );
+  }
+
+  Future<void> _deleteLocation(DepoLocation loc) async {
+    int count = 0;
+    try {
+      count = await ref
+          .read(depoRepositoryProvider)
+          .countItemsInLocation(loc.id);
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Lokasyonu Sil'),
+        content: Text(
+          count > 0
+              ? 'Bu lokasyonda $count ürün var, yine de silinsin mi?'
+              : '"${loc.name}" silinecek. Onaylıyor musunuz?',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('İptal')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sil'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!mounted) return;
+    await runDeleteWithFeedback(
+      context: context,
+      successMessage: 'Lokasyon silindi.',
+      operation: () =>
+          ref.read(depoRepositoryProvider).deleteLocation(loc.id),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final locationsAsync = ref.watch(locationsProvider);
+    final canManage = ref.watch(isAdminProvider);
+
     return SafeArea(
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -821,22 +946,37 @@ class _LocationPickerSheet extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-             Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text('Lokasyon Seç',
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 8, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text('Lokasyon Seç',
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary)),
+                  ),
+                  if (canManage)
+                    TextButton.icon(
+                      onPressed: _addLocation,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Yeni Lokasyon Ekle'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.depoAccent,
+                      ),
+                    ),
+                ],
+              ),
             ),
-             Divider(color: AppColors.border, height: 1),
+            Divider(color: AppColors.border, height: 1),
             ConstrainedBox(
               constraints: BoxConstraints(
                 maxHeight: MediaQuery.of(context).size.height * 0.55,
               ),
               child: locationsAsync.when(
                 data: (locations) => locations.isEmpty
-                    ?  Padding(
+                    ? Padding(
                         padding: const EdgeInsets.all(24),
                         child: Text('Lokasyon bulunamadı.',
                             style: TextStyle(color: AppColors.textSecondary)),
@@ -845,7 +985,7 @@ class _LocationPickerSheet extends ConsumerWidget {
                         shrinkWrap: true,
                         itemCount: locations.length,
                         separatorBuilder: (_, __) =>
-                             Divider(height: 1, color: AppColors.border),
+                            Divider(height: 1, color: AppColors.border),
                         itemBuilder: (_, i) {
                           final loc = locations[i];
                           return ListTile(
@@ -853,6 +993,26 @@ class _LocationPickerSheet extends ConsumerWidget {
                                 color: AppColors.depoAccent),
                             title: Text(loc.name,
                                 style: TextStyle(color: AppColors.textPrimary)),
+                            trailing: canManage
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(Icons.edit_outlined,
+                                            size: 18,
+                                            color: AppColors.textSecondary),
+                                        tooltip: 'Düzenle',
+                                        onPressed: () => _editLocation(loc),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline,
+                                            size: 18, color: AppColors.error),
+                                        tooltip: 'Sil',
+                                        onPressed: () => _deleteLocation(loc),
+                                      ),
+                                    ],
+                                  )
+                                : null,
                             onTap: () => Navigator.pop(context, {
                               'id': loc.id,
                               'name': loc.name,

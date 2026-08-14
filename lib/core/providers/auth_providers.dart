@@ -122,6 +122,36 @@ class AuthController {
   Future<void> sendPasswordReset(String email) async {
     await _auth.sendPasswordResetEmail(email: email.trim());
   }
+
+  /// Deletes the current user's account.
+  ///
+  ///  1. Re-authenticates with the supplied password (required for `deleteUser`,
+  ///     otherwise `requires-recent-login` is thrown).
+  ///  2. Deletes the Firebase Auth account (signs the user out on success).
+  ///
+  /// All Firestore/Storage cleanup (user document, team/unit memberships,
+  /// profile photos, FCM token) is handled by the `onUserDeleted` Cloud
+  /// Function, which runs with the Admin SDK and bypasses client rules.
+  ///
+  /// Content the user created (tasks, comments, announcements, reports) is
+  /// intentionally left intact so other members can still reference it.
+  Future<void> deleteAccount({required String password}) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('Oturum bulunamadı.');
+    }
+
+    // Re-authenticate with the password.
+    final credential = EmailAuthProvider.credential(
+      email: user.email ?? '',
+      password: password,
+    );
+    await user.reauthenticateWithCredential(credential);
+
+    // Delete the Auth account. Firestore/Storage cleanup happens in the
+    // `onUserDeleted` Cloud Function.
+    await user.delete();
+  }
 }
 
 final authControllerProvider = Provider<AuthController>((ref) {

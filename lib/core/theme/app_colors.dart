@@ -27,6 +27,11 @@ class AppColors {
   static const Color tasksGreen = tasksAccent;
   static const Color settingsPurple = settingsAccent;
   static const Color darkGreen = Color(0xFF0E3A25);
+
+  // WhatsApp-style chat bubble colors (theme-aware).
+  static const Color _darkOwnBubble = Color(0xFF123F2C);   // dark green tint
+  static const Color _lightOwnBubble = Color(0xFFDCF8C6);  // WhatsApp light green
+
   static Color statusAvailable = success;
   static Color statusInUse = info;
   static Color statusMaintenance = warning;
@@ -74,6 +79,10 @@ class AppColors {
       isLight ? lightTextPrimary : _darkTextPrimary;
   static Color get textSecondary =>
       isLight ? lightTextSecondary : _darkTextSecondary;
+
+  /// WhatsApp-style chat bubble color for the current user's own messages.
+  static Color get ownBubble =>
+      isLight ? _lightOwnBubble : _darkOwnBubble;
 
   // Page scaffolds follow the same theme-aware background color.
   static Color get panelBg => background;

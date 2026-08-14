@@ -10,6 +10,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/models/app_user.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/utils/image_utils.dart';
+import '../../../core/utils/operation_feedback.dart';
 import '../../../core/widgets/safe_network_image.dart';
 import '../../admin/screens/user_title_management_sheet.dart';
 import '../providers/team_providers.dart';
@@ -385,7 +386,7 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
   }
 
   void _confirmDelete(ClubTeam team) {
-    showDialog(
+    showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Takımı Sil'),
@@ -393,44 +394,30 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
             '"${team.name}" silinecek. Onaylıyor musunuz?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: () => Navigator.pop(ctx, false),
               child: const Text('İptal')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.error),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              try {
-                await ref
-                    .read(firestoreProvider)
-                    .collection('teams')
-                    .doc(team.id)
-                    .delete();
-                if (mounted) {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(const SnackBar(
-                          content:
-                              Text('Takım silindi.'),
-                          backgroundColor:
-                              AppColors.success));
-                  context.pop();
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(SnackBar(
-                          content:
-                              Text('Silinemedi: $e'),
-                          backgroundColor:
-                              AppColors.error));
-                }
-              }
-            },
+            onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Sil'),
           ),
         ],
       ),
-    );
+    ).then((confirmed) async {
+      if (confirmed != true) return;
+      if (!mounted) return;
+      final ok = await runDeleteWithFeedback(
+        context: context,
+        successMessage: 'Takım başarıyla silindi.',
+        operation: () => ref
+            .read(firestoreProvider)
+            .collection('teams')
+            .doc(team.id)
+            .delete(),
+      );
+      if (ok && mounted) context.pop();
+    });
   }
 }
 

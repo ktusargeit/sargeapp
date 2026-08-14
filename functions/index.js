@@ -1,18 +1,9 @@
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import * as v1 from "firebase-functions/v1";
 
 admin.initializeApp();
 
-/**
- * Sends an OS-level push notification (FCM) whenever a new notification
- * document is created in Firestore. This keeps the in-app notification bell and
- * the phone's notification tray in sync — without the client needing to poll.
- *
- * The client stores each device's FCM token under `fcm_tokens/{uid}`. This
- * function reads that token using the Admin SDK (bypassing the restrictive
- * client rules) and dispatches the message to the recipient only, so a
- * notification can never be routed to the wrong user.
- */
 export const sendPushOnNotification = onDocumentCreated(
   "notifications/{notificationId}",
   async (event) => {
@@ -28,8 +19,6 @@ export const sendPushOnNotification = onDocumentCreated(
 
     if (!recipientId) return;
 
-    // If the notification was already read/consumed before this trigger fired,
-    // skip sending a push (avoids spamming an obsolete notification).
     if (data.isRead === true) return;
 
     const tokenDoc = await admin
@@ -63,8 +52,6 @@ export const sendPushOnNotification = onDocumentCreated(
     try {
       await admin.messaging().send(payload);
     } catch (err) {
-      // A stale/invalid token is expected after a user reinstalls or logs out.
-      // Best effort: log it and clean up so it never blocks later deliveries.
       console.error(
         `FCM send failed for ${recipientId}:`,
         err.code || err.message
@@ -87,3 +74,84 @@ export const sendPushOnNotification = onDocumentCreated(
     }
   }
 );
+
+export const cleanupDeletedUser = v1.auth.user().onDelete(async (user) => {
+  const uid = user.uid;
+  const db = admin.firestore();
+  const storage = admin.storage();
+  const batch = db.batch();
+
+  try {
+    const teamsSnap = await db
+      .collection("teams")
+      .where("memberIds", "array-contains", uid)
+      .get();
+    for (const doc of teamsSnap.docs) {
+      const data = doc.data() || {};
+      const update = { memberIds: admin.firestore.FieldValue.arrayRemove(uid) };
+      if (data.leadUid === uid) update.leadUid = null;
+      batch.update(doc.ref, update);
+    }
+
+    const leadTeamsSnap = await db
+      .collection("teams")
+      .where("leadUid", "==", uid)
+      .get();
+    for (const doc of leadTeamsSnap.docs) {
+      batch.update(doc.ref, {
+        leadUid: null,
+        memberIds: admin.firestore.FieldValue.arrayRemove(uid),
+      });
+    }
+
+    const unitsSnap = await db
+      .collection("units")
+      .where("memberUids", "array-contains", uid)
+      .get();
+    for (const doc of unitsSnap.docs) {
+      const data = doc.data() || {};
+      const update = { memberUids: admin.firestore.FieldValue.arrayRemove(uid) };
+      if (data.unitLeadUid === uid) update.unitLeadUid = null;
+      batch.update(doc.ref, update);
+    }
+
+    const leadUnitsSnap = await db
+      .collection("units")
+      .where("unitLeadUid", "==", uid)
+      .get();
+    for (const doc of leadUnitsSnap.docs) {
+      batch.update(doc.ref, {
+        unitLeadUid: null,
+        memberUids: admin.firestore.FieldValue.arrayRemove(uid),
+      });
+    }
+
+    const userRef = db.collection("users").doc(uid);
+    const userSnap = await userRef.get();
+    if (userSnap.exists) {
+      batch.delete(userRef);
+    }
+
+    const tokenRef = db.collection("fcm_tokens").doc(uid);
+    const tokenSnap = await tokenRef.get();
+    if (tokenSnap.exists) {
+      batch.delete(tokenRef);
+    }
+
+    await batch.commit();
+
+    const targets = [
+      `profile_photos/${uid}.jpg`,
+      `cover_photos/${uid}.jpg`,
+    ];
+    for (const path of targets) {
+      try {
+        await storage.bucket().file(path).delete();
+      } catch (err) {
+        console.warn(`Storage cleanup skipped for ${path}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error(`Account cleanup failed for ${uid}:`, err);
+  }
+});

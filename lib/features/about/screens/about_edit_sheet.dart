@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/image_utils.dart';
+import '../../../core/utils/operation_feedback.dart';
 import '../models/about_models.dart';
 import '../providers/about_providers.dart';
 
@@ -89,8 +90,36 @@ class _SectionRow extends ConsumerWidget {
       child: Row(children: [
         Expanded(child: Text(section.title, style:  TextStyle(color: AppColors.textPrimary, fontSize: 13))),
         IconButton(icon:  Icon(Icons.edit_outlined, size: 16, color: AppColors.textSecondary), onPressed: onEdit),
-        IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.error), onPressed: () => ref.read(aboutRepositoryProvider).deleteSection(section.id)),
+        IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.error), onPressed: () => _deleteSection(context, ref)),
       ]));
+  }
+
+  Future<void> _deleteSection(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Bölümü Sil'),
+        content: Text('"${section.title}" silinecek. Onaylıyor musunuz?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('İptal')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sil'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!context.mounted) return;
+    await runDeleteWithFeedback(
+      context: context,
+      successMessage: 'Bölüm başarıyla silindi.',
+      operation: () =>
+          ref.read(aboutRepositoryProvider).deleteSection(section.id),
+    );
   }
 }
 
@@ -109,8 +138,37 @@ class _MemberRow extends ConsumerWidget {
           Text(member.type == MemberType.honorary ? 'Onursal Üye' : 'Takım Üyesi', style:  TextStyle(color: AppColors.textSecondary, fontSize: 11)),
         ])),
         IconButton(icon:  Icon(Icons.edit_outlined, size: 16, color: AppColors.textSecondary), onPressed: onEdit),
-        IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.error), onPressed: () => ref.read(aboutRepositoryProvider).deleteMember(member.id, photoUrl: member.photoUrl)),
+        IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.error), onPressed: () => _deleteMember(context, ref)),
       ]));
+  }
+
+  Future<void> _deleteMember(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Üyeyi Sil'),
+        content: Text('"${member.name}" silinecek. Onaylıyor musunuz?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('İptal')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sil'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!context.mounted) return;
+    await runDeleteWithFeedback(
+      context: context,
+      successMessage: 'Üye başarıyla silindi.',
+      operation: () => ref
+          .read(aboutRepositoryProvider)
+          .deleteMember(member.id, photoUrl: member.photoUrl),
+    );
   }
 }
 

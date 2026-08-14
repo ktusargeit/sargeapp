@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,9 +8,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/utils/image_utils.dart';
+import '../../../core/utils/operation_feedback.dart';
 import '../../../core/widgets/platform_image.dart';
 import '../../../core/widgets/comment_tile.dart';
-import '../../../core/widgets/linkified_text.dart';
 import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/custom_delete_button.dart';
 import '../../notifications/providers/notification_providers.dart';
@@ -67,8 +66,10 @@ class _ReportBugScreenState extends ConsumerState<ReportBugScreen>
       String? imageUrl;
       if (_pickedImage != null) {
         final tempId = DateTime.now().millisecondsSinceEpoch.toString();
+        // Client-side compression before upload (max-1280px JPEG ~75%).
+        final compressed = await _pickedImage!.compressedUploadBytes();
         imageUrl = await repo.uploadReportImage(tempId,
-            file: _pickedImage!.dartFile, bytes: _pickedImage!.bytes);
+            file: _pickedImage!.dartFile, bytes: compressed);
       }
       final reportId = await repo.submitReport(
         title: _titleCtrl.text.trim(),
@@ -764,7 +765,7 @@ class _BugCard extends ConsumerWidget {
   }
 
   void _deleteReport(BuildContext context, WidgetRef ref) {
-    showDialog(
+    showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Bildirimi Sil'),
@@ -772,23 +773,28 @@ class _BugCard extends ConsumerWidget {
             'Bu bildirim kalıcı olarak silinecek. Onaylıyor musunuz?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: () => Navigator.pop(ctx, false),
               child: const Text('İptal')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await ref
-                  .read(firestoreProvider)
-                  .collection('reports')
-                  .doc(report.id)
-                  .delete();
-            },
+            onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Sil'),
           ),
         ],
       ),
-    );
+    ).then((confirmed) async {
+      if (confirmed != true) return;
+      if (!context.mounted) return;
+      await runDeleteWithFeedback(
+        context: context,
+        successMessage: 'Bildirim başarıyla silindi.',
+        operation: () => ref
+            .read(firestoreProvider)
+            .collection('reports')
+            .doc(report.id)
+            .delete(),
+      );
+    });
   }
 }
 
@@ -807,6 +813,7 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
   final _msgCtrl = TextEditingController();
   PickedImage? _msgImage;
   bool _sending = false;
+  Map<String, dynamic>? _replyTo;
 
   @override
   void dispose() {
@@ -848,17 +855,17 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
 
     final updates = <String, dynamic>{'status': newStatus};
 
-    if (newStatus == 'investigating') {
-      final reviewedBy = List<Map<String, dynamic>>.from(report.reviewedBy);
-      final alreadyReviewing = reviewedBy.any((r) => r['uid'] == uid);
-      if (!alreadyReviewing && uid != null) {
-        reviewedBy.add({
+    if (newStatus == 'investigating' && uid != null) {
+      // Use arrayUnion so multiple admins can mark "inceleniyor" concurrently
+      // without overwriting each other. This reviewer list is informational
+      // only and never acts as a lock.
+      updates['reviewedBy'] = FieldValue.arrayUnion([
+        {
           'uid': uid,
           'name': currentName,
           'startedAt': Timestamp.now(),
-        });
-        updates['reviewedBy'] = reviewedBy;
-      }
+        },
+      ]);
     }
 
     if (newStatus == 'done') {
@@ -876,10 +883,10 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(newStatus == 'done'
-                ? 'Yapıldı olarak işaretlendi.'
+                ? 'Çözüldü olarak işaretlendi.'
                 : newStatus == 'investigating'
                     ? 'İnceleniyor.'
-                    : 'Açıldı.'),
+                    : 'Yeni durumuna alındı.'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -900,6 +907,7 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
       final currentUser = ref.read(authStateProvider).value;
       final currentName = currentUser?.displayName ?? 'Kullanıcı';
       final uid = currentUser?.uid ?? '';
+      final replyTo = _replyTo;
 
       String? imageUrl;
       if (_msgImage != null) {
@@ -907,21 +915,28 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
         final storageRef = FirebaseStorage.instance
             .ref()
             .child('report_messages/$tempId.jpg');
-        if (kIsWeb && _msgImage!.bytes != null) {
-          await storageRef.putData(_msgImage!.bytes!);
+        final compressed = await _msgImage!.compressedUploadBytes();
+        if (compressed.isNotEmpty) {
+          await storageRef.putData(compressed);
         } else if (_msgImage!.dartFile != null) {
           await storageRef.putFile(_msgImage!.dartFile!);
+        } else if (_msgImage!.bytes != null) {
+          await storageRef.putData(_msgImage!.bytes!);
         }
         imageUrl = await storageRef.getDownloadURL();
       }
 
       final newMsg = {
+        'id': 'msg_${DateTime.now().microsecondsSinceEpoch}',
         'senderUid': uid,
         'senderName': currentName,
         'text': _msgCtrl.text.trim(),
         'imageUrl': imageUrl,
         'createdAt': Timestamp.now(),
         'isAdmin': widget.isAdmin,
+        'replyToId': replyTo?['id'],
+        'replyToText': replyTo?['text'],
+        'replyToAuthor': replyTo?['senderName'],
       };
 
       await ref
@@ -963,6 +978,7 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
         setState(() {
           _msgCtrl.clear();
           _msgImage = null;
+          _replyTo = null;
           _sending = false;
         });
       }
@@ -1195,7 +1211,7 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                         children: [
                           if (report.status != 'done')
                             _StatusActionButton(
-                              label: 'Yapıldı',
+                              label: 'Çözüldü',
                               color: AppColors.success,
                               icon: Icons.check_circle_outline,
                               isFilled: true,
@@ -1208,15 +1224,6 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                               icon: Icons.search,
                               isFilled: true,
                               onTap: () => _updateStatus(report, 'investigating'),
-                            ),
-                          if (report.status == 'done' ||
-                              report.status == 'investigating')
-                            _StatusActionButton(
-                              label: 'Yeniden Aç',
-                              color: AppColors.textSecondary,
-                              icon: Icons.refresh,
-                              isFilled: false,
-                              onTap: () => _updateStatus(report, 'open'),
                             ),
                         ],
                       ),
@@ -1243,7 +1250,7 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                         ],
                       ),
                     ),
-                    // Messages
+                    // Messages (WhatsApp-style bubbles with reply support).
                     if (messages.isEmpty)
                        Padding(
                         padding: const EdgeInsets.symmetric(vertical: 20),
@@ -1255,128 +1262,16 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                       )
                     else
                       ...messages.map((msg) {
-                        final isMe = msg['senderUid'] == currentUid;
-                        final senderUid = msg['senderUid'] as String? ?? '';
-                        final name = msg['senderName'] as String? ?? '';
-                        final text = msg['text'] as String? ?? '';
-                        final imgUrl = msg['imageUrl'] as String?;
-                        final isMsgAdmin = msg['isAdmin'] as bool? ?? false;
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: Row(
-                            mainAxisAlignment: isMe
-                                ? MainAxisAlignment.end
-                                : MainAxisAlignment.start,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (!isMe)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 2, right: 6),
-                                  child: UserAvatar(
-                                    uid: senderUid,
-                                    name: name,
-                                    radius: 12,
-                                    isAdmin: isMsgAdmin,
-                                  ),
-                                ),
-                              Flexible(
-                                child: Container(
-                                  constraints: BoxConstraints(
-                                      maxWidth:
-                                          MediaQuery.of(context).size.width * 0.6),
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: isMsgAdmin
-                                        ? AppColors.success.withValues(alpha: 0.08)
-                                        : AppColors.surface2,
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                      color: isMsgAdmin
-                                          ? AppColors.success.withValues(alpha: 0.2)
-                                          : AppColors.border,
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            name,
-                                            style: TextStyle(
-                                              color: isMsgAdmin
-                                                  ? AppColors.success
-                                                  : AppColors.textPrimary,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          if (isMsgAdmin) ...[
-                                            const SizedBox(width: 4),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                  horizontal: 4, vertical: 1),
-                                              decoration: BoxDecoration(
-                                                color: AppColors.success
-                                                    .withValues(alpha: 0.15),
-                                                borderRadius: BorderRadius.circular(2),
-                                              ),
-                                              child: const Text('ADMIN',
-                                                  style: TextStyle(
-                                                      color: AppColors.success,
-                                                      fontSize: 8,
-                                                      fontWeight: FontWeight.w700)),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                      if (text.isNotEmpty) ...[
-                                        const SizedBox(height: 4),
-                                        LinkifiedText(
-                                          text: text,
-                                          style: TextStyle(
-                                              color: AppColors.textPrimary,
-                                              fontSize: 13,
-                                              height: 1.4),
-                                          linkColor: AppColors.panelBlue,
-                                        ),
-                                      ],
-                                      if (imgUrl != null && imgUrl.isNotEmpty) ...[
-                                        const SizedBox(height: 6),
-                                        GestureDetector(
-                                          onTap: () => _showFullScreen(context, imgUrl),
-                                          child: ClipRRect(
-                                            borderRadius: BorderRadius.circular(6),
-                                            child: Image.network(
-                                              imgUrl,
-                                              height: 120,
-                                              width: double.infinity,
-                                              fit: BoxFit.cover,
-                                              cacheWidth: 600,
-                                              errorBuilder: (_, __, ___) =>
-                                                  const SizedBox.shrink(),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              if (isMe)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 2, left: 6),
-                                  child: UserAvatar(
-                                    uid: senderUid,
-                                    name: name,
-                                    radius: 12,
-                                    isAdmin: isMsgAdmin,
-                                  ),
-                                ),
-                            ],
-                          ),
+                        final data = Map<String, dynamic>.from(msg);
+                        return ChatBubble(
+                          data: data,
+                          isMine: msg['senderUid'] == currentUid,
+                          onReply: () => setState(() => _replyTo = {
+                            'id': msg['id'] as String? ?? '',
+                            'text': msg['text'] as String? ?? '',
+                            'senderName': msg['senderName'] as String? ?? '',
+                            'senderUid': msg['senderUid'] as String? ?? '',
+                          }),
                         );
                       }),
                   ],
@@ -1392,9 +1287,28 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                 child: SafeArea(
                   top: false,
                   bottom: true,
-                  child: Row(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
+                      if (_replyTo != null) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: ReplyPreviewBar(
+                                  author: _replyTo!['senderName'] as String? ?? 'Bilinmeyen',
+                                  text: _replyTo!['text'] as String? ?? '',
+                                  onClear: () => setState(() => _replyTo = null),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
                       if (_msgImage != null)
                         Padding(
                           padding: const EdgeInsets.only(right: 4),
@@ -1474,6 +1388,8 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                             : const Icon(Icons.send,
                                 size: 20, color: AppColors.primaryGreen),
                         onPressed: _sending ? null : () => _sendMessage(report),
+                      ),
+                        ],
                       ),
                     ],
                   ),

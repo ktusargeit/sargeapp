@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/utils/image_utils.dart';
+import '../../../core/utils/operation_feedback.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/platform_image.dart';
 import '../../../core/widgets/comment_tile.dart';
@@ -953,7 +953,7 @@ class _AnnouncementCard extends ConsumerWidget {
 
   void _deleteAnnouncement(
       BuildContext context, Announcement announcement) {
-    showDialog(
+    showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Duyuruyu Sil'),
@@ -961,24 +961,28 @@ class _AnnouncementCard extends ConsumerWidget {
             '"${announcement.title}" silinecek. Onaylıyor musunuz?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: () => Navigator.pop(ctx, false),
               child: const Text('İptal')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.error),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              final container =
-                  ProviderScope.containerOf(context);
-              await container
-                  .read(announcementRepositoryProvider)
-                  .deleteAnnouncement(announcement.id);
-            },
+            onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Sil'),
           ),
         ],
       ),
-    );
+    ).then((confirmed) async {
+      if (confirmed != true) return;
+      if (!context.mounted) return;
+      final container = ProviderScope.containerOf(context);
+      await runDeleteWithFeedback(
+        context: context,
+        successMessage: 'Duyuru başarıyla silindi.',
+        operation: () => container
+            .read(announcementRepositoryProvider)
+            .deleteAnnouncement(announcement.id),
+      );
+    });
   }
 }
 
@@ -1390,6 +1394,7 @@ class _AnnouncementDetailSheetState
   final _commentCtrl = TextEditingController();
   List<PickedImage> _commentImages = [];
   bool _sending = false;
+  Map<String, dynamic>? _replyTo;
 
   @override
   void dispose() {
@@ -1408,6 +1413,7 @@ class _AnnouncementDetailSheetState
       final name = user?.displayName ?? 'Kullanıcı';
       final isAdmin = ref.read(isAdminProvider);
       final firestore = ref.read(firestoreProvider);
+      final replyTo = _replyTo;
 
       final imageUrls = <String>[];
       for (final img in _commentImages) {
@@ -1415,7 +1421,11 @@ class _AnnouncementDetailSheetState
         final storageRef = FirebaseStorage.instance
             .ref()
             .child('announcement_comments/$tempId.jpg');
-        if (kIsWeb && img.bytes != null) {
+        // Client-side compression: max-1280px JPEG at ~75% quality.
+        final compressed = await img.compressedUploadBytes();
+        if (compressed.isNotEmpty) {
+          await storageRef.putData(compressed);
+        } else if (img.bytes != null) {
           await storageRef.putData(img.bytes!);
         } else if (img.dartFile != null) {
           await storageRef.putFile(img.dartFile!);
@@ -1434,6 +1444,9 @@ class _AnnouncementDetailSheetState
         'imageUrls': imageUrls,
         'createdAt': FieldValue.serverTimestamp(),
         'isAdmin': isAdmin,
+        'replyToId': replyTo?['id'],
+        'replyToText': replyTo?['text'],
+        'replyToAuthor': replyTo?['senderName'],
       });
 
       // Notify the announcement creator (unless the commenter is the creator).
@@ -1453,7 +1466,10 @@ class _AnnouncementDetailSheetState
       }
 
       _commentCtrl.clear();
-      setState(() => _commentImages = []);
+      setState(() {
+        _commentImages = [];
+        _replyTo = null;
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1619,7 +1635,11 @@ class _AnnouncementDetailSheetState
                     ),
                   ),
                   // Comments list (subcollection stream)
-                  _AnnouncementCommentsList(announcementId: announcement.id),
+                  _AnnouncementCommentsList(
+                    announcementId: announcement.id,
+                    currentUid: ref.read(authStateProvider).value?.uid,
+                    onReply: (data) => setState(() => _replyTo = data),
+                  ),
                   const SizedBox(height: 20),
                 ],
               ),
@@ -1635,6 +1655,14 @@ class _AnnouncementDetailSheetState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (_replyTo != null) ...[
+                      ReplyPreviewBar(
+                        author: _replyTo!['senderName'] as String? ?? 'Bilinmeyen',
+                        text: _replyTo!['text'] as String? ?? '',
+                        onClear: () => setState(() => _replyTo = null),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     if (_commentImages.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 8),
@@ -1750,7 +1778,13 @@ class _AnnouncementDetailSheetState
 /// Live comments list from the subcollection.
 class _AnnouncementCommentsList extends ConsumerWidget {
   final String announcementId;
-  const _AnnouncementCommentsList({required this.announcementId});
+  final String? currentUid;
+  final void Function(Map<String, dynamic>) onReply;
+  const _AnnouncementCommentsList({
+    required this.announcementId,
+    this.currentUid,
+    required this.onReply,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1784,7 +1818,17 @@ class _AnnouncementCommentsList extends ConsumerWidget {
         }
         return Column(
           children: comments.map((doc) {
-            return CommentTile(data: doc.data());
+            final data = doc.data();
+            return CommentTile(
+              data: data,
+              isMine: data['senderUid'] == currentUid,
+              onReply: () => onReply({
+                'id': doc.id,
+                'text': data['text'] as String? ?? '',
+                'senderName': data['senderName'] as String? ?? '',
+                'senderUid': data['senderUid'] as String? ?? '',
+              }),
+            );
           }).toList(),
         );
       },

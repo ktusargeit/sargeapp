@@ -5,6 +5,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_providers.dart';
 
+/// Web FCM VAPID public key ("Cloud Messaging" → "Web Push certificates" →
+/// "Key pair" in the Firebase console). Web `getToken` requires this key.
+///
+/// Populate this with the project's VAPID public key to enable push
+/// notifications on the web (Chrome/Firefox) target. When empty, web token
+/// registration is skipped gracefully so login is never blocked.
+const String kWebVapidKey = '';
+
 /// Manages the FCM device token lifecycle.
 ///
 /// The token is stored on the user's own Firestore document under `fcmToken`
@@ -19,9 +27,19 @@ class FcmService {
 
   /// Writes the token to the dedicated `fcm_tokens/{uid}` document so it is
   /// never exposed via the publicly-readable `users` profile document.
+  ///
+  /// On web, FCM requires a VAPID key. When [kWebVapidKey] is configured, the
+  /// web token is fetched and persisted so Chrome notifications work; otherwise
+  /// web is skipped gracefully.
   Future<String?> _refreshAndSave(String uid) async {
     try {
-      final token = await _messaging.getToken();
+      final String? token;
+      if (kIsWeb) {
+        if (kWebVapidKey.isEmpty) return null;
+        token = await _messaging.getToken(vapidKey: kWebVapidKey);
+      } else {
+        token = await _messaging.getToken();
+      }
       if (token == null || token.isEmpty) return null;
       await _firestore.collection('fcm_tokens').doc(uid).set({
         'uid': uid,
@@ -49,8 +67,8 @@ class FcmService {
     String? lastUid;
 
     Future<void> handleUser(User? user) async {
-      // Web has no push registration via FCM on all browsers; skip gracefully.
-      if (kIsWeb) return;
+      // On web, registration requires a VAPID key; skip gracefully if absent.
+      if (kIsWeb && kWebVapidKey.isEmpty) return;
 
       if (user == null) {
         // Sign-out: remove the previous user's token so a stale token can never
@@ -69,6 +87,8 @@ class FcmService {
     final authSub = FirebaseAuth.instance.authStateChanges().listen(handleUser);
 
     final tokenSub = _messaging.onTokenRefresh.listen((token) async {
+      // On web, onTokenRefresh does not fire unless a VAPID key is configured.
+      if (kIsWeb && kWebVapidKey.isEmpty) return;
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null || token.isEmpty) return;
       try {

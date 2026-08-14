@@ -5,12 +5,18 @@ import '../../core/theme/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/providers/auth_providers.dart';
 import '../../core/providers/theme_provider.dart';
+import '../../core/utils/operation_feedback.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  @override
+  Widget build(BuildContext context) {
     final appUser = ref.watch(currentAppUserProvider).value;
 
     return Scaffold(
@@ -68,10 +74,102 @@ class SettingsScreen extends ConsumerWidget {
               _SettingsTile(icon: Icons.info_outline, title: 'Hakkında', subtitle: 'SARGE Kulüp Yönetim v${AppConstants.appVersion}', onTap: () {}),
               _SettingsTile(icon: Icons.bug_report_outlined, title: 'Hata Bildir', subtitle: 'Sorun bildirmek için tıklayın', onTap: () => context.push('/report-bug')),
             ]),
+            const SizedBox(height: AppConstants.spacingLg),
+            _SettingsSection(title: 'Tehlike Bölgesi', children: [
+              _SettingsTile(
+                icon: Icons.delete_forever_outlined,
+                title: 'Hesabımı Sil',
+                subtitle: 'Hesabınız kalıcı olarak silinir',
+                isDestructive: true,
+                onTap: () => _confirmDeleteAccount(),
+              ),
+            ]),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDeleteAccount() async {
+    // Step 1: Warning confirmation dialog.
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hesabı Sil'),
+        content: const Text(
+          'Hesabınızı silmek istediğinize emin misiniz? Bu işlem geri alınamaz. '
+          'Tüm puanlarınız, takım üyelikleriniz ve profil bilgileriniz kalıcı olarak silinecek.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('İptal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Evet, Hesabımı Sil'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!mounted) return;
+
+    // Step 2: Password re-authentication dialog.
+    final passwordCtrl = TextEditingController();
+    final password = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Şifrenizi Girin'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Güvenlik için hesabınızı silmeden önce şifrenizi tekrar girmeniz gerekiyor.',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: passwordCtrl,
+              autofocus: true,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Şifre',
+                hintText: 'Mevcut şifreniz',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('İptal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, passwordCtrl.text),
+            child: const Text('Hesabı Sil'),
+          ),
+        ],
+      ),
+    );
+    passwordCtrl.dispose();
+    if (password == null || password.isEmpty) return;
+    if (!mounted) return;
+
+    // Step 3: Execute deletion with loading overlay + SnackBar feedback.
+    final ok = await runOperationWithFeedback(
+      context: context,
+      loadingMessage: 'Hesabınız siliniyor...',
+      successMessage: 'Hesabınız başarıyla silindi.',
+      operation: () => ref
+          .read(authControllerProvider)
+          .deleteAccount(password: password),
+    );
+    if (ok && mounted) {
+      context.go('/login');
+    }
   }
 }
 

@@ -76,9 +76,9 @@ class BugReport {
       case 'investigating':
         return 'İnceleniyor';
       case 'done':
-        return 'Yapıldı';
+        return 'Çözüldü';
       default:
-        return 'Beklemede';
+        return 'Yeni';
     }
   }
 

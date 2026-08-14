@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/auth_providers.dart';
+import '../../../core/utils/image_utils.dart';
 import '../../notifications/providers/notification_providers.dart';
 import '../models/announcement_models.dart';
 
@@ -109,6 +110,15 @@ class AnnouncementRepository {
 
   Future<String> uploadImage(String announcementId,
       {File? file, Uint8List? bytes}) async {
+    // Client-side compression before upload (max-1280px JPEG ~75% quality).
+    if (bytes != null) {
+      final PickedImage img = PickedImage(bytes: bytes);
+      bytes = await img.compressedUploadBytes();
+    } else if (file != null) {
+      final PickedImage img = PickedImage(dartFile: file);
+      bytes = await img.compressedUploadBytes();
+    }
+
     // ── DEBUG: User identity ──
     final uid = FirebaseAuth.instance.currentUser?.uid;
     debugPrint('═══ [DEBUG uploadImage] ═══');
@@ -139,8 +149,8 @@ class AnnouncementRepository {
 
     // ── Upload with try/catch ──
     try {
-      if (kIsWeb && bytes != null) {
-        debugPrint('[DEBUG] Uploading via putData (web, ${bytes.length} bytes)');
+      if (bytes != null && bytes.isNotEmpty) {
+        debugPrint('[DEBUG] Uploading compressed bytes (${bytes.length} bytes)');
         await ref.putData(bytes);
       } else if (file != null) {
         debugPrint('[DEBUG] Uploading via putFile: ${file.path}');

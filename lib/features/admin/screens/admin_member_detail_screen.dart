@@ -7,7 +7,10 @@ import '../../../core/models/user_profile_models.dart';
 import '../../../core/permissions/permission_system.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/operation_feedback.dart';
 import '../../../core/widgets/safe_network_image.dart';
+import '../../team/models/team_models.dart';
+import '../../team/providers/team_providers.dart';
 import '../admin_permissions.dart';
 import '../services/user_title_service.dart';
 import 'user_title_management_sheet.dart';
@@ -135,6 +138,19 @@ class _AdminMemberDetailScreenState
           )
         else
           _muted('Rol değiştirme yetkisi yalnızca admin rolündedir.'),
+        if (caps.canChangeRoles) ...[
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => _openMultiRoleSheet(user),
+            icon: const Icon(Icons.checklist, size: 18),
+            label: const Text('Çoklu Rol Yönetimi (Admin + Kaptan + Birim Sorumlusu)'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.sargeGold,
+              side: BorderSide(
+                  color: AppColors.sargeGold.withValues(alpha: 0.5)),
+            ),
+          ),
+        ],
         const SizedBox(height: 20),
 
         // ── Puan ────────────────────────────────────────────────────────────
@@ -305,27 +321,19 @@ class _AdminMemberDetailScreenState
       destructive: true,
     );
     if (confirmed != true) return;
+    if (!mounted) return;
 
-    try {
-      await ref
+    final ok = await runDeleteWithFeedback(
+      context: context,
+      successMessage: '${user.displayName} hesabı başarıyla silindi.',
+      operation: () => ref
           .read(firestoreProvider)
           .collection('users')
           .doc(user.uid)
-          .delete();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${user.displayName} silindi.'),
-          backgroundColor: AppColors.success,
-        ));
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Silinemedi: $e'),
-          backgroundColor: AppColors.error,
-        ));
-      }
+          .delete(),
+    );
+    if (ok && mounted) {
+      Navigator.pop(context);
     }
   }
 
@@ -353,6 +361,319 @@ class _AdminMemberDetailScreenState
             child: Text(confirmLabel),
           ),
         ],
+      ),
+    );
+  }
+
+  void _openMultiRoleSheet(AppUser user) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      builder: (_) => _MultiRoleSheet(user: user),
+    );
+  }
+}
+
+/// Multi-select editor for a user's roles.
+///
+/// A user can simultaneously hold:
+///  * a global role (`users/{uid}.role`, e.g. admin),
+///  * a team captain role (`teams/{id}.leadUid`),
+///  * one or more unit-lead roles (`units/{id}.unitLeadUid`).
+///
+/// Each checkbox writes to its own authoritative Firestore field, so all
+/// combinations are supported.
+class _MultiRoleSheet extends ConsumerStatefulWidget {
+  final AppUser user;
+  const _MultiRoleSheet({required this.user});
+
+  @override
+  ConsumerState<_MultiRoleSheet> createState() => _MultiRoleSheetState();
+}
+
+class _MultiRoleSheetState extends ConsumerState<_MultiRoleSheet> {
+  final Set<String> _pendingTeamIds = {};
+  final Set<String> _pendingUnitIds = {};
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final teamsAsync = ref.watch(clubTeamsProvider);
+    final unitsAsync = ref.watch(teamUnitListProvider);
+    final teams = teamsAsync.valueOrNull ?? const <ClubTeam>[];
+    final units = unitsAsync.valueOrNull ?? const <Map<String, dynamic>>[];
+
+    final isAdmin = widget.user.role == 'admin';
+    final captainTeamIds =
+        teams.where((t) => t.leadUid == widget.user.uid).map((t) => t.id).toSet();
+    final leadUnitIds = units
+        .where((u) => u['unitLeadUid'] == widget.user.uid)
+        .map((u) => u['id'] as String)
+        .toSet();
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Rolleri Yönet — ${widget.user.displayName}',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close, color: AppColors.textSecondary),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Bir kullanıcı aynı anda Admin, Takım Kaptanı ve Birim Sorumlusu olabilir.',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              if (_busy)
+                const LinearProgressIndicator(minHeight: 2)
+              else
+                const SizedBox(height: 2),
+              const SizedBox(height: 8),
+              Expanded(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    // ── Global role ──────────────────────────────────────────
+                    const _SectionLabel('GLOBAL ROL'),
+                    CheckboxListTile(
+                      value: isAdmin,
+                      contentPadding: EdgeInsets.zero,
+                      activeColor: AppColors.error,
+                      title: const Text('Admin'),
+                      subtitle: const Text('Sistem genelinde tam yetki'),
+                      onChanged: _busy
+                          ? null
+                          : (v) => _setAdmin(v ?? false),
+                    ),
+                    const Divider(height: 16),
+                    // ── Team captain ──────────────────────────────────────────
+                    const _SectionLabel('TAKIM KAPTANI'),
+                    if (teams.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text('Takım bulunmuyor.',
+                            style: TextStyle(
+                                color: AppColors.textSecondary, fontSize: 13)),
+                      )
+                    else
+                      ...teams.map((t) {
+                        final checked =
+                            captainTeamIds.contains(t.id) ||
+                                _pendingTeamIds.contains(t.id);
+                        return CheckboxListTile(
+                          value: checked,
+                          contentPadding: EdgeInsets.zero,
+                          activeColor: AppColors.info,
+                          title: Text(t.name),
+                          subtitle: Text(
+                            t.leadUid != null &&
+                                    t.leadUid != widget.user.uid
+                                ? 'Mevcut kaptan değiştirilecek'
+                                : 'Takım kaptanı',
+                          ),
+                          onChanged: _busy
+                              ? null
+                              : (v) => _setCaptain(t, v ?? false),
+                        );
+                      }),
+                    const Divider(height: 16),
+                    // ── Unit lead ────────────────────────────────────────────
+                    const _SectionLabel('BİRİM SORUMLUSU'),
+                    if (units.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text('Birim bulunmuyor.',
+                            style: TextStyle(
+                                color: AppColors.textSecondary, fontSize: 13)),
+                      )
+                    else
+                      ...units.map((u) {
+                        final name = u['name'] as String? ?? '';
+                        final id = u['id'] as String;
+                        final teamName = teams
+                            .where((t) => t.id == u['teamId'])
+                            .map((t) => t.name)
+                            .firstOrNull;
+                        final checked = leadUnitIds.contains(id) ||
+                            _pendingUnitIds.contains(id);
+                        return CheckboxListTile(
+                          value: checked,
+                          contentPadding: EdgeInsets.zero,
+                          activeColor: AppColors.warning,
+                          title: Text(name),
+                          subtitle: Text(teamName ?? 'Birim sorumlusu'),
+                          onChanged: _busy
+                              ? null
+                              : (v) => _setUnitLead(id, name, v ?? false),
+                        );
+                      }),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _setAdmin(bool value) async {
+    setState(() => _busy = true);
+    try {
+      await ref.read(permissionServiceProvider).updateRole(
+            targetUid: widget.user.uid,
+            newRole: value ? 'admin' : 'member',
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(value ? 'Admin yapıldı.' : 'Adminlik kaldırıldı.'),
+          backgroundColor: AppColors.success,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Güncellenemedi: $e'),
+          backgroundColor: AppColors.error,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _setCaptain(ClubTeam team, bool value) async {
+    setState(() {
+      _busy = true;
+      _pendingTeamIds.add(team.id);
+    });
+    try {
+      await ref.read(firestoreProvider).collection('teams').doc(team.id).update({
+        'leadUid': value ? widget.user.uid : null,
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(value
+              ? '${widget.user.displayName}, ${team.name} kaptanı yapıldı.'
+              : 'Kaptanlık kaldırıldı.'),
+          backgroundColor: AppColors.success,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Güncellenemedi: $e'),
+          backgroundColor: AppColors.error,
+        ));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _pendingTeamIds.remove(team.id);
+        });
+      }
+    }
+  }
+
+  Future<void> _setUnitLead(String unitId, String unitName, bool value) async {
+    setState(() {
+      _busy = true;
+      _pendingUnitIds.add(unitId);
+    });
+    try {
+      await ref
+          .read(firestoreProvider)
+          .collection('units')
+          .doc(unitId)
+          .update({'unitLeadUid': value ? widget.user.uid : null});
+
+      // Keep the unit_lead title in sync (best effort).
+      final titleService = ref.read(userTitleServiceProvider);
+      try {
+        if (value) {
+          await titleService.addTitle(
+            uid: widget.user.uid,
+            titleType: TitleType.unitLead,
+            unitName: unitName,
+          );
+        } else {
+          await titleService.retireUnitLeadTitle(
+            uid: widget.user.uid,
+            unitName: unitName,
+          );
+        }
+      } catch (_) {}
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(value
+              ? '$unitName birim sorumlusu yapıldı.'
+              : 'Birim sorumluluğu kaldırıldı.'),
+          backgroundColor: AppColors.success,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Güncellenemedi: $e'),
+          backgroundColor: AppColors.error,
+        ));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _pendingUnitIds.remove(unitId);
+        });
+      }
+    }
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: AppColors.textSecondary,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.2,
+        ),
       ),
     );
   }
@@ -624,27 +945,27 @@ class _PointsEditor extends ConsumerStatefulWidget {
 class _PointsEditorState extends ConsumerState<_PointsEditor> {
   bool _busy = false;
 
-  Future<void> _editPoints(int delta) async {
-    final reasonCtrl = TextEditingController();
-    final reason = await showDialog<String>(
+  Future<void> _editPoints({required bool isAdd}) async {
+    final amountCtrl = TextEditingController(text: '1');
+    final amount = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(delta > 0 ? 'Puan Ekle' : 'Puan Düş'),
+        title: Text(isAdd ? 'Puan Ekle' : 'Puan Düş'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              '${delta > 0 ? '+' : ''}$delta puan uygulanacak '
-              '(mevcut: ${widget.user.points}).',
+              '${widget.user.displayName} — mevcut puan: ${widget.user.points}.',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: reasonCtrl,
+              controller: amountCtrl,
               autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Açıklama',
-                hintText: 'Neden?',
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: isAdd ? 'Eklenecek puan' : 'Düşülecek puan',
+                hintText: 'Miktar girin (pozitif tam sayı)',
               ),
             ),
           ],
@@ -655,27 +976,36 @@ class _PointsEditorState extends ConsumerState<_PointsEditor> {
             child: const Text('İptal'),
           ),
           ElevatedButton(
-            onPressed: () =>
-                Navigator.pop(ctx, reasonCtrl.text.trim()),
+            onPressed: () => Navigator.pop(ctx, amountCtrl.text.trim()),
             child: const Text('Uygula'),
           ),
         ],
       ),
     );
 
-    if (reason == null || reason.isEmpty) return;
+    if (amount == null) return;
+    final parsed = int.tryParse(amount) ?? 0;
+    if (parsed <= 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Geçerli bir puan miktarı girin.'),
+          backgroundColor: AppColors.error,
+        ));
+      }
+      return;
+    }
+    final delta = isAdd ? parsed : -parsed;
 
     setState(() => _busy = true);
     try {
       final currentUid = ref.read(authStateProvider).value?.uid;
-      // Record the adjustment with its explanation (admin-only write; best
-      // effort so a unit_lead can still adjust the raw point total).
+      // Record the adjustment without a description. History logging is
+      // best-effort; a unit_lead can still adjust the raw point total.
       try {
         await ref.read(firestoreProvider).collection('points_history').add({
           'targetUid': widget.user.uid,
           'targetName': widget.user.displayName,
           'delta': delta,
-          'reason': reason,
           'changedBy': currentUid,
           'createdAt': FieldValue.serverTimestamp(),
         });
@@ -691,8 +1021,9 @@ class _PointsEditorState extends ConsumerState<_PointsEditor> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-              '${delta > 0 ? '+' : ''}$delta puan uygulandı: $reason'),
+          content: Text(isAdd
+              ? '$delta puan eklendi.'
+              : '${delta.abs()} puan düşüldü.'),
           backgroundColor: AppColors.success,
         ));
       }
@@ -720,7 +1051,7 @@ class _PointsEditorState extends ConsumerState<_PointsEditor> {
       children: [
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: _busy ? null : () => _editPoints(1),
+            onPressed: _busy ? null : () => _editPoints(isAdd: true),
             icon: const Icon(Icons.add, size: 18),
             label: const Text('Puan Ekle'),
             style: OutlinedButton.styleFrom(
@@ -733,7 +1064,7 @@ class _PointsEditorState extends ConsumerState<_PointsEditor> {
         const SizedBox(width: 8),
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: _busy ? null : () => _editPoints(-1),
+            onPressed: _busy ? null : () => _editPoints(isAdd: false),
             icon: const Icon(Icons.remove, size: 18),
             label: const Text('Puan Düş'),
             style: OutlinedButton.styleFrom(

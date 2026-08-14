@@ -78,7 +78,12 @@ class NotificationsScreen extends ConsumerWidget {
                         .update({'isRead': true});
                   }
                   if (context.mounted) {
-                    if (type == 'task_assigned' && relatedId != null) {
+                    // Task-related notifications (assigned, comment, submitted)
+                    // all navigate to the task detail sheet.
+                    if ((type == 'task_assigned' ||
+                            type == 'task_comment' ||
+                            type == 'task_submitted') &&
+                        relatedId != null) {
                       context.go('/tasks', extra: relatedId);
                     } else if (type == 'team_application' && relatedId != null) {
                       context.go('/team');

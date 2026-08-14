@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/app_user.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/operation_feedback.dart';
 import '../../../core/widgets/safe_network_image.dart';
 import '../models/team_models.dart';
 import '../providers/team_providers.dart';
@@ -286,7 +287,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
                 );
                 if (ctx.mounted) Navigator.pop(ctx);
               } catch (e) {
-                if (context.mounted) {
+                if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       content: Text('Güncellenemedi: $e'),
                       backgroundColor: AppColors.error));
@@ -324,26 +325,22 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
       ),
     );
     if (confirmed != true) return;
+    if (!mounted) return;
 
-    try {
-      final service = ref.read(unitServiceProvider);
-      // Retire the lead's title first (if any), then delete the unit.
-      if (unit.hasLead) {
-        await service.setUnitLead(unit: unit, newLeadUid: null);
-      }
-      await service.deleteUnit(unit.id);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Birim silindi.'),
-            backgroundColor: AppColors.success));
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Silinemedi: $e'),
-            backgroundColor: AppColors.error));
-      }
+    final service = ref.read(unitServiceProvider);
+    final ok = await runDeleteWithFeedback(
+      context: context,
+      successMessage: 'Birim başarıyla silindi.',
+      operation: () async {
+        // Retire the lead's title first (if any), then delete the unit.
+        if (unit.hasLead) {
+          await service.setUnitLead(unit: unit, newLeadUid: null);
+        }
+        await service.deleteUnit(unit.id);
+      },
+    );
+    if (ok && mounted) {
+      Navigator.pop(context);
     }
   }
 

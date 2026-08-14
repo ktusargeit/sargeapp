@@ -7,6 +7,7 @@ import '../../../core/models/app_user.dart';
 import '../../../core/permissions/permission_system.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/operation_feedback.dart';
 import '../../../core/widgets/safe_network_image.dart';
 import '../../tasks/models/task_models.dart';
 import '../../tasks/providers/task_providers.dart';
@@ -546,19 +547,17 @@ Future<void> _confirmDelete(
     ),
   );
   if (confirmed != true) return;
+  if (!context.mounted) return;
 
-  try {
-    await ref.read(firestoreProvider).collection('teams').doc(team.id).delete();
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Takım silindi.'), backgroundColor: AppColors.success));
-    }
-  } catch (e) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Silinemedi: $e'), backgroundColor: AppColors.error));
-    }
-  }
+  await runDeleteWithFeedback(
+    context: context,
+    successMessage: 'Takım başarıyla silindi.',
+    operation: () => ref
+        .read(firestoreProvider)
+        .collection('teams')
+        .doc(team.id)
+        .delete(),
+  );
 }
 
 // ── Birim (unit) yönetimi ────────────────────────────────────────────────────
@@ -713,8 +712,16 @@ class _UnitManagementDialogState extends ConsumerState<UnitManagementDialog> {
       ),
     );
     if (confirmed != true) return;
-    await ref.read(firestoreProvider).collection('units').doc(id).delete();
-    ref.invalidate(teamUnitsProvider(widget.team.id));
+    if (!mounted) return;
+
+    await runDeleteWithFeedback(
+      context: context,
+      successMessage: 'Birim başarıyla silindi.',
+      operation: () async {
+        await ref.read(firestoreProvider).collection('units').doc(id).delete();
+        ref.invalidate(teamUnitsProvider(widget.team.id));
+      },
+    );
   }
 }
 
