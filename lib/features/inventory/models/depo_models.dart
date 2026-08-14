@@ -28,6 +28,37 @@ class InventoryCategory {
   }
 }
 
+/// A fixed warehouse location category (Toplantı Salonu / Atölye / Depo).
+///
+/// Categories are NOT hard-coded — they live in the `location_categories`
+/// collection so an admin/kaptan can add, rename, or remove them. This was
+/// intentionally chosen (per product decision) instead of baking the 3 names
+/// into the client.
+class LocationCategory {
+  final String id;
+  final String name;
+  final int order;
+  final DateTime? createdAt;
+
+  const LocationCategory({
+    required this.id,
+    required this.name,
+    this.order = 0,
+    this.createdAt,
+  });
+
+  factory LocationCategory.fromDoc(
+      DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? {};
+    return LocationCategory(
+      id: doc.id,
+      name: data['name'] as String? ?? '',
+      order: (data['order'] as num?)?.toInt() ?? 0,
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+    );
+  }
+}
+
 /// A user-defined inventory status option.
 class InventoryStatus {
   final String id;
@@ -65,6 +96,8 @@ class DepoItem {
   final int? quantity;
   final String? locationId;
   final String? locationName;
+  final String? locationCategoryId;
+  final String? locationCategoryName;
   final String? shelfName;
   final String? drawerName;
   final String? imageUrl;
@@ -88,6 +121,8 @@ class DepoItem {
     this.quantity,
     this.locationId,
     this.locationName,
+    this.locationCategoryId,
+    this.locationCategoryName,
     this.shelfName,
     this.drawerName,
     this.imageUrl,
@@ -114,6 +149,8 @@ class DepoItem {
       quantity: (data['quantity'] as num?)?.toInt(),
       locationId: data['locationId'] as String?,
       locationName: data['locationName'] as String?,
+      locationCategoryId: data['locationCategoryId'] as String?,
+      locationCategoryName: data['locationCategoryName'] as String?,
       shelfName: data['shelfName'] as String?,
       drawerName: data['drawerName'] as String?,
       imageUrl: data['imageUrl'] as String?,
@@ -127,11 +164,18 @@ class DepoItem {
 }
 
 /// A storage location within the depo.
+///
+/// Locations belong to a [categoryId] (a `LocationCategory`). A location may
+/// also have a [parentId] pointing at another location, which models
+/// sub-locations/shelves such as "Depo > Raf A".
 class DepoLocation {
   final String id;
   final String name;
   final String? description;
   final String? imageUrl;
+  final String? categoryId;
+  final String? categoryName;
+  final String? parentId;
   final DateTime? createdAt;
 
   const DepoLocation({
@@ -139,6 +183,9 @@ class DepoLocation {
     required this.name,
     this.description,
     this.imageUrl,
+    this.categoryId,
+    this.categoryName,
+    this.parentId,
     this.createdAt,
   });
 
@@ -149,6 +196,9 @@ class DepoLocation {
       name: data['name'] as String? ?? '',
       description: data['description'] as String?,
       imageUrl: data['imageUrl'] as String?,
+      categoryId: data['categoryId'] as String?,
+      categoryName: data['categoryName'] as String?,
+      parentId: data['parentId'] as String?,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }

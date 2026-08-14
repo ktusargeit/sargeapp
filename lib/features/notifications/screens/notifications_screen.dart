@@ -89,6 +89,8 @@ class NotificationsScreen extends ConsumerWidget {
                       context.go('/team');
                     } else if (type == 'announcement' && relatedId != null) {
                       context.go('/dashboard');
+                    } else if (type == 'cleaning') {
+                      context.go('/cleaning');
                     }
                   }
                 },

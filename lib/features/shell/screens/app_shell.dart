@@ -371,10 +371,13 @@ class _SidebarNav extends ConsumerWidget {
             accentColor: AppColors.panelBlue,
           ),
           _NavItem(
-            icon: Icons.inventory_2_outlined,
-            label: 'Depo',
-            route: '/inventory',
-            isActive: location.startsWith('/inventory') || location.startsWith('/locations'),
+            icon: Icons.groups_2_outlined,
+            label: 'KULÜP',
+            route: '/club',
+            isActive: location.startsWith('/club') ||
+                location.startsWith('/inventory') ||
+                location.startsWith('/locations') ||
+                location.startsWith('/cleaning'),
             accentColor: AppColors.depoRed,
           ),
           _NavItem(
@@ -548,11 +551,13 @@ class _BottomNav extends ConsumerWidget {
               ),
               Expanded(
                 child: _BottomNavItem(
-                  icon: Icons.inventory_2_outlined,
-                  label: 'Depo',
-                  route: '/inventory',
-                  isActive: location.startsWith('/inventory') ||
-                      location.startsWith('/locations'),
+                  icon: Icons.groups_2_outlined,
+                  label: 'KULÜP',
+                  route: '/club',
+                  isActive: location.startsWith('/club') ||
+                      location.startsWith('/inventory') ||
+                      location.startsWith('/locations') ||
+                      location.startsWith('/cleaning'),
                   accentColor: AppColors.depoRed,
                 ),
               ),

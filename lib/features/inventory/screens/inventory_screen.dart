@@ -21,6 +21,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   String? _filterTeamId;
   String? _filterUnitId;
   String? _filterCategoryId;
+  String? _filterLocationCategoryId;
 
   @override
   void dispose() {
@@ -31,13 +32,15 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   @override
   Widget build(BuildContext context) {
     final itemsAsync = ref.watch(inventoryItemsProvider);
+    final locationsAsync = ref.watch(locationsProvider);
+    final categoriesAsync = ref.watch(locationCategoriesProvider);
     final width = MediaQuery.of(context).size.width;
     final crossAxisCount = width >= 1200 ? 6 : (width >= AppConstants.breakpointTablet ? 5 : 3);
 
     return Scaffold(
       backgroundColor: AppColors.depoBg,
       appBar: AppBar(
-        title: const Text('Depo'),
+        title: const Text('Malzemeler'),
         backgroundColor: AppColors.depoBg,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(kToolbarHeight + 48),
@@ -73,6 +76,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
                 ),
               ),
+              // Location category filter buttons (Tümü / categories)
+              _buildLocationCategoryFilter(categoriesAsync.valueOrNull ?? []),
               // Filter chips
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -135,6 +140,14 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       ),
       body: itemsAsync.when(
         data: (items) {
+          // Build location→category map so category filtering works even for
+          // items that predate the denormalized `locationCategoryId` field.
+          final locations = locationsAsync.valueOrNull ?? const <DepoLocation>[];
+          final locCategoryById = <String, String>{
+            for (final l in locations)
+              if (l.categoryId != null) l.id: l.categoryId!,
+          };
+
           // Apply filters
           List<DepoItem> filtered = items;
           if (_filterTeamId != null) {
@@ -145,6 +158,15 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           }
           if (_filterCategoryId != null) {
             filtered = filtered.where((i) => i.categoryId == _filterCategoryId).toList();
+          }
+          if (_filterLocationCategoryId != null) {
+            filtered = filtered.where((i) {
+              final direct = i.locationCategoryId;
+              if (direct != null) return direct == _filterLocationCategoryId;
+              final viaLocation =
+                  i.locationId != null ? locCategoryById[i.locationId] : null;
+              return viaLocation == _filterLocationCategoryId;
+            }).toList();
           }
           // Apply search query
           if (_searchQuery.isNotEmpty) {
@@ -202,6 +224,79 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       labelFn: (c) => c is InventoryCategory ? c.name : '',
       idFn: (c) => c is InventoryCategory ? c.id : '',
       onChanged: (v) => setState(() => _filterCategoryId = v),
+    );
+  }
+
+  Widget _buildLocationCategoryFilter(List<LocationCategory> categories) {
+    // "Tümü" filter always present; then one button per location category.
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Row(
+        children: [
+          _LocationFilterButton(
+            label: 'Tümü',
+            selected: _filterLocationCategoryId == null,
+            onTap: () => setState(() => _filterLocationCategoryId = null),
+          ),
+          ...categories.map((c) => _LocationFilterButton(
+                label: c.name,
+                selected: _filterLocationCategoryId == c.id,
+                onTap: () => setState(
+                    () => _filterLocationCategoryId = c.id),
+              )),
+        ],
+      ),
+    );
+  }
+}
+
+class _LocationFilterButton extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _LocationFilterButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Material(
+        color: selected
+            ? AppColors.depoAccent.withValues(alpha: 0.16)
+            : AppColors.surface.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: selected
+                    ? AppColors.depoAccent.withValues(alpha: 0.5)
+                    : AppColors.border,
+              ),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: selected
+                    ? AppColors.depoAccent
+                    : AppColors.textPrimary,
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

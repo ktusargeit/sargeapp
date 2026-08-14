@@ -7,6 +7,11 @@ import '../../features/inventory/screens/inventory_screen.dart';
 import '../../features/inventory/screens/inventory_add_screen.dart';
 import '../../features/inventory/screens/inventory_detail_screen.dart';
 import '../../features/inventory/screens/location_screen.dart';
+import '../../features/shell/screens/club_screen.dart';
+import '../../features/cleaning/screens/cleaning_main_screen.dart';
+import '../../features/cleaning/screens/cleaning_calendar_screen.dart';
+import '../../features/cleaning/screens/cleaning_manage_screen.dart';
+import '../../features/cleaning/screens/cleaning_week_screen.dart';
 import '../../features/team/screens/team_screen.dart';
 import '../../features/about/screens/about_screen.dart';
 import '../../features/contact/screens/contact_screen.dart';
@@ -41,6 +46,7 @@ const _guestAllowedRoutes = {
   '/profile',
   '/team',
   '/notifications',
+  '/club',
 };
 
 class AppRouter {
@@ -85,6 +91,7 @@ class AppRouter {
               !path.startsWith('/team') &&
               !path.startsWith('/inventory') &&
               !path.startsWith('/locations') &&
+              !path.startsWith('/cleaning') &&
               !path.startsWith('/settings') &&
               !path.startsWith('/tasks') &&
               !path.startsWith('/report-bug') &&
@@ -180,6 +187,15 @@ class AppRouter {
               builder: (context, state) => const DashboardScreen(),
             ),
             GoRoute(
+              path: '/club',
+              name: 'club',
+              builder: (context, state) {
+                final extra = state.extra;
+                return ClubScreen(
+                    initialIndex: extra is int ? extra : 0);
+              },
+            ),
+            GoRoute(
               path: '/inventory',
               name: 'inventory',
               builder: (context, state) => const InventoryScreen(),
@@ -209,6 +225,31 @@ class AppRouter {
               path: '/locations',
               name: 'locations',
               builder: (context, state) => const LocationScreen(),
+            ),
+            GoRoute(
+              path: '/cleaning',
+              name: 'cleaning',
+              builder: (context, state) => const CleaningMainScreen(),
+              routes: [
+                GoRoute(
+                  path: 'calendar',
+                  name: 'cleaning-calendar',
+                  builder: (context, state) => const CleaningCalendarScreen(),
+                ),
+                GoRoute(
+                  path: 'manage',
+                  name: 'cleaning-manage',
+                  builder: (context, state) => const CleaningManageScreen(),
+                ),
+                GoRoute(
+                  path: 'week/:weekKey',
+                  name: 'cleaning-week',
+                  builder: (context, state) {
+                    final weekKey = state.pathParameters['weekKey'] ?? '';
+                    return CleaningWeekScreen(weekKey: weekKey);
+                  },
+                ),
+              ],
             ),
             GoRoute(
               path: '/team',

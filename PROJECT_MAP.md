@@ -7,7 +7,9 @@ Projenin "haritası". Her yeni görevde önce bu dosya okunur ve gerektiğinde g
 - `lib/core/` — tema (AppColors), sabitler, modeller (AppUser, UserProfile), routing, genel widget'lar, permission sistemi, auth/firestore provider'ları. Ayrıca `core/utils/operation_feedback.dart` (tüm silme ve async işlemlerde standart loading-overlay + başarı/hata SnackBar yardımcısı).
 - `lib/features/tasks/` — görev ekranları, modelleri ve provider'ları (görev oluşturma, yorumlar, onaylama).
 - `lib/features/team/` — takımlar, birimler (units), üyeler, takım/birim ekranları ve provider'ları.
-- `lib/features/inventory/` — depo/envanter ürünleri, lokasyonlar, kategoriler, durumlar.
+ - `lib/features/inventory/` — depo/envanter ürünleri, lokasyonlar, lokasyon kategorileri (Toplantı Salonu/Atölye/Depo), durumlar; ayrıca `services/location_migration_service.dart` (eski lokasyon göçü).
+ - `lib/features/cleaning/` — KULÜP > Temizlik modülü: döngü (`cleaning_rotation`), haftalık takvim (`cleaning_schedule`), alışveriş listesi, bildirim. `models/`, `providers/` (`cleaning_providers`, `cleaning_resolver`, `cleaning_permissions`), `screens/`, `widgets/`.
+ - `lib/features/shell/screens/club_screen.dart` — "KULÜP" üst sekme kabı (Temizlik + Malzemeler tab'ları).
 - `lib/features/announcements/` — duyurular ve yorumları.
 - `lib/features/notifications/` — uygulama içi bildirimler + FCM cihaz token'ları.
 - `lib/features/admin/` — admin paneli, üye yönetimi, ünvan yönetimi, başvuru onayları.
@@ -50,7 +52,12 @@ Projenin "haritası". Her yeni görevde önce bu dosya okunur ve gerektiğinde g
 - `tasks/{id}` — `title`, `description`, `assignedTo`, `assignedToName`, `assignedBy`, `assignedByName`, `points`, `status`, `teamId`, `teamName`, `unitId`, `unitName`, `pointsAwarded`, `imageUrl`, `createdAt`, `bulkGroupId` (toplu atamada aynı gruptaki tüm görevler aynı değeri taşır), `assignmentMode` (`single` | `team` | `unit`). Yorumlar: `tasks/{id}/comments/{commentId}`. Yorum dokümanı `senderUid`, `senderName`, `text`, `imageUrls`, `createdAt`, `isAdmin`, `replyToId`, `replyToText`, `replyToAuthor` içerir.
 - `announcements/{id}` — `title`, `description`, `imageUrl`, `createdBy`, `targetType`, `targetTeamIds`. Yorumlar alt koleksiyonda (aynı reply alanlarıyla).
 - `teamApplications/{id}` — `applicantUid`, `teamId`, `status`.
-- `depo_urunler/{id}`, `depo_lokasyonlar/{id}`, `inventory_categories/{id}`, `inventory_statuses/{id}` — envanter.
+ - `depo_urunler/{id}`, `depo_lokasyonlar/{id}`, `inventory_categories/{id}`, `inventory_statuses/{id}` — envanter. `depo_lokasyonlar` artık `categoryId`/`categoryName`/`parentId` taşır.
+ - `location_categories/{id}` — sabit lokasyon kategorileri (Toplantı Salonu / Atölye / Depo; extensible).
+ - `cleaning_rotation/{id}` — temizlik döngüsü sıraları (`order`, `assignmentType` team/unit/individual/custom_group, `targetIds`, `label`).
+ - `cleaning_schedule/{weekKey}` — haftalık gerçekleşen kayıtlar (`weekKey` = Pazartesi YYYY-MM-DD; `assignmentType`/`targetIds` + opsiyonel `override*`, `items[]` alışveriş listesi, `completed`, `notifiedAt`).
+ - `cleaning_meta/config` — temizlik başlangıç haftası (`startWeekKey`) + alışveriş listesi şablonu (`shoppingTemplate`).
+ - `locations_backup_pre_migration/{id}` — lokasyon göçü öncesi yedek.
 - `aboutSections/{id}`, `aboutMembers/{id}` — hakkımızda.
 - `contact/info` — iletişim bilgileri.
 - `reports/{id}` — hata/öneri raporları. `messages` alanı dizi (her öğe `id`, `senderUid`, `senderName`, `text`, `imageUrl`, `createdAt`, `isAdmin`, `replyToId`, `replyToText`, `replyToAuthor` içerir).

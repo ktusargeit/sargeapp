@@ -27,6 +27,18 @@ final locationsProvider = StreamProvider<List<DepoLocation>>((ref) {
       .map((snap) => snap.docs.map((d) => DepoLocation.fromDoc(d)).toList());
 });
 
+/// Stream of warehouse location categories (Toplantı Salonu / Atölye / Depo).
+final locationCategoriesProvider =
+    StreamProvider<List<LocationCategory>>((ref) {
+  final firestore = ref.watch(firestoreProvider);
+  return firestore
+      .collection('location_categories')
+      .orderBy('order')
+      .snapshots()
+      .map((snap) =>
+          snap.docs.map((d) => LocationCategory.fromDoc(d)).toList());
+});
+
 /// Stream of inventory categories (hierarchical: team → unit → category).
 final inventoryCategoriesProvider =
     StreamProvider<List<InventoryCategory>>((ref) {
@@ -230,6 +242,9 @@ class DepoRepository {
       'name': location.name,
       'description': location.description,
       'imageUrl': imageUrl,
+      'categoryId': location.categoryId,
+      'categoryName': location.categoryName,
+      'parentId': location.parentId,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
@@ -256,11 +271,67 @@ class DepoRepository {
         .update({'name': name.trim()});
   }
 
+  /// Moves a location into a category (also stores the denormalized name).
+  Future<void> setLocationCategory(
+      String id, String? categoryId, String? categoryName) async {
+    await _firestore.collection('depo_lokasyonlar').doc(id).update({
+      'categoryId': categoryId,
+      'categoryName': categoryName,
+    });
+  }
+
+  /// Sets a location's parent (sub-location relationship).
+  Future<void> setLocationParent(String id, String? parentId) async {
+    await _firestore.collection('depo_lokasyonlar').doc(id).update({
+      'parentId': parentId,
+    });
+  }
+
   /// Number of products currently assigned to [locationId].
   Future<int> countItemsInLocation(String locationId) async {
     final snap = await _firestore
         .collection('depo_urunler')
         .where('locationId', isEqualTo: locationId)
+        .count()
+        .get();
+    return snap.count ?? 0;
+  }
+
+  // Location category CRUD
+  Future<void> addCategoryByName(String name, {int order = 0}) async {
+    await _firestore.collection('location_categories').add({
+      'name': name.trim(),
+      'order': order,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> updateCategoryName(String id, String name) async {
+    await _firestore
+        .collection('location_categories')
+        .doc(id)
+        .update({'name': name.trim()});
+  }
+
+  Future<void> deleteLocationCategory(String id) async {
+    await _firestore.collection('location_categories').doc(id).delete();
+  }
+
+  /// Number of locations currently assigned to [categoryId].
+  Future<int> countLocationsInCategory(String categoryId) async {
+    final snap = await _firestore
+        .collection('depo_lokasyonlar')
+        .where('categoryId', isEqualTo: categoryId)
+        .count()
+        .get();
+    return snap.count ?? 0;
+  }
+
+  /// Number of locations whose `parentId` points at [locationId].
+  Future<int> countSubLocations(String locationId) async {
+    final snap = await _firestore
+        .collection('depo_lokasyonlar')
+        .where('parentId', isEqualTo: locationId)
         .count()
         .get();
     return snap.count ?? 0;

@@ -95,6 +95,45 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Club "manager" roles allowed to administer cleaning rotation + location
+    // categories: admin, board president/member, and unit leads. (Team captains
+    // are additionally checked client-side via teams.leadUid; rules cannot query
+    // "any team where I am lead" without a document read.)
+    function isCleaningManager() {
+      return isAdminOrUnitLead() || isBoardMember();
+    }
+
+    // ---------- LOCATION CATEGORIES ----------
+    // Fixed warehouse categories (Toplantı Salonu / Atölye / Depo, extensible).
+    match /location_categories/{id} {
+      allow read: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if isCleaningManager();
+    }
+
+    // ---------- CLEANING (Temizlik) ----------
+    // Rotation definition + config + realized schedule.
+    // Mirror the existing `depo_urunler` convention: any signed-in user may
+    // create/update (the admin/kaptan restriction is enforced in the UI), and
+    // only club managers may delete.
+    match /cleaning_rotation/{id} {
+      allow read: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if isCleaningManager();
+    }
+
+    match /cleaning_meta/{id} {
+      allow read: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if isCleaningManager();
+    }
+
+    match /cleaning_schedule/{id} {
+      allow read: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if isCleaningManager();
+    }
+
     // ---------- UNITS ----------
     // A "birim" belongs to a team. Only the owning team's captain (leadUid)
     // or an admin may create / update / delete units. Members may still read
