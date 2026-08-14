@@ -1,49 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/app_user.dart';
-import '../../core/models/user_profile_models.dart';
+import '../../core/permissions/permission_system.dart';
 import '../../core/providers/auth_providers.dart';
-
-/// Maps a [TitleType] value to the permission-system role it implies.
-///
-/// The club stores rich roles in the `titles` array (with `titleType`), while
-/// the legacy `role` field is used for lightweight permission checks. This
-/// helper lets the admin panel resolve permissions from BOTH sources, as
-/// required by the "titleType alanlarına göre kontrol et" requirement.
-String titleTypeToRoleCode(String titleType) {
-  switch (titleType) {
-    case TitleType.admin:
-      return 'admin';
-    case TitleType.boardPresident:
-      return 'board_president';
-    case TitleType.boardMember:
-      return 'board_member';
-    case TitleType.unitLead:
-      return 'unit_lead';
-    default:
-      return 'member';
-  }
-}
-
-/// Effective roles for a user = their primary `role` field plus every active
-/// title's mapped role code. This means a user holding an active
-/// `board_member` title is treated as a board member even if their legacy
-/// `role` field is still `member`.
-Set<String> effectiveRoleCodes(AppUser? user) {
-  if (user == null) return const {};
-  final roles = <String>{user.role};
-  for (final title in user.activeTitles) {
-    roles.add(titleTypeToRoleCode(title.titleType));
-  }
-  return roles;
-}
 
 /// Fine-grained capabilities for the Admin Kontrol Paneli.
 ///
-/// Mirrors the permission-level requirements:
-///  * Only `admin` → member deletion, role changes, suspend, system settings.
-///  * `admin` + board (başkan/üye) → title management, team/unit management.
-///  * `admin` + `unit_lead` → point editing (existing `awardPoints`).
+/// These are now derived from the permission system (`hasPermission`) instead
+/// of hard-coded role checks, so the "Rol ve Yetki Yönetimi" screen can toggle
+/// them per role.
 class AdminCapabilities {
   final bool canViewAdminPanel;
   final bool canChangeRoles;
@@ -53,6 +18,7 @@ class AdminCapabilities {
   final bool canManageTitles;
   final bool canManageTeams;
   final bool canReviewApplications;
+  final bool canManageRolesAndPermissions;
 
   const AdminCapabilities({
     required this.canViewAdminPanel,
@@ -63,23 +29,23 @@ class AdminCapabilities {
     required this.canManageTitles,
     required this.canManageTeams,
     required this.canReviewApplications,
+    required this.canManageRolesAndPermissions,
   });
 
   factory AdminCapabilities.forUser(AppUser? user) {
-    final roles = effectiveRoleCodes(user);
-    bool hasAny(Set<String> rs) => roles.intersection(rs).isNotEmpty;
+    bool can(String permission) =>
+        userHasPermission(user, Permissions.defaultRolePermissions, permission);
 
-    const board = {'admin', 'board_president', 'board_member'};
     return AdminCapabilities(
-      canViewAdminPanel: hasAny(board),
-      canChangeRoles: roles.contains('admin'),
-      canDeleteMembers: roles.contains('admin'),
-      canSuspendMembers: roles.contains('admin'),
-      canEditPoints: hasAny(const {'admin', 'unit_lead'}),
-      canManageTitles: hasAny(board),
-      canManageTeams: hasAny(board),
-      canReviewApplications:
-          hasAny(const {'admin', 'unit_lead', 'board_president', 'board_member'}),
+      canViewAdminPanel: can(Permissions.viewAdminPanel),
+      canChangeRoles: can(Permissions.changeRoles),
+      canDeleteMembers: can(Permissions.manageUsers),
+      canSuspendMembers: can(Permissions.manageUsers),
+      canEditPoints: can(Permissions.awardPoints),
+      canManageTitles: can(Permissions.manageTitles),
+      canManageTeams: can(Permissions.manageTeams),
+      canReviewApplications: can(Permissions.reviewApplications),
+      canManageRolesAndPermissions: can(Permissions.manageRolesAndPermissions),
     );
   }
 
@@ -92,10 +58,15 @@ class AdminCapabilities {
     canManageTitles: false,
     canManageTeams: false,
     canReviewApplications: false,
+    canManageRolesAndPermissions: false,
   );
 }
 
-/// Convenience provider resolving the current user's admin capabilities.
+/// Convenience provider resolving the current user's base admin capabilities.
+///
+/// NOTE: This uses the default role → permission map (not Firestore overrides)
+/// to keep member detail / admin panel wiring stable. For a live, override-aware
+/// check prefer [currentUserCanProvider].
 final adminCapabilitiesProvider = Provider<AdminCapabilities>((ref) {
   return AdminCapabilities.forUser(ref.watch(currentAppUserProvider).value);
 });

@@ -131,8 +131,26 @@ class ClubTeam {
   final String name;
   final String description;
   final String? photoUrl;
-  final bool isActive;
+
+  /// Canonical team status: 'active' | 'archived'. Archived teams are former
+  /// seasons whose data is kept but no longer shown as a current team.
+  final String status;
+
+  /// Season/period label, e.g. "2024-2025".
+  final String? period;
+
+  /// Free-form team story (shown on the About / club history page).
+  final String? story;
+
+  /// Gallery photos for the team's story.
+  final List<String> photos;
+
   final List<String> memberIds;
+
+  /// Former members (archived season rosters); linked two-way with
+  /// `users/{uid}.pastTeamIds`.
+  final List<String> pastMemberIds;
+
   final DateTime? createdAt;
   final String? createdBy;
   final String? leadUid;         // team captain uid
@@ -142,8 +160,12 @@ class ClubTeam {
     required this.name,
     required this.description,
     this.photoUrl,
-    this.isActive = true,
+    this.status = 'active',
+    this.period,
+    this.story,
+    this.photos = const [],
     this.memberIds = const [],
+    this.pastMemberIds = const [],
     this.createdAt,
     this.createdBy,
     this.leadUid,
@@ -151,15 +173,27 @@ class ClubTeam {
 
   bool get hasLead => leadUid != null && leadUid!.isNotEmpty;
 
+  /// Backwards-compatible "active" getter (active == not archived).
+  bool get isActive => status != 'archived';
+
+  bool get isArchived => status == 'archived';
+
   factory ClubTeam.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
+    final legacyActive = data['isActive'] as bool?;
+    final status = data['status'] as String? ??
+        (legacyActive == false ? 'archived' : 'active');
     return ClubTeam(
       id: doc.id,
       name: data['name'] as String? ?? '',
       description: data['description'] as String? ?? '',
       photoUrl: data['photoUrl'] as String?,
-      isActive: data['isActive'] as bool? ?? true,
+      status: status,
+      period: data['period'] as String?,
+      story: data['story'] as String?,
+      photos: (data['photos'] as List?)?.map((e) => e.toString()).toList() ?? const [],
       memberIds: (data['memberIds'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      pastMemberIds: (data['pastMemberIds'] as List?)?.map((e) => e.toString()).toList() ?? const [],
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       createdBy: data['createdBy'] as String?,
       leadUid: data['leadUid'] as String?,
@@ -170,8 +204,13 @@ class ClubTeam {
         'name': name,
         'description': description,
         'photoUrl': photoUrl,
-        'isActive': isActive,
+        'status': status,
+        'isActive': status != 'archived',
+        'period': period,
+        'story': story,
+        'photos': photos,
         'memberIds': memberIds,
+        'pastMemberIds': pastMemberIds,
         'createdAt': FieldValue.serverTimestamp(),
         'createdBy': createdBy,
         'leadUid': leadUid,

@@ -152,14 +152,6 @@ class AppDrawer extends ConsumerWidget {
                 context.push('/about');
               },
             ),
-            _DrawerItem(
-              icon: Icons.mail_outline,
-              label: 'İletişim',
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/contact');
-              },
-            ),
             if (isLoggedIn && isAdmin) ...[
                Divider(color: AppColors.border, height: 1),
               const SizedBox(height: 4),

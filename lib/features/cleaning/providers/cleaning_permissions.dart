@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/permissions/permission_system.dart';
 import '../../../core/providers/auth_providers.dart';
-import '../../admin/admin_permissions.dart';
 import '../../team/providers/team_providers.dart';
 
 /// Whether the current user is the captain (leadUid) of at least one team.

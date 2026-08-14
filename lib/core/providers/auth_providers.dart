@@ -100,6 +100,7 @@ class AuthController {
         'department': null,
         'className': null,
         'teamIds': <String>[],
+        'pastTeamIds': <String>[],
         'pastTeams': <Map<String, dynamic>>[],
         'links': <Map<String, dynamic>>[],
         'clubRoles': <Map<String, dynamic>>[],

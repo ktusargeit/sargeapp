@@ -14,6 +14,7 @@ import '../../tasks/providers/task_providers.dart';
 import '../../team/models/team_models.dart';
 import '../../team/providers/team_providers.dart';
 import '../admin_permissions.dart';
+import 'role_permission_screen.dart';
 
 /// Comprehensive "Admin Kontrol Paneli".
 ///
@@ -52,7 +53,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> {
         backgroundColor: AppColors.surface,
       ),
       body: DefaultTabController(
-        length: 5,
+        length: 6,
         child: Column(
           children: [
             TabBar(
@@ -67,6 +68,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> {
                 Tab(text: 'Başvurular'),
                 Tab(text: 'Bekleyen İşler'),
                 Tab(text: 'İstatistikler'),
+                Tab(text: 'Yetkiler'),
               ],
             ),
             const Expanded(
@@ -77,6 +79,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> {
                   _ApplicationsTab(),
                   _PendingContentTab(),
                   _SystemStatsTab(),
+                  RolePermissionScreen(),
                 ],
               ),
             ),
@@ -412,12 +415,17 @@ class _TeamCard extends ConsumerWidget {
               onSelected: (action) {
                 if (action == 'edit') _showTeamDialog(context, ref, team);
                 if (action == 'units') _showUnitsDialog(context, ref, team);
+                if (action == 'archive') _toggleArchive(context, ref, team);
                 if (action == 'delete') _confirmDelete(context, ref, team);
               },
-              itemBuilder: (ctx) => const [
-                PopupMenuItem(value: 'units', child: Text('Birimleri Yönet')),
-                PopupMenuItem(value: 'edit', child: Text('Düzenle')),
+              itemBuilder: (ctx) => [
+                PopupMenuItem(value: 'units', child: const Text('Birimleri Yönet')),
+                PopupMenuItem(value: 'edit', child: const Text('Düzenle')),
                 PopupMenuItem(
+                  value: 'archive',
+                  child: Text(team.isArchived ? 'Aktifleştir' : 'Arşivle (Geçmiş Yap)'),
+                ),
+                const PopupMenuItem(
                   value: 'delete',
                   child: Text('Sil', style: TextStyle(color: AppColors.error)),
                 ),
@@ -435,6 +443,8 @@ Future<void> _showTeamDialog(BuildContext context, WidgetRef ref,
   final nameCtrl = TextEditingController(text: team?.name ?? '');
   final descCtrl = TextEditingController(text: team?.description ?? '');
   bool isActive = team?.isActive ?? true;
+  final periodCtrl = TextEditingController(text: team?.period ?? '');
+  final storyCtrl = TextEditingController(text: team?.story ?? '');
   bool saving = false;
 
   await showDialog<void>(
@@ -460,9 +470,23 @@ Future<void> _showTeamDialog(BuildContext context, WidgetRef ref,
                 decoration: const InputDecoration(labelText: 'Açıklama'),
               ),
               const SizedBox(height: 12),
+              TextField(
+                controller: periodCtrl,
+                style: TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(labelText: 'Dönem (örn: 2024-2025)'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: storyCtrl,
+                maxLines: 3,
+                style: TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(labelText: 'Takım Hikayesi'),
+              ),
+              const SizedBox(height: 12),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Aktif'),
+                subtitle: const Text('Kapatılırsa takım "Geçmiş" olarak arşivlenir.'),
                 value: isActive,
                 activeThumbColor: AppColors.success,
                 onChanged: (v) => setDialogState(() => isActive = v),
@@ -491,6 +515,13 @@ Future<void> _showTeamDialog(BuildContext context, WidgetRef ref,
                           'name': nameCtrl.text.trim(),
                           'description': descCtrl.text.trim(),
                           'isActive': isActive,
+                          'status': isActive ? 'active' : 'archived',
+                          'period': periodCtrl.text.trim().isEmpty
+                              ? null
+                              : periodCtrl.text.trim(),
+                          'story': storyCtrl.text.trim().isEmpty
+                              ? null
+                              : storyCtrl.text.trim(),
                           'memberIds': <String>[
                             if (creatorUid != null) creatorUid
                           ],
@@ -507,6 +538,13 @@ Future<void> _showTeamDialog(BuildContext context, WidgetRef ref,
                           'name': nameCtrl.text.trim(),
                           'description': descCtrl.text.trim(),
                           'isActive': isActive,
+                          'status': isActive ? 'active' : 'archived',
+                          'period': periodCtrl.text.trim().isEmpty
+                              ? null
+                              : periodCtrl.text.trim(),
+                          'story': storyCtrl.text.trim().isEmpty
+                              ? null
+                              : storyCtrl.text.trim(),
                         });
                       }
                       if (ctx.mounted) Navigator.pop(ctx);
@@ -524,6 +562,50 @@ Future<void> _showTeamDialog(BuildContext context, WidgetRef ref,
         ],
       ),
     ),
+  );
+}
+
+Future<void> _toggleArchive(
+    BuildContext context, WidgetRef ref, ClubTeam team) async {
+  final targetArchived = !team.isArchived;
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(targetArchived ? 'Takımı Arşivle' : 'Takımı Aktifleştir'),
+      content: Text(
+        targetArchived
+            ? '"${team.name}" geçmiş takım olarak arşivlenecek. Verisi silinmez, sadece durumu değişir.'
+            : '"${team.name}" tekrar aktif takım yapılacak.',
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('İptal')),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: targetArchived ? AppColors.warning : AppColors.success,
+          ),
+          onPressed: () => Navigator.pop(ctx, true),
+          child: Text(targetArchived ? 'Arşivle' : 'Aktifleştir'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+  if (!context.mounted) return;
+
+  final status = targetArchived ? 'archived' : 'active';
+  await runOperationWithFeedback(
+    context: context,
+    loadingMessage: 'Güncelleniyor...',
+    successMessage: targetArchived
+        ? 'Takım arşivlendi (geçmiş).'
+        : 'Takım aktifleştirildi.',
+    operation: () => ref
+        .read(firestoreProvider)
+        .collection('teams')
+        .doc(team.id)
+        .update({'status': status, 'isActive': status == 'active'}),
   );
 }
 

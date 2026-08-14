@@ -12,6 +12,8 @@ import '../../../core/models/app_user.dart';
 import '../../../core/models/user_profile_models.dart';
 import '../../../core/utils/image_utils.dart';
 import '../../../core/widgets/full_screen_image_view.dart';
+import '../../about/providers/club_info_providers.dart';
+import '../../team/models/team_models.dart';
 import '../../team/providers/team_providers.dart';
 
 final _dateFormat = DateFormat('dd.MM.yyyy');
@@ -1829,6 +1831,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   late List<Map<String, dynamic>> _clubRoles;
   late List<String> _unitResponsibilities;
   late List<Map<String, dynamic>> _awards;
+  late List<String> _pastTeamIds;
 
   @override
   void initState() {
@@ -1839,6 +1842,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     _unitResponsibilities = List<String>.from(widget.user.unitResponsibilities);
     _awards =
         widget.user.awards.map((e) => Map<String, dynamic>.from(e)).toList();
+    _pastTeamIds = List<String>.from(widget.user.pastTeamIds);
   }
 
   @override
@@ -1989,6 +1993,13 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
               color: AppColors.primaryGreen,
               title: 'Ödüller & Başarılar',
               child: _buildAwardsSection(),
+            ),
+            const SizedBox(height: AppConstants.spacingLg),
+            _EditSection(
+              icon: Icons.history_outlined,
+              color: AppColors.depoAccent,
+              title: 'Geçmiş Takımlarım',
+              child: _buildPastTeamsSection(),
             ),
             const SizedBox(height: 40),
           ],
@@ -2393,6 +2404,73 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
         ),
       ],
     );
+  }
+
+  Widget _buildPastTeamsSection() {
+    final archiveAsync = ref.watch(clubTeamsProvider);
+    final archived = (archiveAsync.valueOrNull ?? const <ClubTeam>[])
+        .where((t) => t.isArchived)
+        .toList();
+
+    if (archived.isEmpty) {
+      return Text(
+        'Henüz arşivlenmiş (geçmiş) takım yok.',
+        style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Geçmişte yer aldığın takımları seç. Bu seçim profilde ve takımın "eski üyeler" listesinde otomatik görünür.',
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+        ),
+        const SizedBox(height: 8),
+        ...archived.map((t) {
+          final selected = _pastTeamIds.contains(t.id);
+          return CheckboxListTile(
+            value: selected,
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            activeColor: AppColors.sargeGold,
+            title: Text(t.name,
+                style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+            subtitle: (t.period != null && t.period!.isNotEmpty)
+                ? Text(
+                    t.period!,
+                    style: TextStyle(
+                        color: AppColors.textSecondary, fontSize: 12),
+                  )
+                : null,
+            onChanged: (v) => _togglePastTeam(t, v ?? false),
+          );
+        }),
+      ],
+    );
+  }
+
+  Future<void> _togglePastTeam(ClubTeam team, bool value) async {
+    final linkService = ref.read(pastTeamLinkServiceProvider);
+    try {
+      if (value) {
+        await linkService.addPastTeam(uid: widget.user.uid, teamId: team.id);
+        setState(() {
+          if (!_pastTeamIds.contains(team.id)) _pastTeamIds.add(team.id);
+        });
+      } else {
+        await linkService.removePastTeam(
+            uid: widget.user.uid, teamId: team.id);
+        setState(() => _pastTeamIds.remove(team.id));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Güncellenemedi: $e'),
+          backgroundColor: AppColors.error,
+        ));
+      }
+    }
   }
 
   ButtonStyle _outlineButtonStyle(Color color) {

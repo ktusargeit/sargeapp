@@ -30,6 +30,34 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'unit_lead'];
     }
 
+    // ---- permission-based helpers (mirrors permission_system.dart) ----
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function hasPermission(role, perm) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/role_permissions/$(role)) &&
+        perm in get(/databases/$(database)/documents/role_permissions/$(role)).data.permissions;
+    }
+
+    function defaultHas(role, perm) {
+      return (role == 'admin' || role == 'board_president') ||
+        (role == 'board_member' &&
+          perm in ['viewAdminPanel','manageTitles','manageAnnouncements','reviewApplications','editClubStory','editTeamStory','addHonoraryMember']) ||
+        (role == 'captain' &&
+          perm in ['createTasks','approveTasks','deleteTasks','manageUnits','manageAnnouncements','reviewApplications','editTeamStory']) ||
+        (role == 'unit_lead' &&
+          perm in ['manageAnnouncements','createTasks','approveTasks','manageReports','awardPoints','reviewApplications']);
+    }
+
+    function can(perm) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        (hasPermission(userRole(), perm) ||
+         (!exists(/databases/$(database)/documents/role_permissions/$(userRole())) && defaultHas(userRole(), perm)));
+    }
+
     // Role managers (can change another user's `role`). Mirrors the central
     // `changeRoles` permission in the app's permission system.
     function isRoleManager() {
@@ -52,7 +80,7 @@ service cloud.firestore {
         isOwner(uid) &&
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['displayName', 'photoUrl', 'bio', 'department', 'className',
-                    'teamIds', 'pastTeams', 'links', 'activeTeamId', 'activeTeamName',
+                    'teamIds', 'pastTeams', 'pastTeamIds', 'links', 'activeTeamId', 'activeTeamName',
                     'unitResponsibilities', 'clubRoles', 'awards', 'inWorkshop',
                     'weeklyPoints', 'prevWeeklyPoints', 'points', 'fcmToken',
                     'coverPhotoUrl'])
@@ -129,6 +157,17 @@ service cloud.firestore {
     }
 
     match /cleaning_schedule/{id} {
+      allow read: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if isCleaningManager();
+    }
+
+    // ---------- LOCATIONS BACKUP (pre-migration) ----------
+    // One-time backup written by LocationMigrationService before it reassigns
+    // existing `depo_lokasyonlar` into `location_categories`. Mirrors the
+    // cleaning collection convention so the migration never hits
+    // `permission-denied` when an admin/kaptan runs it.
+    match /locations_backup_pre_migration/{id} {
       allow read: if true;
       allow create, update: if isSignedIn();
       allow delete: if isCleaningManager();
@@ -239,6 +278,27 @@ service cloud.firestore {
     // ---------- TEAMS ----------
     match /teams/{id} {
       allow read: if true;
+      allow create: if isAdmin();
+      // `editTeamStory` / `manageTeams` granted roles can update; only admin deletes.
+      allow update: if isAdmin() || can('editTeamStory') || can('manageTeams');
+      allow delete: if isAdmin();
+    }
+
+    // ---------- CLUB INFO (story + gallery + contact) ----------
+    match /club_info/{id} {
+      allow read: if true;
+      allow create, update, delete: if can('editClubStory');
+    }
+
+    // ---------- HONORARY MEMBERS ----------
+    match /honorary_members/{id} {
+      allow read: if true;
+      allow create, update, delete: if can('addHonoraryMember');
+    }
+
+    // ---------- ROLE PERMISSIONS (runtime RBAC overrides) ----------
+    match /role_permissions/{role} {
+      allow read: if isSignedIn();
       allow create, update, delete: if isAdmin();
     }
 

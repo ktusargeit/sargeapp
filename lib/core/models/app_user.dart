@@ -16,6 +16,7 @@ class AppUser {
   final String? department;
   final String? className;
   final List<String> teamIds;
+  final List<String> pastTeamIds;
   final List<Map<String, dynamic>> pastTeams;
   final List<Map<String, dynamic>> links;
   final List<Map<String, dynamic>> clubRoles;
@@ -39,6 +40,7 @@ class AppUser {
     this.department,
     this.className,
     this.teamIds = const [],
+    this.pastTeamIds = const [],
     this.pastTeams = const [],
     this.links = const [],
     this.clubRoles = const [],
@@ -56,12 +58,14 @@ class AppUser {
     switch (role) {
       case 'admin':
         return 'Admin';
-      case 'unit_lead':
-        return 'Birim Sorumlusu';
       case 'board_president':
-        return 'Yönetim Kurulu Başkanı';
+        return 'Başkan';
       case 'board_member':
         return 'Yönetim Kurulu Üyesi';
+      case 'captain':
+        return 'Kaptan';
+      case 'unit_lead':
+        return 'Birim Sorumlusu';
       // Both 'member' and the legacy 'user' value fall through here, so the
       // display stays identical regardless of the stored string.
       default:
@@ -104,6 +108,7 @@ class AppUser {
       department: data['department'] as String?,
       className: data['className'] as String?,
       teamIds: (data['teamIds'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      pastTeamIds: (data['pastTeamIds'] as List?)?.map((e) => e.toString()).toList() ?? const [],
       pastTeams: (data['pastTeams'] as List?)
               ?.map((e) => Map<String, dynamic>.from(e as Map))
               .toList() ??

@@ -58,6 +58,9 @@ Projenin "haritası". Her yeni görevde önce bu dosya okunur ve gerektiğinde g
  - `cleaning_schedule/{weekKey}` — haftalık gerçekleşen kayıtlar (`weekKey` = Pazartesi YYYY-MM-DD; `assignmentType`/`targetIds` + opsiyonel `override*`, `items[]` alışveriş listesi, `completed`, `notifiedAt`).
  - `cleaning_meta/config` — temizlik başlangıç haftası (`startWeekKey`) + alışveriş listesi şablonu (`shoppingTemplate`).
  - `locations_backup_pre_migration/{id}` — lokasyon göçü öncesi yedek.
+- `club_info/info` — kulüp hikayesi + `galleryPhotos` + iletişim bilgileri (tek doküman).
+- `honorary_members/{id}` — `userId`, `note`, `addedDate`, `addedBy`.
+- `role_permissions/{role}` — rol bazlı yetki override'ları (`permissions: []`).
 - `aboutSections/{id}`, `aboutMembers/{id}` — hakkımızda.
 - `contact/info` — iletişim bilgileri.
 - `reports/{id}` — hata/öneri raporları. `messages` alanı dizi (her öğe `id`, `senderUid`, `senderName`, `text`, `imageUrl`, `createdAt`, `isAdmin`, `replyToId`, `replyToText`, `replyToAuthor` içerir).
