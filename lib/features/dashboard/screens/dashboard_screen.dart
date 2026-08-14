@@ -13,6 +13,8 @@ import '../../../core/utils/image_utils.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/platform_image.dart';
 import '../../../core/widgets/comment_tile.dart';
+import '../../../core/widgets/app_icon_button.dart';
+import '../../../core/widgets/custom_delete_button.dart';
 import '../../announcements/models/announcement_models.dart';
 import '../../announcements/providers/announcement_providers.dart';
 import '../../notifications/providers/notification_providers.dart';
@@ -877,21 +879,17 @@ class _AnnouncementCard extends ConsumerWidget {
                       ),
                       if (isAdmin) ...[
                         const SizedBox(width: 8),
-                        GestureDetector(
+                        AppIconButton(
+                          icon: Icons.edit_outlined,
+                          iconSize: 16,
+                          color: AppColors.panelBlue,
+                          tooltip: 'Düzenle',
                           onTap: () => _editAnnouncement(
                               context, announcement),
-                          child: const Icon(Icons.edit_outlined,
-                              size: 16,
-                              color: AppColors.panelBlue),
                         ),
-                        const SizedBox(width: 6),
-                        GestureDetector(
-                          onTap: () => _deleteAnnouncement(
+                        CustomDeleteButton(
+                          onPressed: () => _deleteAnnouncement(
                               context, announcement),
-                          child: const Icon(
-                              Icons.delete_outline,
-                              size: 16,
-                              color: AppColors.error),
                         ),
                       ],
                     ],

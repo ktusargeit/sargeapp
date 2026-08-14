@@ -12,6 +12,7 @@ import '../../../core/utils/image_utils.dart';
 import '../../../core/widgets/platform_image.dart';
 import '../../../core/widgets/full_screen_image_view.dart';
 import '../../../core/widgets/comment_tile.dart';
+import '../../../core/widgets/custom_delete_button.dart';
 import '../../team/models/team_models.dart';
 import '../../team/providers/team_providers.dart';
 import '../../notifications/providers/notification_providers.dart';
@@ -420,6 +421,51 @@ class _TaskCard extends ConsumerWidget {
     }
   }
 
+  bool _canDelete() {
+    // Only admins or the task creator (atayan) can delete a task.
+    return isAdmin || (currentUid != null && task.assignedBy == currentUid);
+  }
+
+  Future<void> _deleteTask(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Görevi Sil'),
+        content: Text('"${task.title}" silinecek. Onaylıyor musunuz?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('İptal')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sil'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await ref
+          .read(firestoreProvider)
+          .collection('tasks')
+          .doc(task.id)
+          .delete();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Görev silindi.'),
+            backgroundColor: AppColors.success));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Silinemedi: $e'),
+            backgroundColor: AppColors.error));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final canApprove = _canApprove(context, ref);
@@ -457,7 +503,13 @@ class _TaskCard extends ConsumerWidget {
                             fontWeight: FontWeight.w600)),
                   ),
                   _CommentCountBadge(taskId: task.id),
-                  const SizedBox(width: 6),
+                  if (_canDelete()) ...[
+                    const SizedBox(width: 2),
+                    CustomDeleteButton(
+                      onPressed: () => _deleteTask(context, ref),
+                    ),
+                  ],
+                  const SizedBox(width: 2),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(

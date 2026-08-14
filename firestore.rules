@@ -235,7 +235,10 @@ service cloud.firestore {
           .hasOnly(['status', 'approvedBy', 'pointsAwarded'])
       );
 
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || (
+        isSignedIn() &&
+        resource.data.assignedBy == request.auth.uid
+      );
 
       // Comments on tasks.
       match /comments/{commentId} {

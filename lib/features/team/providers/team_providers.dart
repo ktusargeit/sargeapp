@@ -132,22 +132,30 @@ final teamUnitListProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
 });
 
 /// Units filtered by a specific teamId.
+///
+/// Equality-only query (no server-side `orderBy`) so it never requires a
+/// composite index. Sorting happens client-side below, which is safe for these
+/// small per-team unit lists.
 final teamUnitsProvider = StreamProvider.family<List<Map<String, dynamic>>, String>(
     (ref, teamId) {
   final firestore = ref.watch(firestoreProvider);
   return firestore
       .collection('units')
       .where('teamId', isEqualTo: teamId)
-      .orderBy('name')
       .snapshots()
-      .map((snap) => snap.docs.map((d) {
-            final data = d.data();
-            return {
-              'id': d.id,
-              'name': data['name'] as String? ?? '',
-              'teamId': data['teamId'] as String? ?? '',
-            };
-          }).toList());
+      .map((snap) {
+        final units = snap.docs.map((d) {
+          final data = d.data();
+          return {
+            'id': d.id,
+            'name': data['name'] as String? ?? '',
+            'teamId': data['teamId'] as String? ?? '',
+          };
+        }).toList();
+        units.sort(
+            (a, b) => (a['name'] as String).compareTo(b['name'] as String));
+        return units;
+      });
 });
 
 /// Stream of team members (users whose uid is in team.memberIds).
@@ -189,16 +197,22 @@ final teamMembersProvider =
       });
 });
 
-/// Typed, team-scoped units ("birimler"), ordered by name.
+/// Typed, team-scoped units ("birimler").
+///
+/// Equality-only query (no server-side `orderBy`) so it never requires a
+/// composite index; sorting happens client-side below.
 final teamUnitsListProvider =
     StreamProvider.family<List<TeamUnit>, String>((ref, teamId) {
   final firestore = ref.watch(firestoreProvider);
   return firestore
       .collection('units')
       .where('teamId', isEqualTo: teamId)
-      .orderBy('name')
       .snapshots()
-      .map((snap) => snap.docs.map((d) => TeamUnit.fromDoc(d)).toList());
+      .map((snap) {
+        final units = snap.docs.map((d) => TeamUnit.fromDoc(d)).toList();
+        units.sort((a, b) => a.name.compareTo(b.name));
+        return units;
+      });
 });
 
 /// Live stream of a single unit document.

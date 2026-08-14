@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_providers.dart';
 import '../theme/app_colors.dart';
 import 'full_screen_image_view.dart';
+import 'linkified_text.dart';
 
 /// A single reusable comment/author avatar.
 ///
@@ -144,9 +145,12 @@ class CommentTile extends ConsumerWidget {
                 ),
                 const SizedBox(height: 2),
                 if (text.isNotEmpty)
-                  Text(text,
-                      style:  TextStyle(
-                          color: AppColors.textPrimary, fontSize: 13)),
+                  LinkifiedText(
+                    text: text,
+                    style: TextStyle(
+                        color: AppColors.textPrimary, fontSize: 13),
+                    linkColor: AppColors.panelBlue,
+                  ),
                 if (imageUrls.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Wrap(

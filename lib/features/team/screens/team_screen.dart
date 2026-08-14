@@ -74,25 +74,28 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
         return RefreshIndicator(color: AppColors.teamOrange, onRefresh: () async => ref.refresh(clubTeamsProvider.future), child: ListView.builder(padding: const EdgeInsets.all(AppConstants.spacingMd), itemCount: visible.length, itemBuilder: (context, i) {
           final team = visible[i];
           return Card(color: AppColors.surface.withValues(alpha: 0.9), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.radiusMd), side:  BorderSide(color: AppColors.border)),
-            child: InkWell(borderRadius: BorderRadius.circular(AppConstants.radiusMd), onTap: () => context.push('/team/${team.id}'),
-              child: Padding(padding: const EdgeInsets.all(14), child: Row(children: [
-                Container(width: 56, height: 56, decoration: BoxDecoration(color: AppColors.surface2, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.teamOrange.withValues(alpha: 0.3)), image: team.photoUrl != null && team.photoUrl!.isNotEmpty ? DecorationImage(image: NetworkImage(team.photoUrl!), fit: BoxFit.cover) : null), child: team.photoUrl == null || team.photoUrl!.isEmpty ? const Icon(Icons.groups_outlined, size: 28, color: AppColors.teamOrange) : null),
-                const SizedBox(width: 14),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(team.name, style:  TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 4),
-                  if (team.description.isNotEmpty) Text(team.description, maxLines: 2, overflow: TextOverflow.ellipsis, style:  TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                  const SizedBox(height: 6),
-                  Row(children: [
-                     Icon(Icons.people_outline, size: 14, color: AppColors.textSecondary), const SizedBox(width: 4),
-                    Text('${team.memberIds.length} üye', style:  TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                    const SizedBox(width: 16),
-                    Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: team.isActive ? AppColors.success.withValues(alpha: 0.12) : AppColors.error.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(4), border: Border.all(color: team.isActive ? AppColors.success.withValues(alpha: 0.4) : AppColors.error.withValues(alpha: 0.4))), child: Text(team.isActive ? 'AKTİF' : 'PASİF', style: TextStyle(color: team.isActive ? AppColors.success : AppColors.error, fontSize: 10, fontWeight: FontWeight.w700))),
-                  ]),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              InkWell(borderRadius: BorderRadius.circular(AppConstants.radiusMd), onTap: () => context.push('/team/${team.id}'),
+                child: Padding(padding: const EdgeInsets.all(14), child: Row(children: [
+                  Container(width: 56, height: 56, decoration: BoxDecoration(color: AppColors.surface2, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.teamOrange.withValues(alpha: 0.3)), image: team.photoUrl != null && team.photoUrl!.isNotEmpty ? DecorationImage(image: NetworkImage(team.photoUrl!), fit: BoxFit.cover) : null), child: team.photoUrl == null || team.photoUrl!.isEmpty ? const Icon(Icons.groups_outlined, size: 28, color: AppColors.teamOrange) : null),
+                  const SizedBox(width: 14),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(team.name, style:  TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 4),
+                    if (team.description.isNotEmpty) Text(team.description, maxLines: 2, overflow: TextOverflow.ellipsis, style:  TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                    const SizedBox(height: 6),
+                    Row(children: [
+                       Icon(Icons.people_outline, size: 14, color: AppColors.textSecondary), const SizedBox(width: 4),
+                      Text('${team.memberIds.length} üye', style:  TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                      const SizedBox(width: 16),
+                      Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: team.isActive ? AppColors.success.withValues(alpha: 0.12) : AppColors.error.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(4), border: Border.all(color: team.isActive ? AppColors.success.withValues(alpha: 0.4) : AppColors.error.withValues(alpha: 0.4))), child: Text(team.isActive ? 'AKTİF' : 'PASİF', style: TextStyle(color: team.isActive ? AppColors.success : AppColors.error, fontSize: 10, fontWeight: FontWeight.w700))),
+                    ]),
+                  ])),
+                   Icon(Icons.chevron_right, color: AppColors.border),
                 ])),
-                 Icon(Icons.chevron_right, color: AppColors.border),
-              ])),
-            ),
+              ),
+              _TeamUnitsSection(team: team),
+            ]),
           );
         }));
       },
@@ -393,6 +396,84 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
     );
   }
 
+}
+
+/// Inline display of a team's "birimler" (units) inside the Takımım list.
+///
+/// Uses the same stream/data source as the admin/team-detail unit lists, but
+/// shows only the units that belong to this specific team (each team's unit
+/// system is independent).
+class _TeamUnitsSection extends ConsumerWidget {
+  final ClubTeam team;
+  const _TeamUnitsSection({required this.team});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unitsAsync = ref.watch(teamUnitsListProvider(team.id));
+    return unitsAsync.when(
+      data: (units) {
+        if (units.isEmpty) {
+          return  Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            child: Text('Bu takımda henüz birim tanımlanmamış.',
+                style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic)),
+          );
+        }
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: units.map((u) {
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.teamAccent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: AppColors.teamAccent.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.folder_outlined,
+                        size: 13, color: AppColors.teamAccent),
+                    const SizedBox(width: 5),
+                    Text(
+                      u.name,
+                      style: const TextStyle(
+                          color: AppColors.teamAccent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600),
+                    ),
+                    if (u.memberUids.isNotEmpty) ...[
+                      const SizedBox(width: 5),
+                      Text('${u.memberUids.length}',
+                          style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 11)),
+                    ],
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
+      loading: () => const Padding(
+        padding: EdgeInsets.fromLTRB(14, 0, 14, 12),
+        child: SizedBox(
+            height: 16,
+            width: 16,
+            child: CircularProgressIndicator(strokeWidth: 2)),
+      ),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

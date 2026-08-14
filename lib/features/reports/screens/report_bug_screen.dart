@@ -11,6 +11,9 @@ import '../../../core/providers/auth_providers.dart';
 import '../../../core/utils/image_utils.dart';
 import '../../../core/widgets/platform_image.dart';
 import '../../../core/widgets/comment_tile.dart';
+import '../../../core/widgets/linkified_text.dart';
+import '../../../core/widgets/app_icon_button.dart';
+import '../../../core/widgets/custom_delete_button.dart';
 import '../../notifications/providers/notification_providers.dart';
 import '../../team/models/team_models.dart';
 import '../../team/providers/team_providers.dart';
@@ -575,22 +578,16 @@ class _BugCard extends ConsumerWidget {
                     ),
                   ),
                   if (canEdit)
-                    GestureDetector(
+                    AppIconButton(
+                      icon: Icons.edit_outlined,
+                      iconSize: 18,
+                      color: AppColors.primaryGreen,
+                      tooltip: 'Düzenle',
                       onTap: () => _editReport(context, ref),
-                      child: const Padding(
-                        padding: EdgeInsets.all(4),
-                        child: Icon(Icons.edit_outlined,
-                            size: 18, color: AppColors.primaryGreen),
-                      ),
                     ),
                   if (canDelete)
-                    GestureDetector(
-                      onTap: () => _deleteReport(context, ref),
-                      child: const Padding(
-                        padding: EdgeInsets.all(4),
-                        child: Icon(Icons.delete_outline,
-                            size: 18, color: AppColors.error),
-                      ),
+                    CustomDeleteButton(
+                      onPressed: () => _deleteReport(context, ref),
                     ),
                 ],
               ),
@@ -1337,11 +1334,14 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                                       ),
                                       if (text.isNotEmpty) ...[
                                         const SizedBox(height: 4),
-                                        Text(text,
-                                            style:  TextStyle(
-                                                color: AppColors.textPrimary,
-                                                fontSize: 13,
-                                                height: 1.4)),
+                                        LinkifiedText(
+                                          text: text,
+                                          style: TextStyle(
+                                              color: AppColors.textPrimary,
+                                              fontSize: 13,
+                                              height: 1.4),
+                                          linkColor: AppColors.panelBlue,
+                                        ),
                                       ],
                                       if (imgUrl != null && imgUrl.isNotEmpty) ...[
                                         const SizedBox(height: 6),

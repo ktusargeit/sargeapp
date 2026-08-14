@@ -7,6 +7,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/utils/image_utils.dart';
 import '../../../core/widgets/platform_image.dart';
+import '../../../core/widgets/app_icon_button.dart';
 import '../models/depo_models.dart';
 import '../providers/depo_providers.dart';
 
@@ -96,8 +97,8 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
-    final picked = await PickedImage.pick(ImageSource.gallery);
+  Future<void> _pickImage(ImageSource source) async {
+    final picked = await PickedImage.pick(source);
     if (picked != null) setState(() => _pickedImage = picked);
   }
 
@@ -111,48 +112,10 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
       context: context,
       backgroundColor: AppColors.surface,
       isScrollControlled: true,
-      builder: (ctx) {
-        final locationsAsync = ref.watch(locationsProvider);
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-               Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text('Lokasyon Seç',
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary)),
-              ),
-               Divider(color: AppColors.border, height: 1),
-              Flexible(
-                child: locationsAsync.when(
-                  data: (locations) => ListView(
-                    shrinkWrap: true,
-                    children: locations
-                        .map((loc) => ListTile(
-                              leading: const Icon(Icons.location_on_outlined,
-                                  color: AppColors.depoAccent),
-                              title: Text(loc.name,
-                                  style:  TextStyle(
-                                      color: AppColors.textPrimary)),
-                              onTap: () => Navigator.pop(ctx, {
-                                'id': loc.id,
-                                'name': loc.name,
-                              }),
-                            ))
-                        .toList(),
-                  ),
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(child: Text('Hata: $e')),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+      // Note: the sheet is a real ConsumerWidget (not an inline builder) so
+      // `ref.watch(locationsProvider)` is wired to an actual widget lifecycle
+      // and rebuilds the list as soon as the Firestore stream emits data.
+      builder: (ctx) => const _LocationPickerSheet(),
     );
     if (selected != null) {
       setState(() {
@@ -163,8 +126,24 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
   }
 
   Future<void> _submit() async {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Ürün adı zorunludur.'),
+          backgroundColor: AppColors.error));
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
-    if (_nameCtrl.text.trim().isEmpty) return;
+
+    // Adet alanı sayısal olmalı (boşsa opsiyonel kabul edilir).
+    final quantityRaw = _quantityCtrl.text.trim();
+    if (quantityRaw.isNotEmpty && int.tryParse(quantityRaw) == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Adet alanı geçerli bir sayı olmalıdır.'),
+          backgroundColor: AppColors.error));
+      return;
+    }
+
     setState(() => _loading = true);
     try {
       final user = ref.read(authStateProvider).value;
@@ -339,24 +318,12 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                         children: [
                           // Image picker
                           Center(
-                            child: GestureDetector(
-                              onTap: _pickImage,
-                              child: Container(
-                                width: 120,
-                                height: 120,
-                                decoration: BoxDecoration(
-                                  color: AppColors.surface2,
-                                  borderRadius: BorderRadius.circular(
-                                      AppConstants.radiusMd),
-                                  border: Border.all(
-                                      color: AppColors.border),
-                                ),
-                                child: _pickedImage != null
-                                    ? ClipRRect(
-                                        borderRadius:
-                                            BorderRadius.circular(
-                                                AppConstants.radiusMd -
-                                                    1),
+                            child: _pickedImage != null
+                                ? Stack(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(
+                                            AppConstants.radiusMd),
                                         child: PlatformImageFile(
                                           bytes: _pickedImage!.bytes,
                                           file: _pickedImage!.dartFile,
@@ -364,14 +331,91 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                           height: 120,
                                           fit: BoxFit.cover,
                                         ),
-                                      )
-                                    :  Icon(
-                                        Icons.add_a_photo_outlined,
-                                        size: 32,
-                                        color:
-                                            AppColors.textSecondary),
-                              ),
-                            ),
+                                      ),
+                                      Positioned(
+                                        top: 4,
+                                        right: 4,
+                                        child: AppIconButton(
+                                          icon: Icons.close,
+                                          iconSize: 16,
+                                          color: AppColors.error,
+                                          tooltip: 'Kaldır',
+                                          onTap: () =>
+                                              setState(() => _pickedImage = null),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () =>
+                                            _pickImage(ImageSource.camera),
+                                        child: Container(
+                                          width: 120,
+                                          height: 120,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.surface2,
+                                            borderRadius:
+                                                BorderRadius.circular(
+                                                    AppConstants.radiusMd),
+                                            border: Border.all(
+                                                color: AppColors.border),
+                                          ),
+                                          child:  Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Icon(Icons.camera_alt,
+                                                  size: 28,
+                                                  color: AppColors
+                                                      .textSecondary),
+                                              const SizedBox(height: 4),
+                                              Text('Kamera',
+                                                  style: TextStyle(
+                                                      fontSize: 10,
+                                                      color: AppColors
+                                                          .textSecondary)),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      GestureDetector(
+                                        onTap: () =>
+                                            _pickImage(ImageSource.gallery),
+                                        child: Container(
+                                          width: 120,
+                                          height: 120,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.surface2,
+                                            borderRadius:
+                                                BorderRadius.circular(
+                                                    AppConstants.radiusMd),
+                                            border: Border.all(
+                                                color: AppColors.border),
+                                          ),
+                                          child:  Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Icon(Icons.photo_library,
+                                                  size: 28,
+                                                  color: AppColors
+                                                      .textSecondary),
+                                              const SizedBox(height: 4),
+                                              Text('Galeri',
+                                                  style: TextStyle(
+                                                      fontSize: 10,
+                                                      color: AppColors
+                                                          .textSecondary)),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                           ),
                           const SizedBox(height: 16),
                           // Name
@@ -753,6 +797,82 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                 ],
               ),
             ),
+    );
+  }
+}
+
+/// Standalone ConsumerWidget for the "Lokasyon Seç" bottom sheet.
+///
+/// Being a real widget (not an inline builder closure) means `ref.watch` is
+/// attached to the widget's lifecycle and rebuilds the list as soon as the
+/// `locationsProvider` Firestore stream emits — which fixes the "first open is
+/// stuck on loading, needs re-enter" bug.
+class _LocationPickerSheet extends ConsumerWidget {
+  const _LocationPickerSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final locationsAsync = ref.watch(locationsProvider);
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.7,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+             Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('Lokasyon Seç',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary)),
+            ),
+             Divider(color: AppColors.border, height: 1),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.55,
+              ),
+              child: locationsAsync.when(
+                data: (locations) => locations.isEmpty
+                    ?  Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text('Lokasyon bulunamadı.',
+                            style: TextStyle(color: AppColors.textSecondary)),
+                      )
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: locations.length,
+                        separatorBuilder: (_, __) =>
+                             Divider(height: 1, color: AppColors.border),
+                        itemBuilder: (_, i) {
+                          final loc = locations[i];
+                          return ListTile(
+                            leading: const Icon(Icons.location_on_outlined,
+                                color: AppColors.depoAccent),
+                            title: Text(loc.name,
+                                style: TextStyle(color: AppColors.textPrimary)),
+                            onTap: () => Navigator.pop(context, {
+                              'id': loc.id,
+                              'name': loc.name,
+                            }),
+                          );
+                        },
+                      ),
+                loading: () => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Center(child: Text('Hata: $e')),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
