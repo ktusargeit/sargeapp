@@ -12,6 +12,7 @@ import '../../../core/utils/operation_feedback.dart';
 import '../../../core/widgets/platform_image.dart';
 import '../../../core/widgets/full_screen_image_view.dart';
 import '../../../core/widgets/comment_tile.dart';
+import '../../../core/widgets/pending_message.dart';
 import '../../../core/widgets/custom_delete_button.dart';
 import '../../team/models/team_models.dart';
 import '../../team/providers/team_providers.dart';
@@ -959,7 +960,8 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
   late final PresenceService _presenceService;
 
   // Optimistically rendered comments while their images are still uploading.
-  final List<_PendingComment> _pendingComments = [];
+  final List<PendingMessage> _pendingComments = [];
+  int _pendingCounter = 0;
 
   String get _threadKey => threadKeyFor('task_comment', widget.taskId);
 
@@ -1019,18 +1021,19 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
     final uid = user?.uid ?? '';
     final name = user?.displayName ?? 'Kullanıcı';
     final isAdmin = ref.read(isAdminProvider);
-    final firestore = ref.read(firestoreProvider);
     final replyTo = _replyTo;
 
     // Optimistic UI: show the comment (with its locally-selected images)
-    // immediately, then upload + persist in the background. This removes the
-    // "nothing happens until upload finishes, then it suddenly appears" lag.
-    final pending = _PendingComment(
+    // immediately, then upload + persist in the background. The local image
+    // stays visible with a spinner overlay, never a blank/black bubble.
+    final pending = PendingMessage(
+      localId:
+          'pending_${++_pendingCounter}_${DateTime.now().microsecondsSinceEpoch}',
       text: text,
       senderUid: uid,
       senderName: name,
       isAdmin: isAdmin,
-      images: List<PickedImage>.from(_commentImages),
+      images: _commentImages.map((i) => PendingAttachedImage(i)).toList(),
       replyToId: replyTo?['id'] as String?,
       replyToText: replyTo?['text'] as String?,
       replyToAuthor: replyTo?['senderName'] as String?,
@@ -1044,20 +1047,31 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
     });
     _commentCtrl.clear();
 
+    await _persistPendingComment(pending);
+  }
+
+  Future<void> _persistPendingComment(PendingMessage pending) async {
+    if (pending.failed) {
+      setState(() => pending.failed = false);
+    }
+
+    final firestore = ref.read(firestoreProvider);
+
     try {
-      final imageUrls = await _uploadCommentImages(pending.images);
+      final imageUrls = await _uploadCommentImages(
+          pending.images.map((a) => a.image).toList());
 
       await firestore
           .collection('tasks')
           .doc(widget.taskId)
           .collection('comments')
           .add({
-        'senderUid': uid,
-        'senderName': name,
-        'text': text,
+        'senderUid': pending.senderUid,
+        'senderName': pending.senderName,
+        'text': pending.text,
         'imageUrls': imageUrls,
         'createdAt': FieldValue.serverTimestamp(),
-        'isAdmin': isAdmin,
+        'isAdmin': pending.isAdmin,
         'replyToId': pending.replyToId,
         'replyToText': pending.replyToText,
         'replyToAuthor': pending.replyToAuthor,
@@ -1068,20 +1082,16 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
       // (grouped per thread + presence-aware), so the client only persists the
       // comment here.
 
-    } catch (e) {
-      if (mounted) {
-        setState(() => _pendingComments.remove(pending));
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Yorum gönderilemedi: $e'),
-              backgroundColor: AppColors.error),
-        );
-      }
-    } finally {
       if (mounted) {
         setState(() {
-          // The Firestore stream now owns the persisted comment; drop the
-          // optimistic copy so it isn't rendered twice.
           _pendingComments.remove(pending);
+          _sending = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          pending.failed = true;
           _sending = false;
         });
       }
@@ -1369,6 +1379,8 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
                     taskId: widget.taskId,
                     pendingComments: _pendingComments,
                     currentUid: currentUid,
+                    onRetryPending: (pending) =>
+                        _persistPendingComment(pending),
                     onReply: (data) => setState(() => _replyTo = data),
                   ),
                 ),
@@ -1447,34 +1459,6 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
   }
 }
 
-/// An in-flight comment whose images are still uploading to Storage.
-///
-/// Rendered optimistically so the author sees instant feedback instead of a
-/// silent delay until the upload completes.
-class _PendingComment {
-  final String text;
-  final String senderUid;
-  final String senderName;
-  final bool isAdmin;
-  final List<PickedImage> images;
-  final String? replyToId;
-  final String? replyToText;
-  final String? replyToAuthor;
-  final String? replyToUid;
-
-  const _PendingComment({
-    required this.text,
-    required this.senderUid,
-    required this.senderName,
-    required this.isAdmin,
-    required this.images,
-    this.replyToId,
-    this.replyToText,
-    this.replyToAuthor,
-    this.replyToUid,
-  });
-}
-
 /// Comments list for a task (subcollection).
 ///
 /// Rendered with `reverse: true` so the newest message is pinned to the bottom
@@ -1483,13 +1467,15 @@ class _PendingComment {
 /// the oldest message — the same behavior WhatsApp uses.
 class _TaskCommentsList extends ConsumerWidget {
   final String taskId;
-  final List<_PendingComment> pendingComments;
+  final List<PendingMessage> pendingComments;
   final String? currentUid;
+  final void Function(PendingMessage) onRetryPending;
   final void Function(Map<String, dynamic>) onReply;
   const _TaskCommentsList({
     required this.taskId,
     this.pendingComments = const [],
     this.currentUid,
+    required this.onRetryPending,
     required this.onReply,
   });
 
@@ -1526,7 +1512,12 @@ class _TaskCommentsList extends ConsumerWidget {
           itemCount: totalCount,
           itemBuilder: (_, i) {
             if (i < pendingComments.length) {
-              return _PendingCommentTile(comment: pendingComments[i]);
+              final pending = pendingComments[i];
+              return PendingMessageBubble(
+                message: pending,
+                uploading: !pending.failed,
+                onRetry: () => onRetryPending(pending),
+              );
             }
             final doc = orderedComments[i - pendingComments.length];
             final data = doc.data();
@@ -1543,84 +1534,6 @@ class _TaskCommentsList extends ConsumerWidget {
           },
         );
       },
-    );
-  }
-}
-
-/// Renders an optimistic comment using locally-available image bytes/files.
-class _PendingCommentTile extends StatelessWidget {
-  final _PendingComment comment;
-  const _PendingCommentTile({required this.comment});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          UserAvatar(
-            uid: comment.senderUid,
-            name: comment.senderName,
-            radius: 14,
-            isAdmin: comment.isAdmin,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        comment.senderName,
-                        style:  TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const SizedBox(
-                      width: 10,
-                      height: 10,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 1.5, color: AppColors.tasksAccent),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                if (comment.text.isNotEmpty)
-                  Text(
-                    comment.text,
-                    style:  TextStyle(
-                        color: AppColors.textPrimary, fontSize: 13),
-                  ),
-                if (comment.images.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: comment.images.map((img) {
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: PlatformImageFile(
-                          bytes: img.bytes,
-                          file: img.dartFile,
-                          width: 80,
-                          height: 80,
-                          fit: BoxFit.cover,
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

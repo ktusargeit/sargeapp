@@ -314,10 +314,17 @@ service cloud.firestore {
     }
 
     // ---------- ROLE PERMISSIONS (runtime RBAC overrides) ----------
-    // Sensitive: only Admin (and Başkan / board_president) may read or write
-    // these runtime RBAC overrides.
+    // Writing these runtime RBAC overrides is restricted to role managers
+    // (admin / board_president). Reading must be allowed for every signed-in
+    // user because the client's `rolePermissionsProvider` resolves
+    // `currentUserCan(...)` (e.g. "can this user open/manage the store?") by
+    // reading this collection. Restricting reads to role managers caused
+    // non-manager roles to surface `permission-denied` on screens that perform
+    // permission checks (the store being the prominent example). The permission
+    // SET itself is not sensitive data — only the ability to change it is.
     match /role_permissions/{role} {
-      allow read, create, update, delete: if isRoleManager();
+      allow read: if isSignedIn();
+      allow create, update, delete: if isRoleManager();
     }
 
     // ---------- STORE (Mağaza) ----------

@@ -11,6 +11,7 @@ import '../../../core/utils/image_utils.dart';
 import '../../../core/utils/operation_feedback.dart';
 import '../../../core/widgets/platform_image.dart';
 import '../../../core/widgets/comment_tile.dart';
+import '../../../core/widgets/pending_message.dart';
 import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/custom_delete_button.dart';
 import '../../notifications/providers/notification_providers.dart';
@@ -832,9 +833,14 @@ class _ReportDetailView extends ConsumerStatefulWidget {
 class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
   final _msgCtrl = TextEditingController();
   PickedImage? _msgImage;
-  bool _sending = false;
   Map<String, dynamic>? _replyTo;
   late final PresenceService _presenceService;
+
+  // Optimistically-rendered outgoing messages (WhatsApp-style): the bubble
+  // appears instantly with its local image, then is swapped for the persisted
+  // copy once the Firestore stream delivers it.
+  final List<PendingMessage> _pendingMessages = [];
+  int _pendingCounter = 0;
 
   // Used to auto-scroll the report conversation to the bottom when a new
   // message arrives (including the user's own). The controller is captured
@@ -949,27 +955,63 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
   }
 
   Future<void> _sendMessage(BugReport report) async {
-    if (_msgCtrl.text.trim().isEmpty && _msgImage == null) return;
-    setState(() => _sending = true);
-    try {
-      final currentUser = ref.read(authStateProvider).value;
-      final currentName = currentUser?.displayName ?? 'Kullanıcı';
-      final uid = currentUser?.uid ?? '';
-      final replyTo = _replyTo;
+    final text = _msgCtrl.text.trim();
+    if (text.isEmpty && _msgImage == null) return;
 
-      String? imageUrl;
-      if (_msgImage != null) {
-        final tempId = 'msg_${DateTime.now().millisecondsSinceEpoch}';
+    final currentUser = ref.read(authStateProvider).value;
+    final currentName = currentUser?.displayName ?? 'Kullanıcı';
+    final uid = currentUser?.uid ?? '';
+    final replyTo = _replyTo;
+
+    // Optimistic UI: show the bubble immediately (image visible, spinner on
+    // top), then upload + persist in the background.
+    final pending = PendingMessage(
+      localId:
+          'pending_${++_pendingCounter}_${DateTime.now().microsecondsSinceEpoch}',
+      text: text,
+      senderUid: uid,
+      senderName: currentName,
+      isAdmin: widget.isAdmin,
+      images: _msgImage != null ? [PendingAttachedImage(_msgImage!)] : const [],
+      replyToId: replyTo?['id'] as String?,
+      replyToText: replyTo?['text'] as String?,
+      replyToAuthor: replyTo?['senderName'] as String?,
+      replyToUid: replyTo?['senderUid'] as String?,
+    );
+
+    setState(() {
+      _pendingMessages.add(pending);
+      _msgCtrl.clear();
+      _msgImage = null;
+      _replyTo = null;
+    });
+
+    await _persistPending(pending);
+  }
+
+  /// Uploads the pending message's image (if any) and writes the Firestore
+  /// message. On failure it flips the bubble into a compact "tekrar dene"
+  /// state instead of showing a full-screen error.
+  Future<void> _persistPending(PendingMessage pending) async {
+    if (pending.failed) {
+      setState(() => pending.failed = false);
+    }
+
+    String? imageUrl;
+    try {
+      if (pending.images.isNotEmpty) {
+        final img = pending.images.first.image;
+        final tempId = 'msg_${DateTime.now().microsecondsSinceEpoch}';
         final storageRef = FirebaseStorage.instance
             .ref()
             .child('report_messages/$tempId.jpg');
-        final compressed = await _msgImage!.compressedUploadBytes();
+        final compressed = await img.compressedUploadBytes();
         if (compressed.isNotEmpty) {
           await storageRef.putData(compressed);
-        } else if (_msgImage!.dartFile != null) {
-          await storageRef.putFile(_msgImage!.dartFile!);
-        } else if (_msgImage!.bytes != null) {
-          await storageRef.putData(_msgImage!.bytes!);
+        } else if (img.dartFile != null) {
+          await storageRef.putFile(img.dartFile!);
+        } else if (img.bytes != null) {
+          await storageRef.putData(img.bytes!);
         }
         imageUrl = await storageRef.getDownloadURL();
       }
@@ -978,16 +1020,16 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
       // elements, which previously crashed members replying to a report.
       final newMsg = <String, dynamic>{
         'id': 'msg_${DateTime.now().microsecondsSinceEpoch}',
-        'senderUid': uid,
-        'senderName': currentName,
-        'text': _msgCtrl.text.trim(),
+        'senderUid': pending.senderUid,
+        'senderName': pending.senderName,
+        'text': pending.text,
         'createdAt': Timestamp.now(),
         'isAdmin': widget.isAdmin,
         if (imageUrl != null) 'imageUrl': imageUrl,
-        if (replyTo?['id'] != null) 'replyToId': replyTo?['id'],
-        if (replyTo?['text'] != null) 'replyToText': replyTo?['text'],
-        if (replyTo?['senderName'] != null)
-          'replyToAuthor': replyTo?['senderName'],
+        if (pending.replyToId != null) 'replyToId': pending.replyToId,
+        if (pending.replyToText != null) 'replyToText': pending.replyToText,
+        if (pending.replyToAuthor != null)
+          'replyToAuthor': pending.replyToAuthor,
       };
 
       await ref
@@ -1002,19 +1044,11 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
       // per thread + presence-aware), so the client only persists the message.
 
       if (mounted) {
-        setState(() {
-          _msgCtrl.clear();
-          _msgImage = null;
-          _replyTo = null;
-          _sending = false;
-        });
+        setState(() => _pendingMessages.remove(pending));
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
-        setState(() => _sending = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Hata: $e'), backgroundColor: AppColors.error),
-        );
+        setState(() => pending.failed = true);
       }
     }
   }
@@ -1303,7 +1337,7 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                       ),
                     ),
                     // Messages (WhatsApp-style bubbles with reply support).
-                    if (messages.isEmpty)
+                    if (messages.isEmpty && _pendingMessages.isEmpty)
                        Padding(
                         padding: const EdgeInsets.symmetric(vertical: 20),
                         child: Center(
@@ -1312,7 +1346,7 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                                   color: AppColors.textSecondary, fontSize: 13)),
                         ),
                       )
-                    else
+                    else ...[
                       ...messages.map((msg) {
                         final data = Map<String, dynamic>.from(msg);
                         return ChatBubble(
@@ -1326,6 +1360,15 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                           }),
                         );
                       }),
+                      // Optimistically rendered outgoing messages (WhatsApp-style).
+                      ..._pendingMessages.map((pending) {
+                        return PendingMessageBubble(
+                          message: pending,
+                          uploading: !pending.failed,
+                          onRetry: () => _persistPending(pending),
+                        );
+                      }),
+                    ],
                   ],
                 ),
               ),
@@ -1431,15 +1474,9 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                       ),
                       const SizedBox(width: 6),
                       IconButton(
-                        icon: _sending
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: AppColors.primaryGreen))
-                            : const Icon(Icons.send,
-                                size: 20, color: AppColors.primaryGreen),
-                        onPressed: _sending ? null : () => _sendMessage(report),
+                        icon: const Icon(Icons.send,
+                            size: 20, color: AppColors.primaryGreen),
+                        onPressed: () => _sendMessage(report),
                       ),
                         ],
                       ),

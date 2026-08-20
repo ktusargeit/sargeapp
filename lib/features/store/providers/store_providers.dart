@@ -90,9 +90,14 @@ class StoreRepository {
   // ── Products ───────────────────────────────────────────────────────────────
 
   /// Creates a product. [images] are compressed and uploaded to Storage.
+  ///
+  /// [price] is the numeric value extracted from the free-text [priceDisplay]
+  /// (used for any sorting/comparison), while [priceDisplay] keeps the exact
+  /// text the user typed (e.g. "50 TL", "50₺").
   Future<void> addProduct({
     required String name,
     required double price,
+    required String priceDisplay,
     required String description,
     required bool inStock,
     required List<PickedImage> images,
@@ -106,6 +111,7 @@ class StoreRepository {
     await docRef.set({
       'name': name.trim(),
       'price': price,
+      'priceDisplay': priceDisplay,
       'description': description.trim(),
       'imageUrls': urls,
       'inStock': inStock,
@@ -119,6 +125,7 @@ class StoreRepository {
     required String productId,
     required String name,
     required double price,
+    required String priceDisplay,
     required String description,
     required bool inStock,
     required List<String> existingImageUrls,
@@ -132,6 +139,7 @@ class StoreRepository {
     await _firestore.collection('store_products').doc(productId).update({
       'name': name.trim(),
       'price': price,
+      'priceDisplay': priceDisplay,
       'description': description.trim(),
       'imageUrls': allUrls,
       'inStock': inStock,

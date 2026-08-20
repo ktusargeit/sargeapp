@@ -13,6 +13,7 @@ import '../../../core/utils/operation_feedback.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/platform_image.dart';
 import '../../../core/widgets/comment_tile.dart';
+import '../../../core/widgets/pending_message.dart';
 import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/custom_delete_button.dart';
 import '../../announcements/models/announcement_models.dart';
@@ -1453,9 +1454,13 @@ class _AnnouncementDetailSheetState
     extends ConsumerState<_AnnouncementDetailSheet> {
   final _commentCtrl = TextEditingController();
   List<PickedImage> _commentImages = [];
-  bool _sending = false;
   Map<String, dynamic>? _replyTo;
   late final PresenceService _presenceService;
+
+  // Optimistically-rendered outgoing comments (local image visible immediately,
+  // spinner on top, swapped for the persisted comment once the stream delivers).
+  final List<PendingMessage> _pendingComments = [];
+  int _pendingCounter = 0;
 
   String get _threadKey =>
       threadKeyFor('announcement_comment', widget.announcement.id);
@@ -1488,17 +1493,49 @@ class _AnnouncementDetailSheetState
     final text = _commentCtrl.text.trim();
     if (text.isEmpty && _commentImages.isEmpty) return;
 
-    setState(() => _sending = true);
-    try {
-      final user = ref.read(authStateProvider).value;
-      final uid = user?.uid ?? '';
-      final name = user?.displayName ?? 'Kullanıcı';
-      final isAdmin = ref.read(isAdminProvider);
-      final firestore = ref.read(firestoreProvider);
-      final replyTo = _replyTo;
+    final user = ref.read(authStateProvider).value;
+    final uid = user?.uid ?? '';
+    final name = user?.displayName ?? 'Kullanıcı';
+    final isAdmin = ref.read(isAdminProvider);
+    final replyTo = _replyTo;
 
+    // Optimistic UI: show the bubble immediately (image visible, spinner on
+    // top), then upload + persist in the background.
+    final pending = PendingMessage(
+      localId:
+          'pending_${++_pendingCounter}_${DateTime.now().microsecondsSinceEpoch}',
+      text: text,
+      senderUid: uid,
+      senderName: name,
+      isAdmin: isAdmin,
+      images: _commentImages.map((i) => PendingAttachedImage(i)).toList(),
+      replyToId: replyTo?['id'] as String?,
+      replyToText: replyTo?['text'] as String?,
+      replyToAuthor: replyTo?['senderName'] as String?,
+      replyToUid: replyTo?['senderUid'] as String?,
+    );
+
+    setState(() {
+      _pendingComments.add(pending);
+      _commentImages = [];
+      _replyTo = null;
+    });
+    _commentCtrl.clear();
+
+    await _persistPendingComment(pending);
+  }
+
+  Future<void> _persistPendingComment(PendingMessage pending) async {
+    if (pending.failed) {
+      setState(() => pending.failed = false);
+    }
+
+    final firestore = ref.read(firestoreProvider);
+
+    try {
       final imageUrls = <String>[];
-      for (final img in _commentImages) {
+      for (final attached in pending.images) {
+        final img = attached.image;
         final tempId = 'announcement_comment_${DateTime.now().microsecondsSinceEpoch}';
         final storageRef = FirebaseStorage.instance
             .ref()
@@ -1520,37 +1557,29 @@ class _AnnouncementDetailSheetState
           .doc(widget.announcement.id)
           .collection('comments')
           .add({
-        'senderUid': uid,
-        'senderName': name,
-        'text': text,
+        'senderUid': pending.senderUid,
+        'senderName': pending.senderName,
+        'text': pending.text,
         'imageUrls': imageUrls,
         'createdAt': FieldValue.serverTimestamp(),
-        'isAdmin': isAdmin,
-        'replyToId': replyTo?['id'],
-        'replyToText': replyTo?['text'],
-        'replyToAuthor': replyTo?['senderName'],
-        'replyToUid': replyTo?['senderUid'],
+        'isAdmin': pending.isAdmin,
+        'replyToId': pending.replyToId,
+        'replyToText': pending.replyToText,
+        'replyToAuthor': pending.replyToAuthor,
+        'replyToUid': pending.replyToUid,
       });
 
       // Notifications are created server-side by `notifyAnnouncementComment`
       // (grouped per thread + presence-aware), so the client only persists the
       // comment here.
 
-      _commentCtrl.clear();
-      setState(() {
-        _commentImages = [];
-        _replyTo = null;
-      });
-    } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Yorum gönderilemedi: $e'),
-              backgroundColor: AppColors.error),
-        );
+        setState(() => _pendingComments.remove(pending));
       }
-    } finally {
-      if (mounted) setState(() => _sending = false);
+    } catch (_) {
+      if (mounted) {
+        setState(() => pending.failed = true);
+      }
     }
   }
 
@@ -1705,10 +1734,13 @@ class _AnnouncementDetailSheetState
                       ],
                     ),
                   ),
-                  // Comments list (subcollection stream)
+                  // Comments list (subcollection stream + optimistic pending).
                   _AnnouncementCommentsList(
                     announcementId: announcement.id,
                     currentUid: ref.read(authStateProvider).value?.uid,
+                    pendingComments: _pendingComments,
+                    onRetryPending: (pending) =>
+                        _persistPendingComment(pending),
                     onReply: (data) => setState(() => _replyTo = data),
                   ),
                   const SizedBox(height: 20),
@@ -1812,26 +1844,15 @@ class _AnnouncementDetailSheetState
                         ),
                         const SizedBox(width: 8),
                         GestureDetector(
-                          onTap: _sending ? null : _sendComment,
+                          onTap: _sendComment,
                           child: Container(
                             padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: _sending
-                                  ? AppColors.panelBlue.withValues(alpha: 0.5)
-                                  : AppColors.panelBlue,
+                            decoration: const BoxDecoration(
+                              color: AppColors.panelBlue,
                               shape: BoxShape.circle,
                             ),
-                            child: _sending
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Icon(Icons.send_rounded,
-                                    size: 18, color: Colors.white),
+                            child: const Icon(Icons.send_rounded,
+                                size: 18, color: Colors.white),
                           ),
                         ),
                       ],
@@ -1850,10 +1871,14 @@ class _AnnouncementDetailSheetState
 class _AnnouncementCommentsList extends ConsumerWidget {
   final String announcementId;
   final String? currentUid;
+  final List<PendingMessage> pendingComments;
+  final void Function(PendingMessage) onRetryPending;
   final void Function(Map<String, dynamic>) onReply;
   const _AnnouncementCommentsList({
     required this.announcementId,
     this.currentUid,
+    this.pendingComments = const [],
+    required this.onRetryPending,
     required this.onReply,
   });
 
@@ -1877,7 +1902,7 @@ class _AnnouncementCommentsList extends ConsumerWidget {
           );
         }
         final comments = snapshot.data?.docs ?? [];
-        if (comments.isEmpty) {
+        if (comments.isEmpty && pendingComments.isEmpty) {
           return  Padding(
             padding: const EdgeInsets.symmetric(vertical: 20),
             child: Center(
@@ -1890,15 +1915,25 @@ class _AnnouncementCommentsList extends ConsumerWidget {
 
         // `reverse: true` pins the newest comment to the bottom (index 0), so a
         // newly sent comment appears at the bottom instead of the list jumping
-        // to the oldest message.
+        // to the oldest message. Optimistic pending comments are newest, so they
+        // come first (bottom-most).
         final orderedComments = comments.reversed.toList();
+        final combined = [...pendingComments, ...orderedComments];
         return ListView.builder(
           reverse: true,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: orderedComments.length,
+          itemCount: combined.length,
           itemBuilder: (_, i) {
-            final doc = orderedComments[i];
+            final item = combined[i];
+            if (item is PendingMessage) {
+              return PendingMessageBubble(
+                message: item,
+                uploading: !item.failed,
+                onRetry: () => onRetryPending(item),
+              );
+            }
+            final doc = item as QueryDocumentSnapshot<Map<String, dynamic>>;
             final data = doc.data();
             return CommentTile(
               data: data,

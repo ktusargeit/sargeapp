@@ -57,7 +57,12 @@ class _StoreProductFormScreenState
             : <String>[];
         setState(() {
           _nameCtrl.text = data['name'] as String? ?? '';
-          _priceCtrl.text = (data['price'] as num?)?.toString() ?? '';
+          // Prefer the original free-text price so "50 TL" round-trips exactly;
+          // fall back to the numeric field for older products.
+          _priceCtrl.text = (data['priceDisplay'] as String? ?? '');
+          if (_priceCtrl.text.isEmpty) {
+            _priceCtrl.text = (data['price'] as num?)?.toString() ?? '';
+          }
           _descCtrl.text = data['description'] as String? ?? '';
           _inStock = data['inStock'] as bool? ?? true;
           _existingImageUrls = urls;
@@ -105,14 +110,33 @@ class _StoreProductFormScreenState
           backgroundColor: AppColors.error));
       return;
     }
-    final price = double.tryParse(_priceCtrl.text.trim());
+
+    // Allow the user to type the price however they like ("50", "50 TL",
+    // "50₺", ...). Their exact text is kept for display, while a numeric value
+    // is extracted and stored separately for consistent display/sorting.
+    final rawPrice = _priceCtrl.text.trim();
+    final normalized = rawPrice
+        .replaceAll('₺', ' ')
+        .replaceAll(RegExp(r'[^0-9,.\s]'), ' ')
+        .trim();
+    final priceMatch = RegExp(r'(\d+(?:[.,]\d+)?)').firstMatch(normalized);
+    final price = priceMatch != null
+        ? double.tryParse(priceMatch.group(1)!.replaceAll(',', '.'))
+        : null;
+
     if (price == null || price <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Geçerli bir fiyat girin.'),
+          content: Text(
+              'Fiyatta sayısal bir değer bulunamadı. Lütfen bir fiyat girin.'),
           backgroundColor: AppColors.error));
       return;
     }
     if (!_formKey.currentState!.validate()) return;
+
+    // Show the user's original wording on the product card ("50 TL", "50₺"),
+    // while the numeric `price` is stored separately for sorting.
+    final priceDisplay =
+        rawPrice.isEmpty ? '₺${price.toStringAsFixed(0)}' : rawPrice;
 
     setState(() => _loading = true);
     try {
@@ -124,6 +148,7 @@ class _StoreProductFormScreenState
           productId: widget.editProductId!,
           name: name,
           price: price,
+          priceDisplay: priceDisplay,
           description: _descCtrl.text.trim(),
           inStock: _inStock,
           existingImageUrls: _existingImageUrls,
@@ -133,6 +158,7 @@ class _StoreProductFormScreenState
         await repo.addProduct(
           name: name,
           price: price,
+          priceDisplay: priceDisplay,
           description: _descCtrl.text.trim(),
           inStock: _inStock,
           images: _newImages,
@@ -358,14 +384,13 @@ class _StoreProductFormScreenState
                         (v == null || v.trim().isEmpty) ? 'Zorunlu' : null,
                   ),
                   const SizedBox(height: 12),
-                  // Price
+                  // Price — free text so "50", "50 TL" and "50₺" all work.
                   TextFormField(
                     controller: _priceCtrl,
-                    keyboardType: TextInputType.number,
                     style: TextStyle(color: AppColors.textPrimary),
                     decoration: const InputDecoration(
-                      labelText: 'Fiyat (TL) *',
-                      hintText: '0.00',
+                      labelText: 'Fiyat *',
+                      hintText: '50, 50 TL veya 50₺',
                     ),
                   ),
                   const SizedBox(height: 12),

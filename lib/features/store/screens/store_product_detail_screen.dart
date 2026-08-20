@@ -221,7 +221,7 @@ class _ProductDetailBodyState extends State<_ProductDetailBody> {
           const SizedBox(height: 8),
           // Price
           Text(
-            '₺${product.price.toStringAsFixed(0)}',
+            product.formattedPrice,
             style: TextStyle(
               color: AppColors.sargeGold,
               fontSize: 24,

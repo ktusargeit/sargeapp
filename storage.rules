@@ -13,13 +13,32 @@ service firebase.storage {
         firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Store managers: any role that holds `manageStore` by default
-    // (admin, board president/member, captain, unit lead) — mirrors
-    // `Permissions.defaultRolePermissions` in the app.
+    // Store managers. The Firestore side uses `can('manageStore')`, which honors
+    // BOTH a role's default permission set AND any `role_permissions/{role}`
+    // override from the admin panel. Storage rules must mirror that so a role
+    // granted "Mağaza Ürünü Ekleyebilir/Düzenleyebilir" at runtime can actually
+    // upload product images — otherwise the Firestore write succeeds but the
+    // storage upload fails with `firebase_storage/unauthorized`.
+    function storeRole() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function roleHasStore(role) {
+      return firestore.exists(/databases/(default)/documents/role_permissions/$(role)) &&
+        'manageStore' in firestore.get(/databases/(default)/documents/role_permissions/$(role)).data.permissions;
+    }
+
+    function defaultHasStore(role) {
+      return role == 'admin' || role == 'board_president' ||
+        role == 'board_member' || role == 'captain' || role == 'unit_lead';
+    }
+
     function isStoreManager() {
       return isSignedIn() &&
         firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
-        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['admin', 'board_president', 'board_member', 'captain', 'unit_lead'];
+        (roleHasStore(storeRole()) ||
+         (!firestore.exists(/databases/(default)/documents/role_permissions/$(storeRole())) &&
+          defaultHasStore(storeRole())));
     }
 
     // Helper: admin or unit lead (team lead).

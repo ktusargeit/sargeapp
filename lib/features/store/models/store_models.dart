@@ -12,6 +12,11 @@ class StoreProduct {
   final DateTime createdAt;
   final String? createdBy;
 
+  /// Original, free-form price text as entered by the user (e.g. "50 TL",
+  /// "50₺", "50"). Shown on the product card so the price keeps whatever unit
+  /// or wording the manager typed.
+  final String? priceDisplay;
+
   const StoreProduct({
     required this.id,
     required this.name,
@@ -21,10 +26,18 @@ class StoreProduct {
     required this.inStock,
     required this.createdAt,
     this.createdBy,
+    this.priceDisplay,
   });
 
   String get coverImageUrl =>
       imageUrls.isNotEmpty ? imageUrls.first : '';
+
+  /// The text to show for the price. Prefers the manager-provided
+  /// [priceDisplay]; falls back to a numeric "₺50" so old rows still render.
+  String get formattedPrice =>
+      (priceDisplay != null && priceDisplay!.isNotEmpty)
+          ? priceDisplay!
+          : '₺${price.toStringAsFixed(0)}';
 
   factory StoreProduct.fromDoc(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
@@ -42,12 +55,14 @@ class StoreProduct {
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ??
           DateTime.fromMillisecondsSinceEpoch(0),
       createdBy: data['createdBy'] as String?,
+      priceDisplay: data['priceDisplay'] as String?,
     );
   }
 
   Map<String, dynamic> toMap() => {
         'name': name,
         'price': price,
+        'priceDisplay': priceDisplay,
         'description': description,
         'imageUrls': imageUrls,
         'inStock': inStock,

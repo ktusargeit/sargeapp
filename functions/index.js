@@ -63,19 +63,28 @@ function buildPushPayload(data, recipientId) {
     },
     android: {
       priority: "high",
-      notification: { channelId: "announcements" },
+      // `tag` is the modern Android way to make a same-thread push REPLACE
+      // the previous one instead of stacking a new notification in the shade.
+      // `collapseKey` is kept as a legacy fallback for older clients.
       ...(collapseId ? { collapseKey: collapseId } : {}),
+      notification: {
+        channelId: "announcements",
+        ...(collapseId ? { tag: collapseId } : {}),
+      },
     },
     apns: {
       headers: {
         "apns-priority": "10",
+        // apns-collapse-id makes iOS coalesce same-thread notifications.
         ...(collapseId ? { "apns-collapse-id": collapseId } : {}),
       },
       payload: { aps: { sound: "default" } },
     },
+    ...(collapseId
+      ? { webpush: { headers: { Topic: collapseId } } }
+      : {}),
   };
 
-  if (collapseId) payload.collapseKey = collapseId;
   return payload;
 }
 

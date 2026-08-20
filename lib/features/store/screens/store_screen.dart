@@ -206,7 +206,7 @@ class _ProductCard extends ConsumerWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '₺${product.price.toStringAsFixed(0)}',
+                    product.formattedPrice,
                     style: TextStyle(
                       color: AppColors.sargeGold,
                       fontSize: 15,
