@@ -395,13 +395,6 @@ class _SidebarNav extends ConsumerWidget {
             isActive: location.startsWith('/tasks'),
             accentColor: AppColors.tasksGreen,
           ),
-          _NavItem(
-            icon: Icons.storefront_outlined,
-            label: 'Mağaza',
-            route: '/store',
-            isActive: location.startsWith('/store'),
-            accentColor: AppColors.sargeGold,
-          ),
           const SizedBox(height: 8),
           if (canViewAdmin)
             _NavItem(

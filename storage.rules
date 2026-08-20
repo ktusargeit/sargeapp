@@ -41,6 +41,30 @@ service firebase.storage {
           defaultHasStore(storeRole())));
     }
 
+    // Club story editors. Mirrors the Firestore `can('editClubStory')` check so a
+    // role granted "Kulüp Hikayesi Düzenleyebilir" at runtime can also upload
+    // gallery images (`club_info/gallery/...`) without `firebase_storage/unauthorized`.
+    function clubStoryRole() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function roleHasClubStory(role) {
+      return firestore.exists(/databases/(default)/documents/role_permissions/$(role)) &&
+        'editClubStory' in firestore.get(/databases/(default)/documents/role_permissions/$(role)).data.permissions;
+    }
+
+    function defaultHasClubStory(role) {
+      return role == 'admin' || role == 'board_president' || role == 'board_member';
+    }
+
+    function isClubStoryEditor() {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        (roleHasClubStory(clubStoryRole()) ||
+         (!firestore.exists(/databases/(default)/documents/role_permissions/$(clubStoryRole())) &&
+          defaultHasClubStory(clubStoryRole())));
+    }
+
     // Helper: admin or unit lead (team lead).
     function isAdminOrYetkili() {
       return isSignedIn() &&
@@ -138,6 +162,12 @@ service firebase.storage {
     match /store_receipts/{allPaths=**} {
       allow read: if true;
       allow write: if isSignedIn();
+    }
+
+    // Club story gallery images (uploaded by the "Kulüp Hikayesi" editor).
+    match /club_info/{allPaths=**} {
+      allow read: if true;
+      allow write: if isClubStoryEditor();
     }
 
     // Default: read for everyone. Write is intentionally left un-granted here.

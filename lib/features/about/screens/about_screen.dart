@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/models/app_user.dart';
+import '../../../core/utils/image_utils.dart';
 import '../../../core/permissions/permission_system.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
@@ -757,7 +760,31 @@ Future<void> _editTeamStory(BuildContext context, ClubTeam team) async {
   final nameCtrl = TextEditingController(text: team.name);
   final periodCtrl = TextEditingController(text: team.period ?? '');
   final storyCtrl = TextEditingController(text: team.story ?? '');
+  final existingPhotos = List<String>.from(team.photos);
+  final newPhotos = <PickedImage>[];
   bool saving = false;
+  bool picking = false;
+
+  Future<List<String>> uploadNewPhotos() async {
+    final uploaded = <String>[];
+    for (var i = 0; i < newPhotos.length; i++) {
+      final img = newPhotos[i];
+      final ext = DateTime.now().microsecondsSinceEpoch;
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('team_photos/story_${team.id}_${ext}_$i.jpg');
+      final compressed = await img.compressedUploadBytes();
+      if (compressed.isNotEmpty) {
+        await ref.putData(compressed);
+      } else if (img.bytes != null) {
+        await ref.putData(img.bytes!);
+      } else if (img.dartFile != null) {
+        await ref.putFile(img.dartFile!);
+      }
+      uploaded.add(await ref.getDownloadURL());
+    }
+    return uploaded;
+  }
 
   await showDialog<void>(
     context: context,
@@ -788,6 +815,95 @@ Future<void> _editTeamStory(BuildContext context, ClubTeam team) async {
                 style: TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(labelText: 'Takım Hikayesi'),
               ),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('GÖRSELLER',
+                    style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2)),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ...existingPhotos.map((url) => Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              url,
+                              width: 72,
+                              height: 72,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 72,
+                                height: 72,
+                                color: AppColors.surface2,
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: GestureDetector(
+                              onTap: () =>
+                                  setDialogState(() => existingPhotos.remove(url)),
+                              child: Container(
+                                decoration: const BoxDecoration(
+                                  color: Colors.black54,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.close,
+                                    size: 16, color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )),
+                  ...newPhotos.map((p) {
+                    ImageProvider? provider;
+                    if (kIsWeb && p.bytes != null) {
+                      provider = MemoryImage(p.bytes!);
+                    } else if (p.dartFile != null) {
+                      provider = FileImage(p.dartFile!);
+                    }
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: provider != null
+                          ? Image(image: provider,
+                              width: 72, height: 72, fit: BoxFit.cover)
+                          : Container(
+                              width: 72,
+                              height: 72,
+                              color: AppColors.surface2),
+                    );
+                  }),
+                ],
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: picking
+                    ? null
+                    : () async {
+                        setDialogState(() => picking = true);
+                        final imgs = await PickedImage.pickMultiple();
+                        if (imgs.isNotEmpty) {
+                          setDialogState(() => newPhotos.addAll(imgs));
+                        }
+                        setDialogState(() => picking = false);
+                      },
+                icon: picking
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.add_photo_alternate_outlined, size: 18),
+                label: const Text('Görsel Ekle'),
+              ),
             ],
           ),
         ),
@@ -802,6 +918,7 @@ Future<void> _editTeamStory(BuildContext context, ClubTeam team) async {
                     if (nameCtrl.text.trim().isEmpty) return;
                     setDialogState(() => saving = true);
                     try {
+                      final uploaded = await uploadNewPhotos();
                       await FirebaseFirestore.instance
                           .collection('teams')
                           .doc(team.id)
@@ -813,6 +930,7 @@ Future<void> _editTeamStory(BuildContext context, ClubTeam team) async {
                         'story': storyCtrl.text.trim().isEmpty
                             ? null
                             : storyCtrl.text.trim(),
+                        'photos': [...existingPhotos, ...uploaded],
                       });
                       if (ctx.mounted) Navigator.pop(ctx);
                     } catch (e) {
