@@ -835,6 +835,12 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
   bool _sending = false;
   Map<String, dynamic>? _replyTo;
 
+  // Used to auto-scroll the report conversation to the bottom when a new
+  // message arrives (including the user's own). The controller is captured
+  // from the DraggableScrollableSheet builder in build().
+  ScrollController? _scrollController;
+  int _lastMsgCount = 0;
+
   String get _threadKey =>
       threadKeyFor('report_reply', widget.reportId);
 
@@ -1040,12 +1046,37 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
         final messages = report.messages;
         final currentUid = ref.read(authStateProvider).value?.uid;
 
+        // Auto-scroll to the bottom (most recent message) whenever the message
+        // count increases — either from the user's own send or an incoming
+        // reply. This prevents the conversation from jumping to the top when a
+        // new message arrives.
+        final msgCount = messages.length;
+        if (_scrollController != null && msgCount > _lastMsgCount) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted || _scrollController == null) return;
+            if (_scrollController!.hasClients) {
+              _scrollController!
+                  .animateTo(
+                    _scrollController!.position.maxScrollExtent,
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOut,
+                  )
+                  .catchError((_) {});
+            }
+          });
+        }
+        _lastMsgCount = msgCount;
+
         return DraggableScrollableSheet(
           initialChildSize: 1.0,
           minChildSize: 0.9,
           maxChildSize: 1.0,
           expand: false,
-          builder: (context, scrollController) => Column(
+          builder: (context, scrollController) {
+            // Capture the sheet's ListView controller so the message-count
+            // watcher above can auto-scroll to the bottom.
+            _scrollController = scrollController;
+            return Column(
             children: [
               Padding(
                 padding: const EdgeInsets.only(top: 12, bottom: 4),
@@ -1415,7 +1446,8 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
                 ),
               ),
             ],
-          ),
+          );
+          },
         );
       },
     );

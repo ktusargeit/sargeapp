@@ -30,6 +30,7 @@ class Permissions {
   static const editTeamStory = 'editTeamStory';
   static const addHonoraryMember = 'addHonoraryMember';
   static const manageRolesAndPermissions = 'manageRolesAndPermissions';
+  static const manageStore = 'manageStore';
 
   /// Ordered list of every known permission.
   static const List<String> all = [
@@ -51,6 +52,7 @@ class Permissions {
     editClubStory,
     editTeamStory,
     addHonoraryMember,
+    manageStore,
   ];
 
   /// Turkish labels for the role/permission management screen.
@@ -73,6 +75,7 @@ class Permissions {
     editClubStory: 'Kulüp Hikayesi Düzenleyebilir',
     editTeamStory: 'Takım Hikayesi Düzenleyebilir',
     addHonoraryMember: 'Onursal Üye Ekleyebilir',
+    manageStore: 'Mağaza Ürünü Ekleyebilir/Düzenleyebilir',
   };
 
   /// Default role → permission map. This is the baseline used when no
@@ -96,6 +99,7 @@ class Permissions {
       editClubStory,
       editTeamStory,
       addHonoraryMember,
+      manageStore,
     },
     'captain': {
       createTasks,
@@ -105,6 +109,7 @@ class Permissions {
       manageAnnouncements,
       reviewApplications,
       editTeamStory,
+      manageStore,
     },
     'unit_lead': {
       manageAnnouncements,
@@ -113,6 +118,7 @@ class Permissions {
       manageReports,
       awardPoints,
       reviewApplications,
+      manageStore,
     },
     'member': {},
   };

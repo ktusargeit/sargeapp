@@ -13,6 +13,15 @@ service firebase.storage {
         firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    // Store managers: any role that holds `manageStore` by default
+    // (admin, board president/member, captain, unit lead) — mirrors
+    // `Permissions.defaultRolePermissions` in the app.
+    function isStoreManager() {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['admin', 'board_president', 'board_member', 'captain', 'unit_lead'];
+    }
+
     // Helper: admin or unit lead (team lead).
     function isAdminOrYetkili() {
       return isSignedIn() &&
@@ -95,6 +104,19 @@ service firebase.storage {
 
     // Images attached to task comments. Any signed-in user can comment on a task.
     match /task_comments/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // Store product images — readable by all, writable by manageStore holders.
+    match /store_products/{allPaths=**} {
+      allow read: if true;
+      allow write: if isStoreManager();
+    }
+
+    // Store receipt PDFs (dekonte — any signed-in user can upload their own
+    // order receipt. Readable by all (the admin needs to view them).
+    match /store_receipts/{allPaths=**} {
       allow read: if true;
       allow write: if isSignedIn();
     }

@@ -21,6 +21,8 @@ String locationForNotificationType(String? type) {
       return '/team';
     case 'cleaning':
       return '/cleaning';
+    case 'store_order':
+      return '/store/orders';
     default:
       return '/dashboard';
   }

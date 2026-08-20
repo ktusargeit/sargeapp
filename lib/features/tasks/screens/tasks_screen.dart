@@ -455,11 +455,47 @@ class _TaskCard extends ConsumerWidget {
     await runDeleteWithFeedback(
       context: context,
       successMessage: 'Görev başarıyla silindi.',
-      operation: () => ref
-          .read(firestoreProvider)
-          .collection('tasks')
-          .doc(task.id)
-          .delete(),
+      operation: () async {
+        final firestore = ref.read(firestoreProvider);
+
+        // Toplu atamada (Takım/Birim) aynı bulkGroupId'yi paylaşan TÜM görev
+        // dokümanları silinir. Aksi halde silinen "görev" yalnızca bir kişiye
+        // ait kopyaydı ve gruptaki diğer görevler geride kalıyordu.
+        final taskIds = <String>{task.id};
+        final bulkGroupId = task.bulkGroupId;
+        if (bulkGroupId != null && bulkGroupId.isNotEmpty) {
+          final bulkSnap = await firestore
+              .collection('tasks')
+              .where('bulkGroupId', isEqualTo: bulkGroupId)
+              .get();
+          for (final doc in bulkSnap.docs) {
+            taskIds.add(doc.id);
+          }
+        }
+
+        // Görev dokümanları + onların comments alt koleksiyonlarını topla.
+        // Tek tek silmek yerine batch delete kullanılır; böylece yüzlerce
+        // yorum olsa bile birkaç batch commit ile işlem tamamlanır.
+        final refsToDelete = <DocumentReference<Map<String, dynamic>>>[];
+        for (final taskId in taskIds) {
+          final taskDoc = firestore.collection('tasks').doc(taskId);
+          final commentsSnap = await taskDoc.collection('comments').get();
+          refsToDelete.addAll(commentsSnap.docs.map((c) => c.reference));
+          refsToDelete.add(taskDoc);
+        }
+
+        // Firestore batch limiti 500 işlemdir — gerekirse parçalara böl.
+        for (var i = 0; i < refsToDelete.length; i += 500) {
+          final end = (i + 500 > refsToDelete.length)
+              ? refsToDelete.length
+              : i + 500;
+          final batch = firestore.batch();
+          for (final ref in refsToDelete.sublist(i, end)) {
+            batch.delete(ref);
+          }
+          await batch.commit();
+        }
+      },
     );
   }
 

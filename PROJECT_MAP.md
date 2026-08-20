@@ -16,6 +16,7 @@ Projenin "haritası". Her yeni görevde önce bu dosya okunur ve gerektiğinde g
 - `lib/features/about/` — hakkımızda bölümleri ve üyeleri.
 - `lib/features/contact/` — iletişim bilgileri.
 - `lib/features/reports/` — hata/öneri raporları ve mesajları.
+- `lib/features/store/` — Mağaza modülü: ürünler (CRUD + görsel galeri), siparişler (dekont/EFT bazlı, ödeme yok), IBAN listesi, sipariş durum akışı ve bildirimler. Modeller `store_models.dart`, provider'lar `store_providers.dart`, ekranlar `screens/`.
 - `lib/settings/` — uygulama ayarları ekranı. "Hesabımı Sil" (şifre doğrulama + onay dialog'u ile hesap silme) burada.
 - `functions/` — Cloud Functions (FCM push bildirimleri + hesap silme temizliği).
 
@@ -25,7 +26,8 @@ Projenin "haritası". Her yeni görevde önce bu dosya okunur ve gerektiğinde g
 - `assets/images/launcher_icon.png` — tam (legacy) launcher ikonu, siyah zemin üzerine ortalanmış logo. `pubspec.yaml` → `flutter_launcher_icons.image_path`.
 - `assets/images/launcher_icon_foreground.png` — Android adaptive icon foreground (saydam, güvenli alana sığacak şekilde beyaz logo). `pubspec.yaml` → `flutter_launcher_icons.adaptive_icon_foreground`.
 - `sarge_logo_original_backup.png` (proje kökü) — orijinal 1254×1254 logonun yedeği (asset paketi dışında tutuluyor).
-- `lib/features/tasks/screens/tasks_screen.dart` — Tüm Görevler ekranı + görev detay sheet'i + görev oluşturma dialog'u. Yorumlar `tasks/{id}/comments` alt koleksiyonunda tutulur. Birim seçimi ve rol bazlı yetkilendirme burada. Görev oluşturma: Tekil Üye / Tüm Takım / Birim (segmented button) — toplu atamada her üyeye ayrı görev dokümanı, `bulkGroupId` + `assignmentMode` alanları. Yorum bildirimleri: atayan + aynı bulkGroup'daki TÜM ilgililere (yorumu yazan hariç).
+- `lib/features/tasks/screens/tasks_screen.dart` — Tüm Görevler ekranı + görev detay sheet'i + görev oluşturma dialog'u. Yorumlar `tasks/{id}/comments` alt koleksiyonunda tutulur. Birim seçimi ve rol bazlı yetkilendirme burada. Görev oluşturma: Tekil Üye / Tüm Takım / Birim (segmented button) — toplu atamada her üyeye ayrı görev dokümanı, `bulkGroupId` + `assignmentMode` alanları. Yorum bildirimleri: atayan + aynı bulkGroup'daki TÜM ilgililere (yorumu yazan hariç). **Görev silme**: `_deleteTask`, aynı `bulkGroupId`'li tüm görev kopyalarını + her görevin `comments` alt koleksiyonunu batch delete ile (500'lük parçalar) temizler.
+- `lib/features/reports/screens/report_bug_screen.dart` — hata/öneri raporları + mesajlaşma (WhatsApp balonları + yanıtla). Normal üye `reports.messages` array'ine `arrayUnion` ile yanıt ekleyebilir (firestore.rules izni). Mesaj map'i null-free (Firestore array içinde null → invalid-argument çökmesi). Mesaj sayısı artınca otomatik en alta kaydırma yapılır.
 - `lib/features/notifications/screens/notifications_screen.dart` — Bildirim merkezi; tıklayınca task_assigned/task_comment/task_submitted → göreve, team_application → takıma, announcement → dashboard'a gider.
 - `lib/features/team/screens/team_detail_screen.dart` — Takım detayı, birimler sekmesi, üyeler sekmesi (birim filtresi). Üyeleri `teams/{id}.memberIds` ve `users` üzerinden çeker.
 - `lib/features/team/providers/team_providers.dart` — `teamUnitsProvider` (birim listesi, `unitLeadUid` dahil), `teamMembersProvider`, `UnitService` (birim CRUD + sorumlu atama).
@@ -41,6 +43,13 @@ Projenin "haritası". Her yeni görevde önce bu dosya okunur ve gerektiğinde g
  - `functions/index.js` — FCM push bildirim gönderimi (`onDocumentCreated` + `onDocumentUpdated`) + gruplu yorum bildirimleri (`notifyTaskComment`, `notifyAnnouncementComment`, `notifyReportReply`) + `onUserDeleted` Auth trigger ile hesap silme temizliği. Push payload'ı `type`/`targetId`/`relatedId`/`count` taşır; aynı thread'e gelen bildirimler aynı collapseKey ile OS tarafında birleşir. `presence/{uid}.activeThreadId` açıksa push bastırılır.
  - `lib/core/routing/notification_router.dart` — bildirim `type` → GoRouter lokasyonu eşlemesi + push deep-link için `pendingNotificationLocation`/`pendingNotificationTargetId`.
 - `lib/core/widgets/comment_tile.dart` — ortak yorum/mesaj widget'ları: `UserAvatar`, `UserAvatarWithName` (avatar/isim tıklayınca `/profile/:id`), `ChatBubble` (WhatsApp tarzı balon: kendi mesaj sağda yeşilimsi, başkası solda gri; avatar+isim+saat+linkli metin+resim tam ekran), `ReplyQuoteBlock` (balon içi alıntı), `ReplyPreviewBar` (input üstü "Yanıtlıyorsunuz" önizlemesi), `CommentTile` (legacy wrapper).
+- `lib/features/store/providers/store_providers.dart` — `storeProductsProvider`/`storeSettingsProvider`/`allOrdersProvider`/`myOrdersProvider` stream'leri + `StoreRepository` (ürün CRUD, sipariş oluşturma, IBAN yönetimi, Storage yükleme) + `pickReceiptPdf` (sadece PDF, maks 10MB) + `StoreNotifier` (yeni sipariş → `manageStore` sahiplerine, durum değişimi → sipariş verene bildirim). Firestore: `store_products`, `orders`, `store_meta`; Storage: `store_products/...`, `store_receipts/...`.
+- `lib/features/store/models/store_models.dart` — `StoreProduct`, `StoreOrder`, `StoreOrderStatus` (esnek durum listesi: Ödeme Bekleniyor → Onaylandı → Üretimde/Basımda → Kargoya Verildi → Tamamlandı; + İptal Edildi), `StoreSettings` (IBAN listesi).
+- `lib/features/store/screens/store_screen.dart` — Mağaza ana ekranı (ürün grid/listesi, "Ürün Ekle" butonu `manageStore` sahiplerine, sipariş+ayarlar kısayolları).
+- `lib/features/store/screens/store_order_form_screen.dart` — sipariş formu (IBAN gösterimi + bilgilendirme metni + PDF dekont yükleme + opsiyonel not).
+- `lib/features/store/screens/store_orders_screen.dart` — "Tüm Siparişler" (Tümü / Benim Siparişlerim filtresi; bildirim derin bağlantısında otomatik detay açma).
+- `lib/features/store/screens/store_order_detail_screen.dart` — sipariş detayı (dekont görüntüleme + admin durum geçiş butonları + durum değişince bildirim).
+- `lib/features/store/screens/store_settings_screen.dart` — Mağaza Ayarları (IBAN ekle/sil/düzenle).
 - `lib/core/services/fcm_service.dart` — FCM cihaz token yaşam döngüsü. Token `fcm_tokens/{uid}` dokümanına yazılır; login/token-rotate'da yenilenir, logout'ta silinir. Web için `kWebVapidKey` sabiti (VAPID public key) eklenmiştir; boş bırakılırsa web kaydı güvenle atlanır.
 - `lib/core/utils/image_utils.dart` — `PickedImage`: çekilen/seçilen görselleri Storage'a yüklemeden önce max 1280px genişlik + %75 JPEG olarak sıkıştırır (`compressBytes` / `compressedUploadBytes`). `pick`/`pickMultiple` web'de de sıkıştırma yapar.
 - `web/firebase-messaging-sw.js` — Web push service worker (FCM). Manifest/`index.html` ile birlikte Chrome/FF'ta arka plan bildirimlerini sağlar.
@@ -69,6 +78,9 @@ Projenin "haritası". Her yeni görevde önce bu dosya okunur ve gerektiğinde g
 - `presence/{uid}` — `activeThreadId` (kullanıcının anlık açık tuttuğu `type:relatedId` thread anahtarı; bildirim/push bastırma için).
 - `fcm_tokens/{uid}` — cihaz FCM token'ı (client'tan gizli, sadece owner yazabilir).
 - `points_history/{id}` — puan geçmişi. `delta` (pozitif/negatif), `targetUid`, `targetName`, `changedBy`, `createdAt`. Açıklama (`reason`) alanı kaldırıldı (opsiyonel; mevcut eski kayıtlar bozulmaz).
+- `store_products/{id}` — Mağaza ürünü: `name`, `price`, `description`, `imageUrls` (ilk görsel kapak), `inStock`, `createdBy`, `createdAt`. Yazma: `manageStore` yetkisi; okuma: herkes.
+- `orders/{id}` — Mağaza siparişi: `userId`, `userName`, `productId`, `productName`, `price`, `receiptUrl` (dekont PDF), `note`, `status` (Ödeme Bekleniyor varsayılan), `createdAt`. Okuma: sahibi veya `manageStore`; oluşturma: giriş yapmış kullanıcı (kendi `userId`'si); durum güncelleme: `manageStore`.
+- `store_meta/settings` — Mağaza ayarları: `ibans` (string listesi). Yazma: `manageStore`; okuma: herkes.
 
 ## 4. Bilinen Kısıtlar / Kurallar
 

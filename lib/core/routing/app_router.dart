@@ -26,6 +26,13 @@ import '../../features/team/screens/team_detail_screen.dart';
 import '../../features/admin/screens/admin_panel_screen.dart';
 import '../../features/admin/screens/admin_member_detail_screen.dart';
 import '../../features/notifications/screens/notifications_screen.dart';
+import '../../features/store/screens/store_screen.dart';
+import '../../features/store/screens/store_product_detail_screen.dart';
+import '../../features/store/screens/store_product_form_screen.dart';
+import '../../features/store/screens/store_order_form_screen.dart';
+import '../../features/store/screens/store_orders_screen.dart';
+import '../../features/store/screens/store_order_detail_screen.dart';
+import '../../features/store/screens/store_settings_screen.dart';
 import '../models/app_user.dart';
 import '../providers/auth_providers.dart';
 
@@ -308,6 +315,65 @@ class AppRouter {
               path: '/settings',
               name: 'settings',
               builder: (context, state) => const SettingsScreen(),
+            ),
+            GoRoute(
+              path: '/store',
+              name: 'store',
+              builder: (context, state) => const StoreScreen(),
+              routes: [
+                GoRoute(
+                  path: 'add',
+                  name: 'store-add',
+                  builder: (context, state) => const StoreProductFormScreen(),
+                ),
+                GoRoute(
+                  path: 'edit/:id',
+                  name: 'store-edit',
+                  builder: (context, state) {
+                    final id = state.pathParameters['id'] ?? '';
+                    return StoreProductFormScreen(editProductId: id);
+                  },
+                ),
+                GoRoute(
+                  path: 'product/:id',
+                  name: 'store-product',
+                  builder: (context, state) {
+                    final id = state.pathParameters['id'] ?? '';
+                    return StoreProductDetailScreen(productId: id);
+                  },
+                ),
+                GoRoute(
+                  path: 'order/:id',
+                  name: 'store-order',
+                  builder: (context, state) {
+                    final id = state.pathParameters['id'] ?? '';
+                    return StoreOrderFormScreen(productId: id);
+                  },
+                ),
+                GoRoute(
+                  path: 'orders',
+                  name: 'store-orders',
+                  builder: (context, state) {
+                    final extra = state.extra;
+                    return StoreOrdersScreen(
+                      initialOrderId: extra is String ? extra : null,
+                    );
+                  },
+                ),
+                GoRoute(
+                  path: 'order-detail/:id',
+                  name: 'store-order-detail',
+                  builder: (context, state) {
+                    final id = state.pathParameters['id'] ?? '';
+                    return StoreOrderDetailScreen(orderId: id);
+                  },
+                ),
+                GoRoute(
+                  path: 'settings',
+                  name: 'store-settings',
+                  builder: (context, state) => const StoreSettingsScreen(),
+                ),
+              ],
             ),
           ],
         ),

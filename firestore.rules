@@ -44,11 +44,11 @@ service cloud.firestore {
     function defaultHas(role, perm) {
       return (role == 'admin' || role == 'board_president') ||
         (role == 'board_member' &&
-          perm in ['viewAdminPanel','manageTitles','manageAnnouncements','reviewApplications','editClubStory','editTeamStory','addHonoraryMember']) ||
+          perm in ['viewAdminPanel','manageTitles','manageAnnouncements','reviewApplications','editClubStory','editTeamStory','addHonoraryMember','manageStore']) ||
         (role == 'captain' &&
-          perm in ['createTasks','approveTasks','deleteTasks','manageUnits','manageAnnouncements','reviewApplications','editTeamStory']) ||
+          perm in ['createTasks','approveTasks','deleteTasks','manageUnits','manageAnnouncements','reviewApplications','editTeamStory','manageStore']) ||
         (role == 'unit_lead' &&
-          perm in ['manageAnnouncements','createTasks','approveTasks','manageReports','awardPoints','reviewApplications']);
+          perm in ['manageAnnouncements','createTasks','approveTasks','manageReports','awardPoints','reviewApplications','manageStore']);
     }
 
     function can(perm) {
@@ -320,6 +320,35 @@ service cloud.firestore {
       allow read, create, update, delete: if isRoleManager();
     }
 
+    // ---------- STORE (Mağaza) ----------
+    // Products are readable by everyone, writes by manageStore-permission holders.
+    match /store_products/{id} {
+      allow read: if true;
+      allow create, update, delete: if can('manageStore');
+    }
+
+    // Orders: owner can read/write their own, managers can read/write all.
+    match /orders/{id} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || can('manageStore')
+      );
+      allow create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid;
+      // Managers (and the owner for their own order) can update the status.
+      allow update: if isSignedIn() && (
+        can('manageStore') ||
+        (resource.data.userId == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+      );
+      allow delete: if can('manageStore');
+    }
+
+    // Store settings (IBAN list): readable by all, writable by managers.
+    match /store_meta/{id} {
+      allow read: if true;
+      allow create, update, delete: if can('manageStore');
+    }
+
     // ---------- ANNOUNCEMENTS ----------
     match /announcements/{id} {
       allow read: if true;
@@ -394,8 +423,16 @@ service cloud.firestore {
       match /comments/{commentId} {
         allow read: if true;
         allow create: if isSignedIn() && request.resource.data.senderUid == request.auth.uid;
-        allow update, delete: if isSignedIn() && (
+        // The task creator (assignedBy) may delete a comment as part of the
+        // cascade batch-delete when removing the task itself (the comment
+        // subcollection no longer becomes orphaned data).
+        allow update: if isSignedIn() && (
           resource.data.senderUid == request.auth.uid || isAdmin()
+        );
+        allow delete: if isSignedIn() && (
+          resource.data.senderUid == request.auth.uid ||
+          isAdmin() ||
+          get(/databases/$(database)/documents/tasks/$(id)).data.assignedBy == request.auth.uid
         );
       }
     }
