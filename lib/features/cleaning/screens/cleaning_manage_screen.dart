@@ -31,7 +31,7 @@ class CleaningManageScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              _SectionTitle(
+              const _SectionTitle(
                 icon: Icons.repeat,
                 title: 'Temizlik Döngüsü',
                 subtitle:
@@ -70,7 +70,7 @@ class CleaningManageScreen extends ConsumerWidget {
                 label: const Text('Sıra Ekle'),
               ),
               const SizedBox(height: 24),
-              _SectionTitle(
+              const _SectionTitle(
                 icon: Icons.event_available,
                 title: 'Haftaları Oluştur',
                 subtitle:
@@ -79,7 +79,7 @@ class CleaningManageScreen extends ConsumerWidget {
               const SizedBox(height: 8),
               _RealizePanel(slots: slots, config: config),
               const SizedBox(height: 24),
-              _SectionTitle(
+              const _SectionTitle(
                 icon: Icons.list_alt,
                 title: 'Alışveriş Listesi Şablonu',
                 subtitle:
@@ -187,7 +187,7 @@ class _SlotTile extends ConsumerWidget {
               ),
               child: Text(
                 '#${index + 1} ${CleaningAssignmentType.label(slot.assignmentType)}',
-                style: TextStyle(
+                style: const TextStyle(
                     color: AppColors.depoAccent,
                     fontSize: 11,
                     fontWeight: FontWeight.w600),
@@ -329,7 +329,7 @@ class _RealizePanelState extends ConsumerState<_RealizePanel> {
                   ),
                 ),
                 Text('$_count',
-                    style: TextStyle(
+                    style: const TextStyle(
                         color: AppColors.depoAccent,
                         fontWeight: FontWeight.w700)),
               ],

@@ -217,11 +217,22 @@ service cloud.firestore {
       // Any signed-in user can create a notification (to notify about their own
       // activity: comments, reports, suggestions, task submissions, etc).
       allow create: if isSignedIn() && request.resource.data.senderUid == request.auth.uid;
-      // Recipient (or admin) can mark a notification as read.
+      // Recipient (or admin) can mark a notification as read and reset its
+      // grouped-thread counter.
       allow update: if isSignedIn() && (
         resource.data.recipientId == request.auth.uid || isAdmin()
-      ) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+      ) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead', 'count']);
       allow delete: if isAdmin();
+    }
+
+    // ---------- PRESENCE (active thread, for notification suppression) ----------
+    // Stores a user's currently-open conversation `activeThreadId` so the
+    // sender (and the Cloud Function before pushing) can skip notifications for
+    // a thread the user is already viewing. Only the owner writes their own
+    // presence; any signed-in user may read it (it only exposes activeThreadId).
+    match /presence/{uid} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isOwner(uid);
     }
 
     // ---------- FCM TOKENS (for push notifications) ----------

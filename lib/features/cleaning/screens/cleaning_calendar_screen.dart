@@ -57,7 +57,7 @@ class _WeekRow extends ConsumerWidget {
       shape: isCurrent
           ? RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: AppColors.depoAccent, width: 1.2),
+              side: const BorderSide(color: AppColors.depoAccent, width: 1.2),
             )
           : null,
       child: ListTile(
@@ -73,7 +73,7 @@ class _WeekRow extends ConsumerWidget {
                   color: AppColors.depoAccent.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: Text('Bu hafta',
+                child: const Text('Bu hafta',
                     style: TextStyle(color: AppColors.depoAccent, fontSize: 9)),
               ),
             Icon(Icons.calendar_today_outlined,

@@ -1,76 +1,369 @@
 import admin from "firebase-admin";
-import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as v1 from "firebase-functions/v1";
 
 admin.initializeApp();
 
+// Conversation "thread" types. These notifications are grouped: one document
+// per (recipient, thread) whose `count` increments with each new message.
+const THREAD_TYPES = new Set([
+  "task_comment",
+  "announcement_comment",
+  "report_reply",
+]);
+
+function threadKeyOf(data) {
+  const type = data.type;
+  const relatedId = data.relatedId || data.targetId;
+  if (!type || !relatedId || !THREAD_TYPES.has(type)) return null;
+  return `${type}:${relatedId}`;
+}
+
+// Presence: while a user has `activeThreadId` equal to the thread key of this
+// notification, that user is actively viewing the conversation and must not be
+// disturbed (neither in-app nor push).
+async function recipientHasThreadOpen(db, recipientId, threadKey) {
+  if (!threadKey) return false;
+  try {
+    const presenceSnap = await db.collection("presence").doc(recipientId).get();
+    return (
+      presenceSnap.exists &&
+      presenceSnap.data()?.activeThreadId === threadKey
+    );
+  } catch (err) {
+    console.error("presence read failed:", err.code || err.message);
+    return false;
+  }
+}
+
+function buildPushPayload(data, recipientId) {
+  const title = data.title || "SARGE";
+  const body = data.body || "";
+  const type = data.type || null;
+  const relatedId = data.relatedId || null;
+  const count = Number(data.count) || 0;
+
+  const key = threadKeyOf(data);
+  // collapseKey (Android legacy / android config) + apns-collapse-id (iOS)
+  // make subsequent pushes for the same thread REPLACE the existing OS
+  // notification instead of stacking a new one.
+  const collapseId = key ? `${recipientId}:${key}` : null;
+
+  const displayBody = key && count > 1 ? `${body} (${count} yeni mesaj)` : body;
+
+  const payload = {
+    token: null,
+    notification: { title, body: displayBody },
+    data: {
+      ...(type ? { type } : {}),
+      ...(relatedId ? { relatedId } : {}),
+      ...(relatedId ? { targetId: relatedId } : {}),
+      ...(count ? { count: String(count) } : {}),
+    },
+    android: {
+      priority: "high",
+      notification: { channelId: "announcements" },
+      ...(collapseId ? { collapseKey: collapseId } : {}),
+    },
+    apns: {
+      headers: {
+        "apns-priority": "10",
+        ...(collapseId ? { "apns-collapse-id": collapseId } : {}),
+      },
+      payload: { aps: { sound: "default" } },
+    },
+  };
+
+  if (collapseId) payload.collapseKey = collapseId;
+  return payload;
+}
+
+async function sendPushForNotification(db, recipientId, data) {
+  if (!recipientId) return;
+  if (data.isRead === true) return;
+
+  const key = threadKeyOf(data);
+  if (await recipientHasThreadOpen(db, recipientId, key)) {
+    console.log(`Skipping push for ${recipientId} (thread open): ${key}`);
+    return;
+  }
+
+  const tokenDoc = await db.collection("fcm_tokens").doc(recipientId).get();
+  if (!tokenDoc.exists) return;
+
+  const token = tokenDoc.data()?.token;
+  if (!token) return;
+
+  const payload = buildPushPayload(data, recipientId);
+  payload.token = token;
+
+  try {
+    await admin.messaging().send(payload);
+  } catch (err) {
+    console.error(
+      `FCM send failed for ${recipientId}:`,
+      err.code || err.message
+    );
+
+    if (
+      err.code === "messaging/registration-token-not-registered" ||
+      err.code === "messaging/invalid-registration-token"
+    ) {
+      try {
+        await db.collection("fcm_tokens").doc(recipientId).delete();
+      } catch (cleanupErr) {
+        console.error("FCM token cleanup failed:", cleanupErr);
+      }
+    }
+  }
+}
+
+// A newly created notification → send the first push for it.
 export const sendPushOnNotification = onDocumentCreated(
   "notifications/{notificationId}",
   async (event) => {
     const snap = event.data;
     if (!snap) return;
+    await sendPushForNotification(
+      admin.firestore(),
+      snap.data()?.recipientId,
+      snap.data() || {}
+    );
+  }
+);
 
-    const data = snap.data() || {};
-    const recipientId = data.recipientId;
-    const title = data.title || "SARGE";
-    const body = data.body || "";
-    const type = data.type || null;
-    const relatedId = data.relatedId || null;
-
-    if (!recipientId) return;
-
+// A grouped thread's counter increment → re-push with the updated count, using
+// the same collapse key so the OS replaces the previous notification.
+export const sendPushOnNotificationUpdate = onDocumentUpdated(
+  "notifications/{notificationId}",
+  async (event) => {
+    const after = event.data?.after;
+    if (!after) return;
+    const data = after.data() || {};
+    // Only grouped threads with an open (unread) state get an update push.
+    if (!threadKeyOf(data)) return;
     if (data.isRead === true) return;
+    await sendPushForNotification(
+      admin.firestore(),
+      data.recipientId,
+      data
+    );
+  }
+);
 
-    const tokenDoc = await admin
-      .firestore()
-      .collection("fcm_tokens")
-      .doc(recipientId)
+// Deterministic notification document id for a (recipient, thread) pair. This
+// is what turns "one notification per message" into "one per thread + counter".
+function notificationDocId(recipientId, type, relatedId) {
+  const safe = (type + "_" + relatedId).replace(/[^a-zA-Z0-9_-]/g, "_");
+  return `${recipientId}_${safe}`;
+}
+
+// Creates (count=1) or increments (count+1) the single grouped notification for
+// a recipient/thread, unless the recipient currently has that thread open.
+async function upsertThreadedNotification(db, {
+  recipientId,
+  title,
+  body,
+  type,
+  relatedId,
+  senderUid,
+  senderName,
+}) {
+  if (!recipientId || !senderUid) return;
+
+  const threadKey = `${type}:${relatedId}`;
+
+  // Suppress entirely when the recipient is actively viewing this thread.
+  try {
+    const presenceSnap = await db.collection("presence").doc(recipientId).get();
+    if (
+      presenceSnap.exists &&
+      presenceSnap.data()?.activeThreadId === threadKey
+    ) {
+      console.log(`Skipping grouped notify for ${recipientId} (thread open): ${threadKey}`);
+      return;
+    }
+  } catch (err) {
+    console.error("presence read failed:", err.code || err.message);
+  }
+
+  const docId = notificationDocId(recipientId, type, relatedId);
+  const ref = db.collection("notifications").doc(docId);
+  const ts = admin.firestore.FieldValue.serverTimestamp();
+
+  await db.runTransaction(async (txn) => {
+    const existing = await txn.get(ref);
+    if (!existing.exists) {
+      txn.set(ref, {
+        recipientId,
+        senderUid,
+        senderName: senderName || null,
+        title,
+        body,
+        type,
+        relatedId,
+        count: 1,
+        isRead: false,
+        createdAt: ts,
+        updatedAt: ts,
+      });
+    } else {
+      txn.update(ref, {
+        senderUid,
+        senderName: senderName || null,
+        body,
+        count: admin.firestore.FieldValue.increment(1),
+        isRead: false,
+        updatedAt: ts,
+      });
+    }
+  });
+}
+
+// Task comment → grouped notifications to assignee + creator + replied-to user
+// + every assignee in the same bulk group (never the commenter).
+export const notifyTaskComment = onDocumentCreated(
+  "tasks/{taskId}/comments/{commentId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+    const comment = snap.data() || {};
+    const senderUid = comment.senderUid;
+    const senderName = comment.senderName || "Kullanıcı";
+    if (!senderUid) return;
+
+    const taskId = event.params.taskId;
+    const db = admin.firestore();
+
+    const taskSnap = await db.collection("tasks").doc(taskId).get();
+    const task = taskSnap.data() || {};
+    const title = task.title || "Görev";
+
+    const text = typeof comment.text === "string" ? comment.text : "";
+    const snippet = text.length > 80 ? `${text.slice(0, 80)}...` : text;
+    const body = snippet
+      ? `${senderName}, "${title}" görevine yorum yaptı: "${snippet}"`
+      : `${senderName}, "${title}" görevine yorum yaptı.`;
+
+    const targets = new Set();
+    if (task.assignedTo) targets.add(task.assignedTo);
+    if (task.assignedBy) targets.add(task.assignedBy);
+    if (comment.replyToUid) targets.add(comment.replyToUid);
+
+    if (task.bulkGroupId) {
+      const bulkSnap = await db
+        .collection("tasks")
+        .where("bulkGroupId", "==", task.bulkGroupId)
+        .get();
+      for (const doc of bulkSnap.docs) {
+        const other = doc.data().assignedTo;
+        if (other) targets.add(other);
+      }
+    }
+
+    targets.delete(senderUid);
+    for (const uid of targets) {
+      if (!uid) continue;
+      await upsertThreadedNotification(db, {
+        recipientId: uid,
+        title: `Görev yorumu: ${title}`,
+        body,
+        type: "task_comment",
+        relatedId: taskId,
+        senderUid,
+        senderName,
+      });
+    }
+  }
+);
+
+// Announcement comment → grouped notification to the announcement author only.
+export const notifyAnnouncementComment = onDocumentCreated(
+  "announcements/{announcementId}/comments/{commentId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+    const comment = snap.data() || {};
+    const senderUid = comment.senderUid;
+    const senderName = comment.senderName || "Kullanıcı";
+    if (!senderUid) return;
+
+    const announcementId = event.params.announcementId;
+    const db = admin.firestore();
+
+    const annSnap = await db
+      .collection("announcements")
+      .doc(announcementId)
       .get();
+    const ann = annSnap.data() || {};
+    const creatorId = ann.createdBy;
+    if (!creatorId || creatorId === senderUid) return;
 
-    if (!tokenDoc.exists) return;
+    await upsertThreadedNotification(db, {
+      recipientId: creatorId,
+      title: `Duyuruya yorum: ${ann.title || "Duyuru"}`,
+      body: typeof comment.text === "string" && comment.text
+        ? comment.text
+        : "Duyuruna bir yorum eklendi.",
+      type: "announcement_comment",
+      relatedId: announcementId,
+      senderUid,
+      senderName,
+    });
+  }
+);
 
-    const token = tokenDoc.data()?.token;
-    if (!token) return;
+// Report reply (messages is an array field) → grouped notification to the
+// submitter, or to admins/unit-leads when the submitter is the one replying.
+export const notifyReportReply = onDocumentUpdated(
+  "reports/{reportId}",
+  async (event) => {
+    const before = event.data?.before?.data() || {};
+    const after = event.data?.after?.data() || {};
+    const beforeMsgs = Array.isArray(before.messages) ? before.messages : [];
+    const afterMsgs = Array.isArray(after.messages) ? after.messages : [];
+    if (afterMsgs.length <= beforeMsgs.length) return; // no new message
 
-    const payload = {
-      token,
-      notification: { title, body },
-      data: {
-        ...(type ? { type } : {}),
-        ...(relatedId ? { relatedId } : {}),
-      },
-      android: {
-        priority: "high",
-        notification: { channelId: "announcements" },
-      },
-      apns: {
-        headers: { "apns-priority": "10" },
-        payload: { aps: { sound: "default" } },
-      },
-    };
+    const reportId = event.params.reportId;
+    const newMsg = afterMsgs[afterMsgs.length - 1] || {};
+    const senderUid = newMsg.senderUid;
+    const senderName = newMsg.senderName || "Kullanıcı";
+    if (!senderUid) return;
 
-    try {
-      await admin.messaging().send(payload);
-    } catch (err) {
-      console.error(
-        `FCM send failed for ${recipientId}:`,
-        err.code || err.message
-      );
+    const db = admin.firestore();
+    const title = (after.title || after.message || "Bildirim").toString();
+    const body =
+      (typeof newMsg.text === "string" && newMsg.text) ||
+      "Bildirime bir yanıt eklendi.";
 
-      if (
-        err.code === "messaging/registration-token-not-registered" ||
-        err.code === "messaging/invalid-registration-token"
-      ) {
-        try {
-          await admin
-            .firestore()
-            .collection("fcm_tokens")
-            .doc(recipientId)
-            .delete();
-        } catch (cleanupErr) {
-          console.error("FCM token cleanup failed:", cleanupErr);
-        }
+    if (senderUid !== after.submittedBy) {
+      if (after.submittedBy) {
+        await upsertThreadedNotification(db, {
+          recipientId: after.submittedBy,
+          title: `Bildiriminize yanıt: ${title}`,
+          body,
+          type: "report_reply",
+          relatedId: reportId,
+          senderUid,
+          senderName,
+        });
+      }
+    } else {
+      const adminsSnap = await db
+        .collection("users")
+        .where("role", "in", ["admin", "unit_lead"])
+        .get();
+      for (const doc of adminsSnap.docs) {
+        await upsertThreadedNotification(db, {
+          recipientId: doc.id,
+          title: `Yeni bildirim yanıtı: ${title}`,
+          body,
+          type: "report_reply",
+          relatedId: reportId,
+          senderUid,
+          senderName,
+        });
       }
     }
   }

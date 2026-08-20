@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/auth_providers.dart';
+import '../../../core/routing/notification_router.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -26,13 +27,27 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       final isGuest = ref.read(isGuestProvider);
 
       if (authUser != null) {
-        context.go('/dashboard');
+        _navigateAfterStartup();
       } else if (isGuest) {
-        context.go('/dashboard');
+        _navigateAfterStartup();
       } else {
         context.go('/login');
       }
     });
+  }
+
+  void _navigateAfterStartup() {
+    final location = pendingNotificationLocation;
+    final targetId = pendingNotificationTargetId;
+    pendingNotificationLocation = null;
+    pendingNotificationTargetId = null;
+
+    if (location != null) {
+      context.go(location,
+          extra: targetId != null && targetId.isNotEmpty ? targetId : null);
+    } else {
+      context.go('/dashboard');
+    }
   }
 
   @override

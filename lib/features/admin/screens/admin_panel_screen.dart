@@ -419,8 +419,8 @@ class _TeamCard extends ConsumerWidget {
                 if (action == 'delete') _confirmDelete(context, ref, team);
               },
               itemBuilder: (ctx) => [
-                PopupMenuItem(value: 'units', child: const Text('Birimleri Yönet')),
-                PopupMenuItem(value: 'edit', child: const Text('Düzenle')),
+                const PopupMenuItem(value: 'units', child: Text('Birimleri Yönet')),
+                const PopupMenuItem(value: 'edit', child: Text('Düzenle')),
                 PopupMenuItem(
                   value: 'archive',
                   child: Text(team.isArchived ? 'Aktifleştir' : 'Arşivle (Geçmiş Yap)'),

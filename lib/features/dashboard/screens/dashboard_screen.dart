@@ -24,11 +24,74 @@ import '../../tasks/models/task_models.dart';
 import '../../tasks/providers/task_providers.dart';
 
 /// Home / Panel screen - kulüp merkezli dashboard.
-class DashboardScreen extends ConsumerWidget {
-  const DashboardScreen({super.key});
+class DashboardScreen extends ConsumerStatefulWidget {
+  final String? initialAnnouncementId;
+  const DashboardScreen({super.key, this.initialAnnouncementId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    final targetId = widget.initialAnnouncementId;
+    if (targetId != null && targetId.isNotEmpty) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _openAnnouncement(targetId));
+    }
+  }
+
+  Future<void> _openAnnouncement(String id) async {
+    if (!mounted) return;
+    final announcements = ref.read(announcementsProvider).valueOrNull ?? [];
+    Announcement? found;
+    for (final a in announcements) {
+      if (a.id == id) {
+        found = a;
+        break;
+      }
+    }
+    if (found == null || !mounted) return;
+    final target = found;
+
+    final uid = ref.read(authStateProvider).value?.uid;
+    final isAdminUser = ref.read(isAdminProvider);
+    bool canComment = isAdminUser;
+    if (!canComment && uid != null) {
+      if (target.isClubWide) {
+        canComment = true;
+      } else {
+        final allTeams = ref.read(clubTeamsProvider).valueOrNull ?? [];
+        for (final teamId in target.targetTeamIds) {
+          try {
+            final team = allTeams.firstWhere((t) => t.id == teamId);
+            if (team.memberIds.contains(uid)) {
+              canComment = true;
+              break;
+            }
+          } catch (_) {}
+        }
+      }
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => _AnnouncementDetailSheet(
+        announcement: target,
+        canComment: canComment,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final announcements = ref.watch(announcementsProvider);
     final appUser = ref.watch(currentAppUserProvider).value;
     final isAdmin = appUser?.isAdmin ?? false;
@@ -1396,8 +1459,28 @@ class _AnnouncementDetailSheetState
   bool _sending = false;
   Map<String, dynamic>? _replyTo;
 
+  String get _threadKey =>
+      threadKeyFor('announcement_comment', widget.announcement.id);
+
+  @override
+  void initState() {
+    super.initState();
+    // Presence: mark this announcement thread as open.
+    ref.read(presenceServiceProvider).setActiveThread(_threadKey);
+    // Opening the thread resets its unread counter.
+    final uid = ref.read(authStateProvider).value?.uid;
+    if (uid != null) {
+      ref.read(notificationServiceProvider).resetThread(
+            uid,
+            'announcement_comment',
+            widget.announcement.id,
+          );
+    }
+  }
+
   @override
   void dispose() {
+    ref.read(presenceServiceProvider).clearActiveThread(_threadKey);
     _commentCtrl.dispose();
     super.dispose();
   }
@@ -1447,23 +1530,12 @@ class _AnnouncementDetailSheetState
         'replyToId': replyTo?['id'],
         'replyToText': replyTo?['text'],
         'replyToAuthor': replyTo?['senderName'],
+        'replyToUid': replyTo?['senderUid'],
       });
 
-      // Notify the announcement creator (unless the commenter is the creator).
-      try {
-        final creatorId = widget.announcement.createdBy;
-        if (creatorId.isNotEmpty && creatorId != uid) {
-          await ref.read(notificationServiceProvider).send(
-                recipientId: creatorId,
-                title: 'Duyuruya yorum: ${widget.announcement.title}',
-                body: text.isNotEmpty ? text : 'Duyuruna bir yorum eklendi.',
-                type: 'announcement_comment',
-                relatedId: widget.announcement.id,
-              );
-        }
-      } catch (_) {
-        // Notification is best-effort; don't block the comment.
-      }
+      // Notifications are created server-side by `notifyAnnouncementComment`
+      // (grouped per thread + presence-aware), so the client only persists the
+      // comment here.
 
       _commentCtrl.clear();
       setState(() {

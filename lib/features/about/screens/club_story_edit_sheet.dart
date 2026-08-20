@@ -288,7 +288,7 @@ class _ClubStoryEditSheetState extends ConsumerState<ClubStoryEditSheet> {
                                   height: 72,
                                   color: AppColors.surface2),
                         );
-                      }).toList(),
+                      }),
                     ],
                   ),
                   TextButton.icon(

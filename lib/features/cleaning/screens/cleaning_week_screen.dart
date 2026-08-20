@@ -126,7 +126,7 @@ class _ResponsibleBlock extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.person_search_outlined,
+                const Icon(Icons.person_search_outlined,
                     color: AppColors.depoAccent, size: 20),
                 const SizedBox(width: 8),
                 Text('Sorumlu',
@@ -135,7 +135,7 @@ class _ResponsibleBlock extends ConsumerWidget {
                         fontWeight: FontWeight.w600)),
                 if (schedule.isOverridden) ...[
                   const SizedBox(width: 8),
-                  Text('Manuel',
+                  const Text('Manuel',
                       style: TextStyle(
                           color: AppColors.warning, fontSize: 11)),
                 ],
@@ -150,8 +150,8 @@ class _ResponsibleBlock extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             resolvedAsync.when(
-              loading: () => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
                 child: Center(
                     child: SizedBox(
                         width: 20,
@@ -225,7 +225,7 @@ class _ShoppingBlock extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.shopping_cart_outlined,
+                const Icon(Icons.shopping_cart_outlined,
                     color: AppColors.tasksGreen, size: 20),
                 const SizedBox(width: 8),
                 Text('Alışveriş Listesi',

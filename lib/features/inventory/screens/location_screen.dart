@@ -103,7 +103,7 @@ class LocationScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Kategorisiz (eski)',
+              const Text('Kategorisiz (eski)',
                   style: TextStyle(
                       color: AppColors.warning,
                       fontWeight: FontWeight.w700)),
@@ -216,7 +216,7 @@ class _CategorySection extends ConsumerWidget {
           children: [
             ListTile(
               dense: true,
-              leading: Icon(Icons.folder_outlined,
+              leading: const Icon(Icons.folder_outlined,
                   color: AppColors.depoAccent, size: 20),
               title: Text(category.name,
                   style: TextStyle(
@@ -227,7 +227,7 @@ class _CategorySection extends ConsumerWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
-                          icon: Icon(Icons.add_location_alt_outlined,
+                          icon: const Icon(Icons.add_location_alt_outlined,
                               size: 18, color: AppColors.depoAccent),
                           tooltip: 'Alt-lokasyon ekle',
                           onPressed: () => _addSubLocation(context, ref),

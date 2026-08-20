@@ -6,11 +6,13 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 
 import 'core/providers/theme_provider.dart';
 import 'core/routing/app_router.dart';
+import 'core/routing/notification_router.dart';
 import 'core/services/fcm_service.dart';
 import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
@@ -149,8 +151,25 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 void _handleTappedNotification(RemoteMessage message) {
-  // Routing is intentionally simple: tapping a notification opens the app.
-  debugPrint('Notification tapped: ${message.messageId}');
+  final type = message.data['type'];
+  final targetId = targetIdOf(message);
+  final location = locationForNotificationType(type);
+  debugPrint('Notification tapped: type=$type targetId=$targetId');
+
+  final navigator = rootNavigatorKey.currentState;
+  final context = rootNavigatorKey.currentContext;
+
+  if (navigator != null && context != null) {
+    final router = GoRouter.of(context);
+    router.go(location,
+        extra: targetId != null && targetId.isNotEmpty ? targetId : null);
+  } else {
+    // App is still starting (router not built yet). Stash the target so the
+    // splash screen can navigate after its own auth redirect.
+    pendingNotificationLocation = location;
+    pendingNotificationTargetId =
+        targetId != null && targetId.isNotEmpty ? targetId : null;
+  }
 }
 
 void _showLocalNotification(RemoteMessage message) {

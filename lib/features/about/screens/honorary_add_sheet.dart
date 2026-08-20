@@ -170,7 +170,7 @@ class _HonoraryAddSheetState extends ConsumerState<HonoraryAddSheet> {
     final note = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Onursal Üye Ekle'),
+        title: const Text('Onursal Üye Ekle'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -255,7 +255,7 @@ class _ExistingMemberTile extends ConsumerWidget {
             onPressed: () => _editNote(context, ref),
           ),
           IconButton(
-            icon: Icon(Icons.delete_outline,
+            icon: const Icon(Icons.delete_outline,
                 size: 17, color: AppColors.error),
             onPressed: () => _remove(context, ref),
           ),

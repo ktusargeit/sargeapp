@@ -18,7 +18,8 @@ import '../../team/models/team_models.dart';
 import '../../team/providers/team_providers.dart';
 
 class ReportBugScreen extends ConsumerStatefulWidget {
-  const ReportBugScreen({super.key});
+  final String? initialReportId;
+  const ReportBugScreen({super.key, this.initialReportId});
 
   @override
   ConsumerState<ReportBugScreen> createState() => _ReportBugScreenState();
@@ -37,6 +38,25 @@ class _ReportBugScreenState extends ConsumerState<ReportBugScreen>
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 2, vsync: this);
+    final targetId = widget.initialReportId;
+    if (targetId != null && targetId.isNotEmpty) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _openReport(targetId));
+    }
+  }
+
+  void _openReport(String id) {
+    if (!mounted) return;
+    final isAdmin = ref.read(isAdminProvider);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => _ReportDetailView(reportId: id, isAdmin: isAdmin),
+    );
   }
 
   @override
@@ -815,8 +835,28 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
   bool _sending = false;
   Map<String, dynamic>? _replyTo;
 
+  String get _threadKey =>
+      threadKeyFor('report_reply', widget.reportId);
+
+  @override
+  void initState() {
+    super.initState();
+    // Presence: mark this report thread as open.
+    ref.read(presenceServiceProvider).setActiveThread(_threadKey);
+    // Opening the thread resets its unread counter.
+    final uid = ref.read(authStateProvider).value?.uid;
+    if (uid != null) {
+      ref.read(notificationServiceProvider).resetThread(
+            uid,
+            'report_reply',
+            widget.reportId,
+          );
+    }
+  }
+
   @override
   void dispose() {
+    ref.read(presenceServiceProvider).clearActiveThread(_threadKey);
     _msgCtrl.dispose();
     super.dispose();
   }
@@ -947,32 +987,8 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
         'messages': FieldValue.arrayUnion([newMsg]),
       });
 
-      // Notify the relevant party: an admin reply notifies the submitter; the
-      // submitter's own reply notifies admins/unit leads. Never notify yourself.
-      try {
-        final notifService = ref.read(notificationServiceProvider);
-        final body = _msgCtrl.text.trim().isNotEmpty
-            ? _msgCtrl.text.trim()
-            : 'Bildiriminize bir yanıt eklendi.';
-        if (uid != report.submittedBy) {
-          await notifService.send(
-            recipientId: report.submittedBy,
-            title: 'Bildiriminize yanıt: ${report.title.isNotEmpty ? report.title : report.message}',
-            body: body,
-            type: 'report_reply',
-            relatedId: widget.reportId,
-          );
-        } else {
-          await notifService.notifyAdmins(
-            title: 'Yeni bildirim yanıtı: ${report.title.isNotEmpty ? report.title : report.message}',
-            body: body,
-            type: 'report_reply',
-            relatedId: widget.reportId,
-          );
-        }
-      } catch (_) {
-        // Notification is best-effort; don't block the reply.
-      }
+      // Notifications are created server-side by `notifyReportReply` (grouped
+      // per thread + presence-aware), so the client only persists the message.
 
       if (mounted) {
         setState(() {

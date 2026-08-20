@@ -924,8 +924,28 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
   // Optimistically rendered comments while their images are still uploading.
   final List<_PendingComment> _pendingComments = [];
 
+  String get _threadKey => threadKeyFor('task_comment', widget.taskId);
+
+  @override
+  void initState() {
+    super.initState();
+    // Presence: mark this task thread as open so the Cloud Function and
+    // senders do not create notifications while the user is viewing it.
+    ref.read(presenceServiceProvider).setActiveThread(_threadKey);
+    // Opening the thread also resets its unread counter.
+    final uid = ref.read(authStateProvider).value?.uid;
+    if (uid != null) {
+      ref.read(notificationServiceProvider).resetThread(
+            uid,
+            'task_comment',
+            widget.taskId,
+          );
+    }
+  }
+
   @override
   void dispose() {
+    ref.read(presenceServiceProvider).clearActiveThread(_threadKey);
     _commentCtrl.dispose();
     super.dispose();
   }
@@ -1003,59 +1023,12 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
         'replyToId': pending.replyToId,
         'replyToText': pending.replyToText,
         'replyToAuthor': pending.replyToAuthor,
+        'replyToUid': pending.replyToUid,
       });
 
-      // Notify the assignee + creator (unless the commenter is that person)
-      // so a task comment never goes unnoticed.
-      try {
-        final taskSnap = await firestore
-            .collection('tasks')
-            .doc(widget.taskId)
-            .get();
-        final taskData = taskSnap.data() ?? {};
-        final assigneeId = taskData['assignedTo'] as String?;
-        final creatorId = taskData['assignedBy'] as String?;
-        final notifService = ref.read(notificationServiceProvider);
-        final taskTitle = taskData['title'] as String? ?? 'Görev';
-        final snippet = text.length > 80 ? '${text.substring(0, 80)}...' : text;
-        final body = snippet.isNotEmpty
-            ? '$name, "$taskTitle" görevine yorum yaptı: "$snippet"'
-            : '$name, "$taskTitle" görevine yorum yaptı.';
-        final bulkGroupId = taskData['bulkGroupId'] as String?;
-        // Include the author of the message being replied to (so they get a
-        // push notification when someone answers their comment).
-        final replyToUid = pending.replyToUid;
-        final targets = <String>{
-          if (assigneeId != null) assigneeId,
-          if (creatorId != null) creatorId,
-          if (replyToUid != null) replyToUid,
-        };
-
-        // Bulk-assigned tasks (team/unit): notify every assignee in the group.
-        if (bulkGroupId != null && bulkGroupId.isNotEmpty) {
-          final bulkSnap = await firestore
-              .collection('tasks')
-              .where('bulkGroupId', isEqualTo: bulkGroupId)
-              .get();
-          for (final doc in bulkSnap.docs) {
-            final otherAssignee = doc.data()['assignedTo'] as String?;
-            if (otherAssignee != null) targets.add(otherAssignee);
-          }
-        }
-
-        targets.removeWhere((id) => id.isEmpty || id == uid);
-        for (final targetId in targets) {
-          await notifService.send(
-            recipientId: targetId,
-            title: 'Görev yorumu: ${taskData['title'] ?? 'Görev'}',
-            body: body,
-            type: 'task_comment',
-            relatedId: widget.taskId,
-          );
-        }
-      } catch (_) {
-        // Notification is best-effort; a failure here must not block the comment.
-      }
+      // Notifications are created server-side by `notifyTaskComment`
+      // (grouped per thread + presence-aware), so the client only persists the
+      // comment here.
 
     } catch (e) {
       if (mounted) {

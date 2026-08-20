@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/auth_providers.dart';
+import '../../../core/routing/notification_router.dart';
 import '../providers/notification_providers.dart';
 
 class NotificationsScreen extends ConsumerWidget {
@@ -34,7 +35,9 @@ class NotificationsScreen extends ConsumerWidget {
               final n = notifications[i];
               final isRead = n['isRead'] as bool? ?? false;
               final type = n['type'] as String?;
-              final relatedId = n['relatedId'] as String?;
+              final relatedId = targetIdOfMap(n);
+              final count = (n['count'] as num?)?.toInt() ?? 0;
+              final hasCounter = !isRead && count > 0;
 
               return ListTile(
                 leading: Icon(
@@ -55,43 +58,42 @@ class NotificationsScreen extends ConsumerWidget {
                   ),
                 ),
                 subtitle: Text(
-                  n['body'] as String? ?? '',
+                  hasCounter
+                      ? '${n['body']} ($count yeni mesaj)'
+                      : (n['body'] as String? ?? ''),
                   style:  TextStyle(
                       color: AppColors.textSecondary, fontSize: 12),
                 ),
                 trailing: isRead
                     ? null
                     : Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 9, vertical: 3),
+                        decoration: BoxDecoration(
                           color: AppColors.primaryBlue,
-                          shape: BoxShape.circle,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          hasCounter ? '$count' : '•',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700),
                         ),
                       ),
                 onTap: () async {
+                  final notificationId = n['id'] as String;
                   if (!isRead && uid != null) {
                     await ref
-                        .read(firestoreProvider)
-                        .collection('notifications')
-                        .doc(n['id'] as String)
-                        .update({'isRead': true});
+                        .read(notificationServiceProvider)
+                        .markRead(notificationId);
                   }
                   if (context.mounted) {
-                    // Task-related notifications (assigned, comment, submitted)
-                    // all navigate to the task detail sheet.
-                    if ((type == 'task_assigned' ||
-                            type == 'task_comment' ||
-                            type == 'task_submitted') &&
-                        relatedId != null) {
-                      context.go('/tasks', extra: relatedId);
-                    } else if (type == 'team_application' && relatedId != null) {
-                      context.go('/team');
-                    } else if (type == 'announcement' && relatedId != null) {
-                      context.go('/dashboard');
-                    } else if (type == 'cleaning') {
-                      context.go('/cleaning');
-                    }
+                    final location = locationForNotificationType(type);
+                    context.go(location,
+                        extra: relatedId != null && relatedId.isNotEmpty
+                            ? relatedId
+                            : null);
                   }
                 },
               );

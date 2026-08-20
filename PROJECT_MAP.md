@@ -38,7 +38,8 @@ Projenin "haritası". Her yeni görevde önce bu dosya okunur ve gerektiğinde g
 - `lib/settings/screens/settings_screen.dart` — Ayarlar ekranı. En altta kırmızı "Hesabımı Sil": uyarı dialog'u → şifre doğrulama → `AuthController.deleteAccount` + loading/SnackBar feedback.
 - `lib/features/admin/screens/admin_member_detail_screen.dart` — Üye yönetimi detay ekranı. `_PointsEditor` puan ekle/düş: artık açıklama alanı yok, sadece sayı; `points_history`'ye `reason` yazılmıyor.
 - `lib/features/notifications/providers/notification_providers.dart` — bildirim oluşturma/okuma.
-- `functions/index.js` — FCM push bildirim gönderimi (`onDocumentCreated`) + `onUserDeleted` Auth trigger ile hesap silme temizliği (teams/units üyelikleri, leadUid/unitLeadUid boşaltma, users doc, fcm_tokens, storage profil/kapak fotoğrafları).
+ - `functions/index.js` — FCM push bildirim gönderimi (`onDocumentCreated` + `onDocumentUpdated`) + gruplu yorum bildirimleri (`notifyTaskComment`, `notifyAnnouncementComment`, `notifyReportReply`) + `onUserDeleted` Auth trigger ile hesap silme temizliği. Push payload'ı `type`/`targetId`/`relatedId`/`count` taşır; aynı thread'e gelen bildirimler aynı collapseKey ile OS tarafında birleşir. `presence/{uid}.activeThreadId` açıksa push bastırılır.
+ - `lib/core/routing/notification_router.dart` — bildirim `type` → GoRouter lokasyonu eşlemesi + push deep-link için `pendingNotificationLocation`/`pendingNotificationTargetId`.
 - `lib/core/widgets/comment_tile.dart` — ortak yorum/mesaj widget'ları: `UserAvatar`, `UserAvatarWithName` (avatar/isim tıklayınca `/profile/:id`), `ChatBubble` (WhatsApp tarzı balon: kendi mesaj sağda yeşilimsi, başkası solda gri; avatar+isim+saat+linkli metin+resim tam ekran), `ReplyQuoteBlock` (balon içi alıntı), `ReplyPreviewBar` (input üstü "Yanıtlıyorsunuz" önizlemesi), `CommentTile` (legacy wrapper).
 - `lib/core/services/fcm_service.dart` — FCM cihaz token yaşam döngüsü. Token `fcm_tokens/{uid}` dokümanına yazılır; login/token-rotate'da yenilenir, logout'ta silinir. Web için `kWebVapidKey` sabiti (VAPID public key) eklenmiştir; boş bırakılırsa web kaydı güvenle atlanır.
 - `lib/core/utils/image_utils.dart` — `PickedImage`: çekilen/seçilen görselleri Storage'a yüklemeden önce max 1280px genişlik + %75 JPEG olarak sıkıştırır (`compressBytes` / `compressedUploadBytes`). `pick`/`pickMultiple` web'de de sıkıştırma yapar.
@@ -64,7 +65,8 @@ Projenin "haritası". Her yeni görevde önce bu dosya okunur ve gerektiğinde g
 - `aboutSections/{id}`, `aboutMembers/{id}` — hakkımızda.
 - `contact/info` — iletişim bilgileri.
 - `reports/{id}` — hata/öneri raporları. `messages` alanı dizi (her öğe `id`, `senderUid`, `senderName`, `text`, `imageUrl`, `createdAt`, `isAdmin`, `replyToId`, `replyToText`, `replyToAuthor` içerir).
-- `notifications/{id}` — `recipientId`, `senderUid`, `title`, `body`, `isRead`, `type` (task_assigned, task_comment, task_submitted, team_application, announcement vb.), `relatedId`.
+- `notifications/{id}` — `recipientId`, `senderUid`, `senderName`, `title`, `body`, `isRead`, `type` (task_assigned, task_comment, task_submitted, team_application, announcement, announcement_comment, report_reply, cleaning vb.), `relatedId`, `count` (gruplu thread sayaç), `createdAt`/`updatedAt`.
+- `presence/{uid}` — `activeThreadId` (kullanıcının anlık açık tuttuğu `type:relatedId` thread anahtarı; bildirim/push bastırma için).
 - `fcm_tokens/{uid}` — cihaz FCM token'ı (client'tan gizli, sadece owner yazabilir).
 - `points_history/{id}` — puan geçmişi. `delta` (pozitif/negatif), `targetUid`, `targetName`, `changedBy`, `createdAt`. Açıklama (`reason`) alanı kaldırıldı (opsiyonel; mevcut eski kayıtlar bozulmaz).
 

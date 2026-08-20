@@ -32,6 +32,10 @@ import '../providers/auth_providers.dart';
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
 
+/// Exposes the root navigator key so the FCM handlers in `main.dart` can
+/// deep-link into the running router from a tapped push notification.
+GlobalKey<NavigatorState> get rootNavigatorKey => _rootNavigatorKey;
+
 /// Public routes that guests (not logged in) are allowed to see without redirect.
 const _publicRoutes = {'/login', '/register', '/about', '/contact', '/splash'};
 
@@ -184,7 +188,13 @@ class AppRouter {
             GoRoute(
               path: '/dashboard',
               name: 'dashboard',
-              builder: (context, state) => const DashboardScreen(),
+              builder: (context, state) {
+                final extra = state.extra;
+                return DashboardScreen(
+                  initialAnnouncementId:
+                      extra is String ? extra : null,
+                );
+              },
             ),
             GoRoute(
               path: '/club',
@@ -287,7 +297,12 @@ class AppRouter {
             GoRoute(
               path: '/report-bug',
               name: 'report-bug',
-              builder: (context, state) => const ReportBugScreen(),
+              builder: (context, state) {
+                final extra = state.extra;
+                return ReportBugScreen(
+                  initialReportId: extra is String ? extra : null,
+                );
+              },
             ),
             GoRoute(
               path: '/settings',
