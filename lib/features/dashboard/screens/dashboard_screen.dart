@@ -1455,6 +1455,7 @@ class _AnnouncementDetailSheetState
   List<PickedImage> _commentImages = [];
   bool _sending = false;
   Map<String, dynamic>? _replyTo;
+  late final PresenceService _presenceService;
 
   String get _threadKey =>
       threadKeyFor('announcement_comment', widget.announcement.id);
@@ -1463,7 +1464,8 @@ class _AnnouncementDetailSheetState
   void initState() {
     super.initState();
     // Presence: mark this announcement thread as open.
-    ref.read(presenceServiceProvider).setActiveThread(_threadKey);
+    _presenceService = ref.read(presenceServiceProvider);
+    _presenceService.setActiveThread(_threadKey);
     // Opening the thread resets its unread counter.
     final uid = ref.read(authStateProvider).value?.uid;
     if (uid != null) {
@@ -1477,7 +1479,7 @@ class _AnnouncementDetailSheetState
 
   @override
   void dispose() {
-    ref.read(presenceServiceProvider).clearActiveThread(_threadKey);
+    _presenceService.clearActiveThread(_threadKey);
     _commentCtrl.dispose();
     super.dispose();
   }

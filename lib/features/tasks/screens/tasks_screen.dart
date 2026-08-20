@@ -956,6 +956,7 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
   List<PickedImage> _commentImages = [];
   bool _sending = false;
   Map<String, dynamic>? _replyTo;
+  late final PresenceService _presenceService;
 
   // Optimistically rendered comments while their images are still uploading.
   final List<_PendingComment> _pendingComments = [];
@@ -967,7 +968,8 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
     super.initState();
     // Presence: mark this task thread as open so the Cloud Function and
     // senders do not create notifications while the user is viewing it.
-    ref.read(presenceServiceProvider).setActiveThread(_threadKey);
+    _presenceService = ref.read(presenceServiceProvider);
+    _presenceService.setActiveThread(_threadKey);
     // Opening the thread also resets its unread counter.
     final uid = ref.read(authStateProvider).value?.uid;
     if (uid != null) {
@@ -981,7 +983,7 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
 
   @override
   void dispose() {
-    ref.read(presenceServiceProvider).clearActiveThread(_threadKey);
+    _presenceService.clearActiveThread(_threadKey);
     _commentCtrl.dispose();
     super.dispose();
   }
