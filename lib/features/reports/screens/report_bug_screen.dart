@@ -966,17 +966,20 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
         imageUrl = await storageRef.getDownloadURL();
       }
 
-      final newMsg = {
+      // Keep the map null-free: Firestore rejects `null` values inside array
+      // elements, which previously crashed members replying to a report.
+      final newMsg = <String, dynamic>{
         'id': 'msg_${DateTime.now().microsecondsSinceEpoch}',
         'senderUid': uid,
         'senderName': currentName,
         'text': _msgCtrl.text.trim(),
-        'imageUrl': imageUrl,
         'createdAt': Timestamp.now(),
         'isAdmin': widget.isAdmin,
-        'replyToId': replyTo?['id'],
-        'replyToText': replyTo?['text'],
-        'replyToAuthor': replyTo?['senderName'],
+        if (imageUrl != null) 'imageUrl': imageUrl,
+        if (replyTo?['id'] != null) 'replyToId': replyTo?['id'],
+        if (replyTo?['text'] != null) 'replyToText': replyTo?['text'],
+        if (replyTo?['senderName'] != null)
+          'replyToAuthor': replyTo?['senderName'],
       };
 
       await ref

@@ -1438,6 +1438,11 @@ class _PendingComment {
 }
 
 /// Comments list for a task (subcollection).
+///
+/// Rendered with `reverse: true` so the newest message is pinned to the bottom
+/// (index 0). New messages (including optimistic pending ones) therefore appear
+/// at the bottom automatically when they arrive, instead of the list jumping to
+/// the oldest message — the same behavior WhatsApp uses.
 class _TaskCommentsList extends ConsumerWidget {
   final String taskId;
   final List<_PendingComment> pendingComments;
@@ -1472,15 +1477,20 @@ class _TaskCommentsList extends ConsumerWidget {
                   style: TextStyle(color: AppColors.textSecondary, fontSize: 13)));
         }
 
-        final totalCount = pendingComments.length + comments.length;
+        // reverse:true means index 0 is at the bottom, so build the list
+        // newest-first: pending (currently being sent) first, then persisted
+        // comments newest → oldest.
+        final orderedComments = comments.reversed.toList();
+        final totalCount = pendingComments.length + orderedComments.length;
         return ListView.builder(
+          reverse: true,
           padding: const EdgeInsets.symmetric(horizontal: 20),
           itemCount: totalCount,
           itemBuilder: (_, i) {
             if (i < pendingComments.length) {
               return _PendingCommentTile(comment: pendingComments[i]);
             }
-            final doc = comments[i - pendingComments.length];
+            final doc = orderedComments[i - pendingComments.length];
             final data = doc.data();
             return CommentTile(
               data: data,

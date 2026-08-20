@@ -171,8 +171,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           actionLabel:
                               isAdmin ? 'Duyuru Oluştur' : null,
                           onAction: isAdmin
-                              ? () => _showAnnouncementDialog(
-                                  context, ref)
+                              ? _showAnnouncementDialog
                               : null,
                         );
                       }
@@ -219,8 +218,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
       floatingActionButton: isAdmin
           ? FloatingActionButton.extended(
-              onPressed: () =>
-                  _showAnnouncementDialog(context, ref),
+            onPressed: _showAnnouncementDialog,
               backgroundColor: AppColors.panelBlue,
               foregroundColor: Colors.white,
               elevation: 0,
@@ -233,8 +231,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  void _showAnnouncementDialog(
-      BuildContext context, WidgetRef ref) {
+  void _showAnnouncementDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -1888,8 +1885,18 @@ class _AnnouncementCommentsList extends ConsumerWidget {
             ),
           );
         }
-        return Column(
-          children: comments.map((doc) {
+
+        // `reverse: true` pins the newest comment to the bottom (index 0), so a
+        // newly sent comment appears at the bottom instead of the list jumping
+        // to the oldest message.
+        final orderedComments = comments.reversed.toList();
+        return ListView.builder(
+          reverse: true,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: orderedComments.length,
+          itemBuilder: (_, i) {
+            final doc = orderedComments[i];
             final data = doc.data();
             return CommentTile(
               data: data,
@@ -1901,7 +1908,7 @@ class _AnnouncementCommentsList extends ConsumerWidget {
                 'senderUid': data['senderUid'] as String? ?? '',
               }),
             );
-          }).toList(),
+          },
         );
       },
     );

@@ -249,15 +249,16 @@ service cloud.firestore {
     match /reports/{id} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.submittedBy == request.auth.uid;
-      // Admin can update anything. The report author can either append a reply
-      // message or edit their own title/message.
+      // Any signed-in user may append a reply message (only the `messages`
+      // array changes) so members can comment on each other's reports.
       allow update: if isAdmin() || (
         isSignedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['messages'])
+      ) || (
+        // The report author can edit their own title/message.
+        isSignedIn() &&
         resource.data.submittedBy == request.auth.uid &&
-        (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['messages']) ||
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'message'])
-        )
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'message'])
       );
       // Admin can delete any report; the author can delete their own.
       allow delete: if isAdmin() || (
