@@ -1014,6 +1014,7 @@ class _TaskDetailSheetState extends ConsumerState<_TaskDetailSheet> {
   }
 
   Future<void> _sendComment() async {
+    if (_sending) return;
     final text = _commentCtrl.text.trim();
     if (text.isEmpty && _commentImages.isEmpty) return;
 

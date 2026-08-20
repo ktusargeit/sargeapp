@@ -836,6 +836,10 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
   Map<String, dynamic>? _replyTo;
   late final PresenceService _presenceService;
 
+  /// Guards against double-tap / multiple sends of the same message while an
+  /// upload + Firestore write is still in flight.
+  bool _sending = false;
+
   // Optimistically-rendered outgoing messages (WhatsApp-style): the bubble
   // appears instantly with its local image, then is swapped for the persisted
   // copy once the Firestore stream delivers it.
@@ -955,6 +959,7 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
   }
 
   Future<void> _sendMessage(BugReport report) async {
+    if (_sending) return;
     final text = _msgCtrl.text.trim();
     if (text.isEmpty && _msgImage == null) return;
 
@@ -979,6 +984,7 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
       replyToUid: replyTo?['senderUid'] as String?,
     );
 
+    _sending = true;
     setState(() {
       _pendingMessages.add(pending);
       _msgCtrl.clear();
@@ -1044,11 +1050,17 @@ class _ReportDetailViewState extends ConsumerState<_ReportDetailView> {
       // per thread + presence-aware), so the client only persists the message.
 
       if (mounted) {
-        setState(() => _pendingMessages.remove(pending));
+        setState(() {
+          _pendingMessages.remove(pending);
+          _sending = false;
+        });
       }
     } catch (_) {
       if (mounted) {
-        setState(() => pending.failed = true);
+        setState(() {
+          pending.failed = true;
+          _sending = false;
+        });
       }
     }
   }

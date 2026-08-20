@@ -1457,6 +1457,8 @@ class _AnnouncementDetailSheetState
   Map<String, dynamic>? _replyTo;
   late final PresenceService _presenceService;
 
+  bool _sending = false;
+
   // Optimistically-rendered outgoing comments (local image visible immediately,
   // spinner on top, swapped for the persisted comment once the stream delivers).
   final List<PendingMessage> _pendingComments = [];
@@ -1490,6 +1492,7 @@ class _AnnouncementDetailSheetState
   }
 
   Future<void> _sendComment() async {
+    if (_sending) return;
     final text = _commentCtrl.text.trim();
     if (text.isEmpty && _commentImages.isEmpty) return;
 
@@ -1519,6 +1522,7 @@ class _AnnouncementDetailSheetState
       _pendingComments.add(pending);
       _commentImages = [];
       _replyTo = null;
+      _sending = true;
     });
     _commentCtrl.clear();
 
@@ -1574,11 +1578,17 @@ class _AnnouncementDetailSheetState
       // comment here.
 
       if (mounted) {
-        setState(() => _pendingComments.remove(pending));
+        setState(() {
+          _pendingComments.remove(pending);
+          _sending = false;
+        });
       }
     } catch (_) {
       if (mounted) {
-        setState(() => pending.failed = true);
+        setState(() {
+          pending.failed = true;
+          _sending = false;
+        });
       }
     }
   }
@@ -1844,15 +1854,23 @@ class _AnnouncementDetailSheetState
                         ),
                         const SizedBox(width: 8),
                         GestureDetector(
-                          onTap: _sendComment,
+                          onTap: _sending ? null : _sendComment,
                           child: Container(
                             padding: const EdgeInsets.all(10),
-                            decoration: const BoxDecoration(
-                              color: AppColors.panelBlue,
+                            decoration: BoxDecoration(
+                              color: _sending
+                                  ? AppColors.panelBlue.withValues(alpha: 0.5)
+                                  : AppColors.panelBlue,
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.send_rounded,
-                                size: 18, color: Colors.white),
+                            child: _sending
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: Colors.white))
+                                : const Icon(Icons.send_rounded,
+                                    size: 18, color: Colors.white),
                           ),
                         ),
                       ],

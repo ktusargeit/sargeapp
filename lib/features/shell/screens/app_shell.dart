@@ -42,10 +42,9 @@ class AppShell extends ConsumerWidget {
           ),
         ),
         title: const Text('SARGE'),
-        actions: [
+        actions: const [
           _NotificationBell(),
-          const _StoreOverflowMenu(),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
         ],
       ),
       drawer: const AppDrawer(),
@@ -124,6 +123,15 @@ class AppDrawer extends ConsumerWidget {
                   Navigator.pop(context);
                   final uid = ref.read(authStateProvider).value?.uid;
                   if (uid != null) context.push('/profile/$uid');
+                },
+              ),
+            if (isLoggedIn)
+              _DrawerItem(
+                icon: Icons.storefront_outlined,
+                label: 'Mağaza',
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/store');
                 },
               ),
             if (isLoggedIn)
@@ -226,36 +234,6 @@ class _NotificationBell extends ConsumerWidget {
         ],
       ),
       onPressed: () => context.push('/notifications'),
-    );
-  }
-}
-
-/// Sağ üstteki üç nokta (⋮) menüsü. Mağaza'ya erişim, alt navigasyondan
-/// kaldırıldığı için sadece buradan sağlanır (masaüstü sidebar'ında da aynı
-/// menü kullanılır).
-class _StoreOverflowMenu extends StatelessWidget {
-  const _StoreOverflowMenu();
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      icon: Icon(Icons.more_vert, color: AppColors.textPrimary),
-      tooltip: 'Diğer',
-      onSelected: (value) {
-        if (value == 'store') context.push('/store');
-      },
-      itemBuilder: (context) => const [
-        PopupMenuItem(
-          value: 'store',
-          child: Row(
-            children: [
-              Icon(Icons.storefront_outlined, size: 18),
-              SizedBox(width: 8),
-              Text('Mağaza'),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
@@ -381,8 +359,6 @@ class _SidebarNav extends ConsumerWidget {
                       letterSpacing: 2,
                     ),
                   ),
-                  const Spacer(),
-                  const _StoreOverflowMenu(),
                 ],
               ),
             ),
@@ -418,6 +394,13 @@ class _SidebarNav extends ConsumerWidget {
             route: '/tasks',
             isActive: location.startsWith('/tasks'),
             accentColor: AppColors.tasksGreen,
+          ),
+          _NavItem(
+            icon: Icons.storefront_outlined,
+            label: 'Mağaza',
+            route: '/store',
+            isActive: location.startsWith('/store'),
+            accentColor: AppColors.sargeGold,
           ),
           const SizedBox(height: 8),
           if (canViewAdmin)
