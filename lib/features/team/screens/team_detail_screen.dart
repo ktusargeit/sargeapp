@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -6,23 +5,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/constants/app_constants.dart';
-import '../../../core/models/app_user.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/utils/image_utils.dart';
 import '../../../core/utils/operation_feedback.dart';
 import '../../../core/widgets/safe_network_image.dart';
-import '../../admin/screens/user_title_management_sheet.dart';
 import '../providers/team_providers.dart';
 import '../models/team_models.dart';
-import 'unit_detail_screen.dart';
+import '../widgets/team_members_tab.dart';
+import '../widgets/team_scoreboard_tab.dart';
+import '../widgets/team_units_tab.dart';
 
 class TeamDetailScreen extends ConsumerStatefulWidget {
   final String teamId;
   const TeamDetailScreen({super.key, required this.teamId});
   @override
-  ConsumerState<TeamDetailScreen> createState() =>
-      _TeamDetailScreenState();
+  ConsumerState<TeamDetailScreen> createState() => _TeamDetailScreenState();
 }
 
 class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
@@ -56,15 +53,12 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
         actions: [
           if (isAdmin)
             PopupMenuButton<String>(
-              icon:  Icon(Icons.more_vert,
-                  color: AppColors.textSecondary),
+              icon: Icon(Icons.more_vert, color: AppColors.textSecondary),
               onSelected: (action) {
-                final teams =
-                    ref.read(clubTeamsProvider).value ?? [];
+                final teams = ref.read(clubTeamsProvider).value ?? [];
                 ClubTeam? team;
                 try {
-                  team = teams
-                      .firstWhere((t) => t.id == widget.teamId);
+                  team = teams.firstWhere((t) => t.id == widget.teamId);
                 } catch (_) {}
                 if (team == null) return;
                 if (action == 'edit') _showEditDialog(team);
@@ -72,16 +66,12 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
                 if (action == 'photo') _pickTeamPhoto(team);
               },
               itemBuilder: (ctx) => const [
-                PopupMenuItem(
-                    value: 'photo',
-                    child: Text('Fotoğraf Değiştir')),
-                PopupMenuItem(
-                    value: 'edit', child: Text('Düzenle')),
+                PopupMenuItem(value: 'photo', child: Text('Fotoğraf Değiştir')),
+                PopupMenuItem(value: 'edit', child: Text('Düzenle')),
                 PopupMenuItem(
                     value: 'delete',
-                    child: Text('Sil',
-                        style:
-                            TextStyle(color: AppColors.error))),
+                    child:
+                        Text('Sil', style: TextStyle(color: AppColors.error))),
               ],
             ),
         ],
@@ -90,39 +80,30 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
         data: (teams) {
           ClubTeam? team;
           try {
-            team = teams
-                .firstWhere((t) => t.id == widget.teamId);
+            team = teams.firstWhere((t) => t.id == widget.teamId);
           } catch (_) {}
           if (team == null) {
-            return  Center(
+            return Center(
                 child: Text('Takım bulunamadı.',
-                    style: TextStyle(
-                        color: AppColors.textSecondary)));
+                    style: TextStyle(color: AppColors.textSecondary)));
           }
 
-          // Determine captain status
-          final isCaptain =
-              currentUid != null && team.leadUid == currentUid;
-          final canManage =
-              isAdmin || isCaptain;
+          final isCaptain = currentUid != null && team.leadUid == currentUid;
+          final canManage = isAdmin || isCaptain;
 
           return Column(
             children: [
               Container(
                 color: AppColors.surface,
-                padding:
-                    const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (team.photoUrl != null &&
-                        team.photoUrl!.isNotEmpty)
+                    if (team.photoUrl != null && team.photoUrl!.isNotEmpty)
                       Padding(
-                        padding:
-                            const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.only(bottom: 12),
                         child: ClipRRect(
-                          borderRadius:
-                              BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(14),
                           child: SafeNetworkImage(
                             url: team.photoUrl,
                             height: 160,
@@ -136,36 +117,28 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
                         Expanded(
                           child: Text(
                             team.name,
-                            style:  TextStyle(
+                            style: TextStyle(
                                 color: AppColors.textPrimary,
                                 fontSize: 20,
                                 fontWeight: FontWeight.w700),
                           ),
                         ),
                         Container(
-                          padding:
-                              const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
                             color: team.isActive
-                                ? AppColors.success
-                                    .withValues(alpha: 0.12)
-                                : AppColors.error
-                                    .withValues(alpha: 0.12),
-                            borderRadius:
-                                BorderRadius.circular(6),
+                                ? AppColors.success.withValues(alpha: 0.12)
+                                : AppColors.error.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
                             border: Border.all(
                               color: team.isActive
-                                  ? AppColors.success
-                                      .withValues(alpha: 0.4)
-                                  : AppColors.error
-                                      .withValues(alpha: 0.4),
+                                  ? AppColors.success.withValues(alpha: 0.4)
+                                  : AppColors.error.withValues(alpha: 0.4),
                             ),
                           ),
                           child: Text(
-                            team.isActive
-                                ? 'AKTİF'
-                                : 'PASİF',
+                            team.isActive ? 'AKTİF' : 'PASİF',
                             style: TextStyle(
                               color: team.isActive
                                   ? AppColors.success
@@ -178,14 +151,12 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
                       ],
                     ),
                     const SizedBox(height: 4),
-                    // Captain row
-                    if (team.hasLead)
-                      _CaptainRow(team: team),
+                    if (team.hasLead) TeamCaptainRow(team: team),
                     if (team.description.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Text(
                         team.description,
-                        style:  TextStyle(
+                        style: TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 14,
                             height: 1.5),
@@ -194,16 +165,14 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
                   ],
                 ),
               ),
-               Divider(
-                  height: 1, color: AppColors.border),
+              Divider(height: 1, color: AppColors.border),
               Container(
                 color: AppColors.surface,
                 child: TabBar(
                   controller: _tabController,
                   indicatorColor: AppColors.teamAccent,
                   labelColor: AppColors.textPrimary,
-                  unselectedLabelColor:
-                      AppColors.textSecondary,
+                  unselectedLabelColor: AppColors.textSecondary,
                   tabs: const [
                     Tab(text: 'Puan Tablosu'),
                     Tab(text: 'Birimler'),
@@ -211,18 +180,15 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
                   ],
                 ),
               ),
-               Divider(
-                  height: 1, color: AppColors.border),
+              Divider(height: 1, color: AppColors.border),
               Expanded(
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    _ScoreboardTab(team: team),
-                    _UnitsTab(team: team, canManage: canManage),
-                    _MembersTab(
-                        team: team,
-                        canManage: canManage,
-                        isAdmin: isAdmin),
+                    TeamScoreboardTab(team: team),
+                    TeamUnitsTab(team: team, canManage: canManage),
+                    TeamMembersTab(
+                        team: team, canManage: canManage, isAdmin: isAdmin),
                   ],
                 ),
               ),
@@ -230,12 +196,10 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
           );
         },
         loading: () => const Center(
-            child: CircularProgressIndicator(
-                color: AppColors.teamAccent)),
+            child: CircularProgressIndicator(color: AppColors.teamAccent)),
         error: (e, _) => Center(
             child: Text('Yüklenemedi: $e',
-                style: const TextStyle(
-                    color: AppColors.error))),
+                style: const TextStyle(color: AppColors.error))),
       ),
     );
   }
@@ -252,15 +216,13 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
               leading: const Icon(Icons.photo_library_outlined,
                   color: AppColors.teamAccent),
               title: const Text('Galeriden Seç'),
-              onTap: () =>
-                  Navigator.pop(ctx, ImageSource.gallery),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
             ),
             ListTile(
               leading: const Icon(Icons.photo_camera_outlined,
                   color: AppColors.teamAccent),
               title: const Text('Kameradan Çek'),
-              onTap: () =>
-                  Navigator.pop(ctx, ImageSource.camera),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
             ),
           ],
         ),
@@ -285,11 +247,9 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
           .doc(team.id)
           .update({'photoUrl': url});
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text(
-                    'Takım fotoğrafı güncellendi.'),
-                backgroundColor: AppColors.success));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Takım fotoğrafı güncellendi.'),
+            backgroundColor: AppColors.success));
       }
     } catch (e) {
       if (mounted) {
@@ -301,10 +261,8 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
   }
 
   void _showEditDialog(ClubTeam team) {
-    final nameCtrl =
-        TextEditingController(text: team.name);
-    final descCtrl =
-        TextEditingController(text: team.description);
+    final nameCtrl = TextEditingController(text: team.name);
+    final descCtrl = TextEditingController(text: team.description);
     bool saving = false;
     showDialog(
       context: context,
@@ -317,19 +275,15 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
             children: [
               TextField(
                 controller: nameCtrl,
-                style:  TextStyle(
-                    color: AppColors.textPrimary),
-                decoration: const InputDecoration(
-                    labelText: 'Takım Adı *'),
+                style: TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(labelText: 'Takım Adı *'),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: descCtrl,
                 maxLines: 3,
-                style:  TextStyle(
-                    color: AppColors.textPrimary),
-                decoration: const InputDecoration(
-                    labelText: 'Açıklama'),
+                style: TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(labelText: 'Açıklama'),
               ),
             ],
           ),
@@ -352,28 +306,22 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
                             .doc(team.id)
                             .update({
                           'name': nameCtrl.text.trim(),
-                          'description':
-                              descCtrl.text.trim(),
+                          'description': descCtrl.text.trim(),
                         });
                         if (ctx.mounted) {
                           Navigator.pop(ctx);
                         }
                         if (mounted) {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(const SnackBar(
-                                  content: Text(
-                                      'Takım güncellendi.'),
-                                  backgroundColor:
-                                      AppColors.success));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Takım güncellendi.'),
+                                  backgroundColor: AppColors.success));
                         }
                       } catch (e) {
                         if (mounted) {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(SnackBar(
-                                  content: Text(
-                                      'Güncellenemedi: $e'),
-                                  backgroundColor:
-                                      AppColors.error));
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text('Güncellenemedi: $e'),
+                              backgroundColor: AppColors.error));
                         }
                       }
                     },
@@ -390,15 +338,13 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Takımı Sil'),
-        content: Text(
-            '"${team.name}" silinecek. Onaylıyor musunuz?'),
+        content: Text('"${team.name}" silinecek. Onaylıyor musunuz?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('İptal')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Sil'),
           ),
@@ -422,38 +368,33 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
 }
 
 /// Shows captain name with badge in team header.
-class _CaptainRow extends ConsumerWidget {
+class TeamCaptainRow extends ConsumerWidget {
   final ClubTeam team;
-  const _CaptainRow({required this.team});
+  const TeamCaptainRow({super.key, required this.team});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final captainAsync =
-        ref.watch(userProfileProvider(team.leadUid!));
+    final captainAsync = ref.watch(userProfileProvider(team.leadUid!));
     return captainAsync.when(
       data: (captain) => Row(
         children: [
-          const Icon(Icons.star,
-              size: 14, color: AppColors.warning),
+          const Icon(Icons.star, size: 14, color: AppColors.warning),
           const SizedBox(width: 4),
           Text(
             captain?.displayName ?? 'Bilinmiyor',
-            style:  TextStyle(
+            style: TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 13,
                 fontWeight: FontWeight.w500),
           ),
           const SizedBox(width: 6),
           Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 6, vertical: 1),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
             decoration: BoxDecoration(
-              color:
-                  AppColors.warning.withValues(alpha: 0.15),
+              color: AppColors.warning.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(3),
               border: Border.all(
-                  color: AppColors.warning
-                      .withValues(alpha: 0.4)),
+                  color: AppColors.warning.withValues(alpha: 0.4)),
             ),
             child: const Text('KAPTAN',
                 style: TextStyle(
@@ -469,1070 +410,8 @@ class _CaptainRow extends ConsumerWidget {
               child: SizedBox(
                   width: 12,
                   height: 12,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 1)))),
+                  child: CircularProgressIndicator(strokeWidth: 1)))),
       error: (_, __) => const SizedBox.shrink(),
-    );
-  }
-}
-
-class _ScoreboardTab extends ConsumerWidget {
-  final ClubTeam team;
-  const _ScoreboardTab({required this.team});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final usersAsync = ref.watch(allUsersProvider);
-    return usersAsync.when(
-      data: (users) {
-        final members = users
-            .where((u) => team.memberIds.contains(u.uid))
-            .toList();
-        if (members.isEmpty) {
-          return  Center(
-              child: Text('Bu takımda henüz üye yok.',
-                  style: TextStyle(
-                      color: AppColors.textSecondary)));
-        }
-        members.sort(
-            (a, b) => b.weeklyPoints.compareTo(a.weeklyPoints));
-        return ListView.separated(
-          padding:
-              const EdgeInsets.all(AppConstants.spacingMd),
-          itemCount: members.length,
-          separatorBuilder: (_, __) =>
-              const SizedBox(height: 8),
-          itemBuilder: (context, i) {
-            final user = members[i];
-            return Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color:
-                    AppColors.surface.withValues(alpha: 0.8),
-                borderRadius: BorderRadius.circular(14),
-                border:
-                    Border.all(color: AppColors.border),
-              ),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 28,
-                    child: Text(
-                      '${i + 1}',
-                      style: TextStyle(
-                        color: i < 3
-                            ? [
-                                const Color(0xFFFFD700),
-                                const Color(0xFFC0C0C0),
-                                const Color(0xFFCD7F32)
-                              ][i]
-                            : AppColors.textSecondary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => context
-                        .push('/profile/${user.uid}'),
-                    child: SafeAvatar(
-                        url: user.photoUrl, radius: 18),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                  user.displayName,
-                                  style:  TextStyle(
-                                      color: AppColors
-                                          .textPrimary,
-                                      fontSize: 14,
-                                      fontWeight:
-                                          FontWeight.w600)),
-                            ),
-                            if (team.leadUid ==
-                                user.uid) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding:
-                                    const EdgeInsets
-                                        .symmetric(
-                                        horizontal: 6,
-                                        vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: AppColors.warning
-                                      .withValues(
-                                          alpha: 0.15),
-                                  borderRadius:
-                                      BorderRadius
-                                          .circular(3),
-                                  border: Border.all(
-                                      color: AppColors
-                                          .warning
-                                          .withValues(
-                                              alpha: 0.4)),
-                                ),
-                                child: const Text(
-                                  'KAPTAN',
-                                  style: TextStyle(
-                                      color: AppColors
-                                          .warning,
-                                      fontSize: 9,
-                                      fontWeight:
-                                          FontWeight
-                                              .w700),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                        Text(user.roleLabel,
-                            style:  TextStyle(
-                                color: AppColors
-                                    .textSecondary,
-                                fontSize: 11)),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.teamAccent
-                          .withValues(alpha: 0.15),
-                      borderRadius:
-                          BorderRadius.circular(8),
-                      border: Border.all(
-                          color: AppColors.teamAccent
-                              .withValues(alpha: 0.4)),
-                    ),
-                    child: Text('${user.weeklyPoints} puan',
-                        style: const TextStyle(
-                            color: AppColors.teamAccent,
-                            fontSize: 13,
-                            fontWeight:
-                                FontWeight.w700)),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-      loading: () => const Center(
-          child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Hata: $e')),
-    );
-  }
-}
-
-class _UnitsTab extends ConsumerWidget {
-  final ClubTeam team;
-  final bool canManage;
-  const _UnitsTab({required this.team, required this.canManage});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final unitsAsync = ref.watch(teamUnitsListProvider(team.id));
-
-    return Column(
-      children: [
-        if (canManage)
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => _createUnit(context, ref),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Yeni Birim'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.teamAccent,
-                  side: BorderSide(
-                      color: AppColors.teamAccent.withValues(alpha: 0.5)),
-                ),
-              ),
-            ),
-          ),
-        Expanded(
-          child: unitsAsync.when(
-            data: (units) {
-              if (units.isEmpty) {
-                return Center(
-                  child: Text('Bu takımda henüz birim yok.',
-                      style: TextStyle(color: AppColors.textSecondary)),
-                );
-              }
-              return ListView.builder(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                itemCount: units.length,
-                itemBuilder: (_, i) =>
-                    _UnitCard(team: team, unit: units[i], canManage: canManage),
-              );
-            },
-            loading: () => const Center(
-                child: CircularProgressIndicator(color: AppColors.teamAccent)),
-            error: (e, _) => Center(
-                child: Text('Hata: $e',
-                    style: const TextStyle(color: AppColors.error))),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _createUnit(BuildContext context, WidgetRef ref) async {
-    final nameCtrl = TextEditingController();
-    final descCtrl = TextEditingController();
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Yeni Birim'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              style: TextStyle(color: AppColors.textPrimary),
-              decoration: const InputDecoration(labelText: 'Birim Adı *'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: descCtrl,
-              maxLines: 3,
-              style: TextStyle(color: AppColors.textPrimary),
-              decoration: const InputDecoration(labelText: 'Açıklama'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameCtrl.text.trim().isEmpty) return;
-              try {
-                await ref.read(unitServiceProvider).createUnit(
-                      teamId: team.id,
-                      name: nameCtrl.text.trim(),
-                      description: descCtrl.text.trim(),
-                    );
-                if (ctx.mounted) Navigator.pop(ctx);
-              } catch (e) {
-                if (ctx.mounted) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                      content: Text('Oluşturulamadı: $e'),
-                      backgroundColor: AppColors.error));
-                }
-              }
-            },
-            child: const Text('Oluştur'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _UnitCard extends ConsumerWidget {
-  final ClubTeam team;
-  final TeamUnit unit;
-  final bool canManage;
-  const _UnitCard({
-    required this.team,
-    required this.unit,
-    required this.canManage,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Card(
-      color: AppColors.surface,
-      margin: const EdgeInsets.only(bottom: 8),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute(
-            builder: (_) => UnitDetailScreen(unitId: unit.id, team: team),
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: AppColors.teamAccent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                      color: AppColors.teamAccent.withValues(alpha: 0.3)),
-                ),
-                child: const Icon(Icons.folder_outlined,
-                    color: AppColors.teamAccent, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      unit.name,
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        Text(
-                          '${unit.memberUids.length} üye',
-                          style: TextStyle(
-                              color: AppColors.textSecondary, fontSize: 12),
-                        ),
-                        const SizedBox(width: 10),
-                        const Icon(Icons.star,
-                            size: 13, color: AppColors.warning),
-                        const SizedBox(width: 3),
-                        Expanded(
-                          child: _UnitCardLeadName(uid: unit.unitLeadUid),
-                        ),
-                      ],
-                    ),
-                    if (unit.description != null &&
-                        unit.description!.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        unit.description!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            color: AppColors.textSecondary, fontSize: 12),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              if (canManage)
-                Icon(Icons.chevron_right,
-                    size: 20, color: AppColors.textSecondary),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _UnitCardLeadName extends ConsumerWidget {
-  final String? uid;
-  const _UnitCardLeadName({required this.uid});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (uid == null || uid!.isEmpty) {
-      return Text(
-        'Sorumlu atanmamış',
-        style: TextStyle(
-          color: AppColors.textSecondary,
-          fontSize: 12,
-          fontStyle: FontStyle.italic,
-        ),
-      );
-    }
-    final profileAsync = ref.watch(userProfileProvider(uid!));
-    return profileAsync.when(
-      data: (user) => Text(
-        user?.displayName ?? 'Bilinmiyor',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: AppColors.warning,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => Text(
-        'Bilinmiyor',
-        style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-      ),
-    );
-  }
-}
-
-class _MembersTab extends ConsumerStatefulWidget {
-  final ClubTeam team;
-  final bool canManage;
-  final bool isAdmin;
-  const _MembersTab(
-      {required this.team,
-      required this.canManage,
-      required this.isAdmin});
-
-  @override
-  ConsumerState<_MembersTab> createState() =>
-      _MembersTabState();
-}
-
-class _MembersTabState extends ConsumerState<_MembersTab> {
-  String? _filterUnitId;
-
-  /// Returns true when [responsibilities] (unit names a member is responsible
-  /// for) contains the currently selected `_filterUnitId`. Units are matched by
-  /// name against the raw `Map<String, dynamic>` list from `teamUnitsProvider`,
-  /// avoiding any unsafe cast to `Map<String, String>`.
-  bool _matchesUnitFilter(
-      List<String> responsibilities, List<Map<String, dynamic>>? units) {
-    if (responsibilities.isEmpty) return false;
-    if (units == null || units.isEmpty) return false;
-    for (final r in responsibilities) {
-      final matches = units.any((u) {
-        final name = u['name'];
-        final id = u['id'];
-        return name is String &&
-            id is String &&
-            name == r &&
-            id == _filterUnitId;
-      });
-      if (matches) return true;
-    }
-    return false;
-  }
-
-  void _showAddMemberDialog(BuildContext context) {
-    final allUsers = ref.read(allUsersProvider).valueOrNull ?? [];
-    final currentMemberIds = widget.team.memberIds;
-    // Filter users not already in team
-    final availableUsers =
-        allUsers.where((u) => !currentMemberIds.contains(u.uid)).toList();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Üye Ekle'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: availableUsers.isEmpty
-              ?  Text('Eklenebilecek uygun kullanıcı yok.',
-                  style: TextStyle(color: AppColors.textSecondary))
-              : ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: availableUsers.length,
-                  itemBuilder: (_, i) {
-                    final user = availableUsers[i];
-                    return ListTile(
-                      leading: SafeAvatar(
-                          url: user.photoUrl, radius: 16),
-                      title: Text(user.displayName),
-                      subtitle: Text(user.roleLabel,
-                          style: const TextStyle(fontSize: 11)),
-                      onTap: () async {
-                        Navigator.pop(ctx);
-                        await ref
-                            .read(firestoreProvider)
-                            .collection('teams')
-                            .doc(widget.team.id)
-                            .update({
-                          'memberIds':
-                              FieldValue.arrayUnion([user.uid]),
-                        });
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(SnackBar(
-                            content: Text(
-                                '${user.displayName} takıma eklendi.'),
-                            backgroundColor: AppColors.success,
-                          ));
-                        }
-                      },
-                    );
-                  },
-                ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Kapat')),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final usersAsync = ref.watch(allUsersProvider);
-    final unitsAsync =
-        ref.watch(teamUnitsProvider(widget.team.id));
-
-    return Column(
-      children: [
-        // Unit filter
-        unitsAsync.when(
-          data: (units) {
-            if (units.isEmpty) return const SizedBox.shrink();
-            return Container(
-              margin: const EdgeInsets.fromLTRB(
-                  16, 8, 16, 4),
-              child: DropdownButtonFormField<String?>(
-                initialValue: _filterUnitId,
-                isDense: true,
-                dropdownColor: AppColors.surface2,
-                style:  TextStyle(
-                    color: AppColors.textPrimary, fontSize: 13),
-                decoration: InputDecoration(
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 8),
-                  labelText: 'Birim Filtresi',
-                  border: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(8),
-                    borderSide:  BorderSide(
-                        color: AppColors.border),
-                  ),
-                ),
-                items: [
-                  const DropdownMenuItem(
-                    value: null,
-                    child: Text('Tümü'),
-                  ),
-                  ...units.map((u) => DropdownMenuItem(
-                      value: u['id'] as String,
-                      child: Text(
-                          u['name'] as String? ?? ''))),
-                ],
-                onChanged: (v) =>
-                    setState(() => _filterUnitId = v),
-              ),
-            );
-          },
-          loading: () => const SizedBox.shrink(),
-          error: (_, __) => const SizedBox.shrink(),
-        ),
-        // Add member button (for managers)
-        if (widget.canManage)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () =>
-                    _showAddMemberDialog(context),
-                icon: const Icon(Icons.person_add_outlined,
-                    size: 18),
-                label: const Text('Üye Ekle'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.teamAccent,
-                  side: BorderSide(
-                      color: AppColors.teamAccent
-                          .withValues(alpha: 0.5)),
-                ),
-              ),
-            ),
-          ),
-        // Members list
-        Expanded(
-          child: usersAsync.when(
-            data: (users) {
-              final members = users
-                  .where((u) =>
-                      widget.team.memberIds.contains(u.uid))
-                  .toList();
-              if (members.isEmpty) {
-                return  Center(
-                    child: Text(
-                        'Bu takımda henüz üye yok.',
-                        style: TextStyle(
-                            color:
-                                AppColors.textSecondary)));
-              }
-              if (members.length <= 1) {
-                // Nothing to manage
-              }
-              return ListView(
-                padding: const EdgeInsets.all(
-                    AppConstants.spacingMd),
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius:
-                          BorderRadius.circular(14),
-                      border: Border.all(
-                          color: AppColors.border),
-                    ),
-                    child: Column(
-                      children: members
-                          .asMap()
-                          .entries
-                          .map((e) {
-                        final user = e.value;
-                        // If unit filter is active, skip non-matching members.
-                        // `teamUnitsProvider` yields List<Map<String, dynamic>>,
-                        // so the filter must keep values as `dynamic` (not cast
-                        // the whole map to Map<String, String>, whose values can
-                        // be Timestamp/int/bool/nested maps in real Firestore docs).
-                        if (_filterUnitId != null &&
-                            !_matchesUnitFilter(
-                                user.unitResponsibilities,
-                                unitsAsync.valueOrNull)) {
-                          return const SizedBox.shrink();
-                        }
-                        return _MemberRow(
-                          user: user,
-                          team: widget.team,
-                          canManage: widget.canManage,
-                          isAdmin: widget.isAdmin,
-                          isLast: e.key ==
-                              members.length - 1,
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ],
-              );
-            },
-            loading: () => const Center(
-                child: CircularProgressIndicator()),
-            error: (e, _) =>
-                Center(child: Text('Hata: $e')),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MemberRow extends ConsumerWidget {
-  final AppUser user;
-  final ClubTeam team;
-  final bool canManage;
-  final bool isAdmin;
-  final bool isLast;
-
-  const _MemberRow({
-    required this.user,
-    required this.team,
-    required this.canManage,
-    required this.isAdmin,
-    required this.isLast,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Column(
-      children: [
-        InkWell(
-          onTap: () =>
-              context.push('/profile/${user.uid}'),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                SafeAvatar(url: user.photoUrl, radius: 18),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(user.displayName,
-                                style:  TextStyle(
-                                    color: AppColors
-                                        .textPrimary,
-                                    fontSize: 14,
-                                    fontWeight:
-                                        FontWeight.w500)),
-                          ),
-                          if (team.leadUid == user.uid) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding:
-                                  const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 1),
-                              decoration: BoxDecoration(
-                                color: AppColors.warning
-                                    .withValues(alpha: 0.15),
-                                borderRadius:
-                                    BorderRadius.circular(3),
-                                border: Border.all(
-                                    color: AppColors.warning
-                                        .withValues(
-                                            alpha: 0.4)),
-                              ),
-                              child: const Text('KAPTAN',
-                                  style: TextStyle(
-                                      color:
-                                          AppColors.warning,
-                                      fontSize: 9,
-                                      fontWeight:
-                                          FontWeight.w700)),
-                            ),
-                          ],
-                        ],
-                      ),
-                      if (user.unitResponsibilities.isNotEmpty)
-                        Text(
-                          user.unitResponsibilities.join(', '),
-                          style:  TextStyle(
-                              color:
-                                  AppColors.textSecondary,
-                              fontSize: 11),
-                        ),
-                      if (user.roleLabel.isNotEmpty)
-                        Text(user.roleLabel,
-                            style:  TextStyle(
-                                color: AppColors
-                                    .textSecondary,
-                                fontSize: 11)),
-                    ],
-                  ),
-                ),
-                if (canManage && user.uid != team.leadUid)
-                  PopupMenuButton<String>(
-                    icon:  Icon(Icons.more_vert,
-                        size: 18,
-                        color: AppColors.textSecondary),
-                    onSelected: (action) =>
-                        _handleAction(context, ref, action),
-                    itemBuilder: (ctx) => [
-                      if (isAdmin ||
-                          team.leadUid == user.uid ||
-                          true)
-                        const PopupMenuItem(
-                          value: 'make_captain',
-                          child: Text('Kaptan Yap'),
-                        ),
-                      const PopupMenuItem(
-                        value: 'make_unit_lead',
-                        child: Text('Birim Sorumlusu Yap'),
-                      ),
-                      if (isAdmin)
-                        const PopupMenuItem(
-                          value: 'manage_titles',
-                          child: Text('Ünvanları Yönet'),
-                        ),
-                      const PopupMenuItem(
-                        value: 'remove_member',
-                        child: Text('Takımdan Çıkar',
-                            style: TextStyle(
-                                color: AppColors.error)),
-                      ),
-                    ],
-                  )
-                else
-                   Icon(Icons.chevron_right,
-                      size: 18, color: AppColors.border),
-              ],
-            ),
-          ),
-        ),
-        if (!isLast)
-           Divider(height: 1, color: AppColors.border),
-      ],
-    );
-  }
-
-  void _handleAction(BuildContext context, WidgetRef ref,
-      String action) async {
-    final firestore = ref.read(firestoreProvider);
-    switch (action) {
-      case 'make_captain':
-        await firestore
-            .collection('teams')
-            .doc(team.id)
-            .update({'leadUid': user.uid});
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(
-                  '${user.displayName} takım kaptanı yapıldı.'),
-              backgroundColor: AppColors.success));
-        }
-        break;
-      case 'make_unit_lead':
-        _showUnitPicker(context, ref);
-        break;
-      case 'manage_titles':
-        showUserTitleManagementSheet(context, ref, user);
-        break;
-      case 'remove_member':
-        await firestore
-            .collection('teams')
-            .doc(team.id)
-            .update({
-          'memberIds': FieldValue.arrayRemove([user.uid]),
-        });
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(
-                  '${user.displayName} takımdan çıkarıldı.'),
-              backgroundColor: AppColors.success));
-        }
-        break;
-    }
-  }
-
-  void _showUnitPicker(
-      BuildContext context, WidgetRef ref) {
-    final units =
-        ref.read(teamUnitsProvider(team.id)).valueOrNull ?? [];
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      builder: (ctx) => SafeArea(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(ctx).size.height * 0.7,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    16, 12, 8, 0),
-                child: Row(
-                  children: [
-                     Text('Birim Sorumlusu Ata',
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color:
-                                AppColors.textPrimary)),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.add_circle_outline,
-                          size: 22,
-                          color: AppColors.teamAccent),
-                      tooltip: 'Yeni Birim Ekle',
-                      onPressed: () async {
-                        Navigator.pop(ctx);
-                        await _addUnitDialog(context, ref);
-                        // Re-show the picker after creating
-                        if (context.mounted) {
-                          _showUnitPicker(context, ref);
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              if (units.isEmpty)
-                 Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text('Henüz birim eklenmemiş.',
-                      style: TextStyle(
-                          color:
-                              AppColors.textSecondary)),
-                )
-              else
-                Flexible(
-                  child: ListView(
-                    shrinkWrap: true,
-                    children: units.map((u) {
-                      final name =
-                          u['name'] as String? ?? '';
-                      return ListTile(
-                        leading: const Icon(
-                            Icons.folder_outlined,
-                            color: AppColors.teamOrange,
-                            size: 18),
-                        title: Text(name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style:  TextStyle(
-                                color:
-                                    AppColors.textPrimary)),
-                        trailing: isAdmin
-                            ? PopupMenuButton<String>(
-                                icon:  Icon(
-                                    Icons.more_vert,
-                                    size: 16,
-                                    color: AppColors
-                                        .textSecondary),
-                                onSelected: (action) {
-                                  Navigator.pop(ctx);
-                                  if (action == 'edit') {
-                                    _editUnitDialog(
-                                        context,
-                                        ref,
-                                        u['id'] as String,
-                                        name);
-                                  } else if (action ==
-                                      'delete') {
-                                    _deleteUnit(
-                                        context,
-                                        ref,
-                                        u['id'] as String,
-                                        name);
-                                  }
-                                },
-                                itemBuilder: (_) => const [
-                                  PopupMenuItem(
-                                      value: 'edit',
-                                      child: Text(
-                                          'Düzenle')),
-                                  PopupMenuItem(
-                                      value: 'delete',
-                                      child: Text('Sil',
-                                          style: TextStyle(
-                                              color: AppColors
-                                                  .error))),
-                                ],
-                              )
-                            : null,
-                        onTap: () async {
-                          Navigator.pop(ctx);
-                          final userRef = ref
-                              .read(firestoreProvider)
-                              .collection('users')
-                              .doc(user.uid);
-                          final userDoc =
-                              await userRef.get();
-                          final current =
-                              (userDoc.data()?[
-                                      'unitResponsibilities']
-                                  as List?) ??
-                                  <String>[];
-                          final updated = <String>{
-                            ...current
-                                .map((e) => e.toString()),
-                            name
-                          }.toList();
-                          await userRef.update({
-                            'unitResponsibilities': updated
-                          });
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context)
-                                .showSnackBar(SnackBar(
-                                    content: Text(
-                                        '${user.displayName} → $name sorumlusu'),
-                                    backgroundColor:
-                                        AppColors.success));
-                          }
-                        },
-                      );
-                    }).toList(),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _addUnitDialog(
-      BuildContext context, WidgetRef ref) async {
-    final ctrl = TextEditingController();
-    await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Yeni Birim'),
-        content: TextField(
-          controller: ctrl,
-          decoration:
-              const InputDecoration(hintText: 'Birim adı'),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
-          ElevatedButton(
-            onPressed: () async {
-              if (ctrl.text.trim().isEmpty) return;
-              await ref
-                  .read(firestoreProvider)
-                  .collection('units')
-                  .add({
-                'name': ctrl.text.trim(),
-                'teamId': team.id,
-                'createdAt':
-                    FieldValue.serverTimestamp(),
-              });
-              // Invalidate provider so the stream refreshes
-              ref.invalidate(teamUnitsProvider(team.id));
-              if (ctx.mounted) Navigator.pop(ctx, true);
-            },
-            child: const Text('Ekle'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _editUnitDialog(BuildContext context,
-      WidgetRef ref, String id, String name) async {
-    final ctrl = TextEditingController(text: name);
-    await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Birimi Düzenle'),
-        content: TextField(controller: ctrl),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
-          ElevatedButton(
-            onPressed: () async {
-              if (ctrl.text.trim().isEmpty) return;
-              await ref
-                  .read(firestoreProvider)
-                  .collection('units')
-                  .doc(id)
-                  .update({'name': ctrl.text.trim()});
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Kaydet'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _deleteUnit(BuildContext ctx,
-      WidgetRef ref, String id, String name) {
-    showDialog(
-      context: ctx,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Birimi Sil'),
-        content: Text('"$name" silinecek.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error),
-            onPressed: () async {
-              await ref
-                  .read(firestoreProvider)
-                  .collection('units')
-                  .doc(id)
-                  .delete();
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Sil'),
-          ),
-        ],
-      ),
     );
   }
 }

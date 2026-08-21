@@ -93,6 +93,7 @@ Projenin "haritası". Her yeni görevde önce bu dosya okunur ve gerektiğinde g
 - Firestore kurallarında `isAdmin()` yalnızca `users/{uid}.role == 'admin'` kontrol eder.
 - **Hesap silme**: İstemci sadece Firebase Auth `user.delete()` çağırır (re-auth sonrası). Firestore/Storage temizliği `functions/` içindeki `cleanupDeletedUser` (`onUserDeleted`) Auth trigger'ı ile Admin SDK üzerinden yapılır — normal üye Firestore'da teams/units güncelleyemez veya kendi users doc'unu silemez (rules engeller).
 - **Toplu görev atama**: Takım/Birim modunda kaptan tüm birimlere atayabilir; birim sorumlusu yalnızca kendi birimine atayabilir (UI `_allowedUnitIdsFor` + firestore.rules `isCaptainOfTeam`/`isUnitLeadOfUnit`).
+- **Rol/título senkronu**: Arayüz yetkileri `effectiveRoleCodes` ile `role` + `titles` birleşiminden hesaplanır, ancak Firestore/Storage kuralları yalnızca tek `users/{uid}.role` alanını okur. Bu yüzden `UserTitleService` her title mutasyonundan sonra `role` alanını en yüksek aktif title'a yükseltir (`_reconcileRole`, asla downgrade etmez). Aksi halde `store`/`depo` arayüzü görünür ama sunucu tarafında `permission-denied` / `firebase_storage/unauthorized` olur.
 
 ## 5. Sık Karışan Noktalar
 
@@ -105,3 +106,15 @@ Projenin "haritası". Her yeni görevde önce bu dosya okunur ve gerektiğinde g
 - **Auth silme trigger'ı**: `firebase-functions/v1/auth` `onUserDeleted` kullanılıyor (v2 auth trigger henüz desteklenmiyor). Deploy ederken `functions` klasöründen `firebase deploy --only functions --project sargeapp` çalıştırılmalı.
 - **Bulk görev sorgusu**: Yorum bildirimlerinde `bulkGroupId` eşitlik sorgusu kullanılır. `bulkGroupId` alanı Firestore'da index gerektirmez (tek alan eşitlik).
 - **Riverpod `ConsumerState.dispose()` içinde `ref.read()` yasak**: Riverpod, widget unmount olmadan `ref`'i iptal eder; `dispose()` içinde `ref.read(...)` çağrılırsa `Bad state: Cannot use "ref" after the widget was disposed.` fırlar ve uygulama geçişlerde beyaz ekranda kalır. Thread-detay sheet'lerinde (`_AnnouncementDetailSheetState`, `_TaskDetailSheetState`, `_ReportDetailViewState`) `PresenceService` `initState`'te `late final _presenceService` alanına cache'lenir, `dispose`'ta bu instance kullanılır.
+
+## 6. Refactor Notları (2026-08 — En Büyük 7 Dosyanın Bölünmesi)
+
+Davranış değişmeyen salt dosya bölme işlemi yapıldı. Ana ekranlar iskelete indirgendi, bölümler `widgets/` altına taşındı. Her bölme sonrası `flutter analyze` temiz kaldı (kalan 20 uyarı tamamen `cleaning`/`store` kaynaklı, bu görevde üretilmedi).
+
+- `lib/features/profile/screens/profile_screen.dart` (iskelet) → `widgets/profile_basic_info.dart` (hero/kapak/avatar + HAKKINDA/BİLGİLER), `profile_teams_roles.dart`, `profile_titles.dart`, `profile_experience.dart` (Deneyim sekmesi + zaman çizelgesi + ödüller), `profile_connections.dart` (Bağlantılar sekmesi), `profile_past_teams.dart`, `profile_edit_screen.dart` (Profil Düzenle) ve ortak `profile_common.dart`.
+- `lib/features/tasks/screens/tasks_screen.dart` (iskelet) → `widgets/task_list.dart` (liste + `TaskCard` + `TaskMetaRow` + yorum sayacı + silme/onay), `task_filters.dart` (dropdown filtreler + birim/kişi filtresi), `task_detail_panel.dart` (detay sheet + `TaskCommentsList` + `TaskCommentInputBar`), `task_add_dialog.dart` (görev oluşturma + `TaskAssignmentMode` + birim/üye seçici).
+- `lib/features/dashboard/screens/dashboard_screen.dart` (iskelet) → `widgets/dashboard_summary_cards.dart` (Header, MyTasksCard, GuestBanner, JoinCtaCard, LeaderboardCard, LeaderboardRow), `announcement_feed.dart` (AnnouncementCard, Dialog, TargetAudienceSelector, CommentBadge, DetailSheet, CommentsList).
+- `lib/features/reports/screens/report_bug_screen.dart` (iskelet) → `widgets/report_list.dart` (ReportTypeOption, ReportListTab, ReportCard), `report_detail_panel.dart` (ReportDetailView, ReportStatusActionButton).
+- `lib/features/team/screens/team_detail_screen.dart` (iskelet + `TeamCaptainRow`) → `widgets/team_scoreboard_tab.dart`, `team_units_tab.dart`, `team_members_tab.dart`.
+- `lib/features/admin/screens/admin_panel_screen.dart` (iskelet) → `widgets/admin_members_tab.dart`, `admin_team_unit_tab.dart`, `admin_applications_tab.dart`, `admin_pending_tab.dart`, `admin_stats_tab.dart`; yetkiler sekmesi `role_permission_screen.dart` içinde kaldı.
+- `lib/features/admin/screens/admin_member_detail_screen.dart` (iskelet) → `widgets/admin_member_widgets.dart` (HeaderCard, SectionTitle, RoleEditor, PointsEditor) + `admin_member_multi_role_sheet.dart` (çoklu rol sheet).

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 /// Assignment types for a cleaning-rotation slot.
 class CleaningAssignmentType {
@@ -70,8 +71,9 @@ class CleaningDates {
 
   static String humanRange(DateTime weekStart) {
     final end = weekStart.add(const Duration(days: 6));
-    String fmt(DateTime d) => '${d.day.toString().padLeft(2, '0')}.'
-        '${d.month.toString().padLeft(2, '0')}';
+    // Turkish month names: "17 Ağustos - 23 Ağustos". `Intl.defaultLocale`
+    // is set to 'tr_TR' on app startup (see main.dart).
+    String fmt(DateTime d) => DateFormat('d MMMM', 'tr_TR').format(d);
     return '${fmt(weekStart)} - ${fmt(end)}';
   }
 }

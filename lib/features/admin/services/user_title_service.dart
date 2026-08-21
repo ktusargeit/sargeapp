@@ -6,12 +6,31 @@ import '../../../core/providers/auth_providers.dart';
 
 const _uuid = Uuid();
 
+/// Role code priority, highest first. Used to keep the legacy `users/{uid}.role`
+/// field in sync with the user's highest active title so that Firestore/Storage
+/// rules (which read only the single `role` field) match what the app UI grants.
+const List<String> _rolePriority = [
+  TitleType.admin,
+  TitleType.boardPresident,
+  TitleType.boardMember,
+  TitleType.captain,
+  TitleType.unitLead,
+  TitleType.member,
+];
+
 /// Service for managing the `users/{uid}/titles` array.
 ///
 /// Titles can be added, "retired" (marked as former) or completely removed.
 /// The legacy `role` field is intentionally left untouched so that existing
 /// permission checks (`isAdmin`, `isUnitLead`) keep working exactly as before;
 /// `titles` provides the richer, historical view.
+///
+/// Because the Firestore and Storage security rules resolve permissions from
+/// the single `role` field (they cannot iterate over the `titles` array), every
+/// title mutation also reconciles `role` to the user's highest active title.
+/// Without this, granting e.g. a `unit_lead` or `captain` title would show the
+/// store/depo UI but the server-side rules would reject the writes with
+/// `permission-denied` / `firebase_storage/unauthorized`.
 class UserTitleService {
   final FirebaseFirestore _firestore;
 
@@ -57,6 +76,8 @@ class UserTitleService {
       'titles': FieldValue.arrayUnion([title.toMap()]),
     });
 
+    await _reconcileRole(uid);
+
     return title;
   }
 
@@ -89,6 +110,7 @@ class UserTitleService {
         txn.update(userRef, {'titles': updated});
       }
     });
+    await _reconcileRole(uid);
   }
 
   /// Retires the active `unit_lead` title for a specific [unitName].
@@ -125,6 +147,7 @@ class UserTitleService {
         txn.update(userRef, {'titles': updated});
       }
     });
+    await _reconcileRole(uid);
     return retired;
   }
 
@@ -147,6 +170,49 @@ class UserTitleService {
         txn.update(userRef, {'titles': updated});
       }
     });
+    await _reconcileRole(uid);
+  }
+
+  /// Upgrades the legacy `users/{uid}.role` field when a plain `member` user
+  /// now holds a privileged active title (e.g. `unit_lead`, `captain`). Firestore
+  /// and Storage rules resolve authorization from this single `role` field, so
+  /// without this sync a title-granted privilege would show in the UI but be
+  /// denied server-side with `permission-denied` / `firebase_storage/unauthorized`.
+  ///
+  /// This is intentionally a best-effort, upgrade-only operation:
+  ///  * It never downgrades an already-privileged role.
+  ///  * Failures are swallowed so a title mutation is never blocked by a role
+  ///    write the caller might not be authorized to perform.
+  Future<void> _reconcileRole(String uid) async {
+    try {
+      final snap = await _users().doc(uid).get();
+      if (!snap.exists) return;
+      final data = snap.data()!;
+      final currentRole = data['role'] as String? ?? 'member';
+      const privileged = {
+        TitleType.admin,
+        TitleType.boardPresident,
+        TitleType.boardMember,
+        TitleType.captain,
+        TitleType.unitLead,
+      };
+      if (privileged.contains(currentRole)) return;
+
+      final activeTitles = _titlesFromData(data).where((t) => t.isActive);
+      var newRole = TitleType.member;
+      for (final candidate in _rolePriority) {
+        if (activeTitles.any((t) => t.titleType == candidate)) {
+          newRole = candidate;
+          break;
+        }
+      }
+
+      if (newRole != TitleType.member && newRole != currentRole) {
+        await _users().doc(uid).update({'role': newRole});
+      }
+    } catch (_) {
+      // Best-effort: never let a failed role sync break the title operation.
+    }
   }
 
   /// Decodes the persisted `titles` list into [UserTitle] objects.
