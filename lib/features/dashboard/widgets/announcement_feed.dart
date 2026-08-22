@@ -647,6 +647,7 @@ class _AnnouncementDetailSheetState
   late final PresenceService _presenceService;
   final List<PendingMessage> _pendingComments = [];
   int _pendingCounter = 0;
+  final SmartChatScroller _scroller = SmartChatScroller(reverse: false);
 
   String get _threadKey =>
       threadKeyFor('announcement_comment', widget.announcement.id);
@@ -782,24 +783,28 @@ class _AnnouncementDetailSheetState
       minChildSize: 0.9,
       maxChildSize: 1.0,
       expand: true,
-      builder: (context, scrollController) => Padding(
-        padding: EdgeInsets.only(bottom: bottomInset),
-        child: Column(
-          children: [
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 10),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2),
+      builder: (context, scrollController) {
+        _scroller.attach(scrollController);
+        return Padding(
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 10),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            Expanded(
-              child: ListView(
-                controller: scrollController,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                children: [
+              Expanded(
+                child: Stack(
+                  children: [
+                    ListView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      children: [
                   Row(
                     children: [
                       Expanded(
@@ -918,12 +923,22 @@ class _AnnouncementDetailSheetState
                     onRetryPending: (pending) =>
                         _persistPendingComment(pending),
                     onReply: (data) => setState(() => _replyTo = data),
+                    onNewMessage: (isMine) =>
+                        _scroller.onNewMessage(isMine: isMine),
                   ),
-                  const SizedBox(height: 20),
-                ],
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                    Positioned.fill(
+                      child: ChatScrollOverlay(
+                        scroller: _scroller,
+                        accentColor: AppColors.panelBlue,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            if (widget.canComment)
+              if (widget.canComment)
               Container(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 decoration: BoxDecoration(
@@ -1040,9 +1055,10 @@ class _AnnouncementDetailSheetState
                   ],
                 ),
               ),
-          ],
-        ),
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -1053,6 +1069,7 @@ class AnnouncementCommentsList extends ConsumerStatefulWidget {
   final List<PendingMessage> pendingComments;
   final void Function(PendingMessage) onRetryPending;
   final void Function(Map<String, dynamic>) onReply;
+  final void Function(bool isMine)? onNewMessage;
   const AnnouncementCommentsList({
     super.key,
     required this.announcementId,
@@ -1060,6 +1077,7 @@ class AnnouncementCommentsList extends ConsumerStatefulWidget {
     this.pendingComments = const [],
     required this.onRetryPending,
     required this.onReply,
+    this.onNewMessage,
   });
 
   @override
@@ -1070,6 +1088,7 @@ class AnnouncementCommentsList extends ConsumerStatefulWidget {
 class _AnnouncementCommentsListState
     extends ConsumerState<AnnouncementCommentsList> {
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _stream;
+  int? _lastCount;
 
   @override
   void initState() {
@@ -1110,6 +1129,20 @@ class _AnnouncementCommentsListState
 
         final orderedComments = comments.reversed.toList();
         final combined = [...widget.pendingComments, ...orderedComments];
+
+        final totalCount = combined.length;
+        final previous = _lastCount;
+        if (previous != null && totalCount > previous) {
+          final isMine = widget.pendingComments.isNotEmpty ||
+              (orderedComments.isNotEmpty &&
+                  orderedComments.first.data()['senderUid'] ==
+                      widget.currentUid);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) widget.onNewMessage?.call(isMine);
+          });
+        }
+        _lastCount = totalCount;
+
         return ListView.builder(
           reverse: true,
           shrinkWrap: true,

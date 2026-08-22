@@ -6,6 +6,8 @@ import '../../../core/permissions/permission_system.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/safe_network_image.dart';
+import '../../team/models/team_models.dart';
+import '../../team/providers/team_providers.dart';
 
 class AdminMemberSectionLabel extends StatelessWidget {
   final String text;
@@ -298,43 +300,91 @@ class _AdminMemberPointsEditorState
 
   Future<void> _editPoints({required bool isAdd}) async {
     final amountCtrl = TextEditingController(text: '1');
-    final amount = await showDialog<String>(
+
+    // Teams the target user actually belongs to (for the team selector).
+    final allTeams = ref.read(clubTeamsProvider).valueOrNull ?? <ClubTeam>[];
+    final userTeams = allTeams
+        .where((t) => widget.user.teamIds.contains(t.id))
+        .toList();
+    String? selectedTeamId =
+        userTeams.isNotEmpty ? userTeams.first.id : null;
+
+    final result = await showDialog<Map<String, String?>>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(isAdd ? 'Puan Ekle' : 'Puan Düş'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '${widget.user.displayName} — mevcut puan: ${widget.user.points}.',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          return AlertDialog(
+            title: Text(isAdd ? 'Puan Ekle' : 'Puan Düş'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${widget.user.displayName} — mevcut puan: ${widget.user.points}.',
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                ),
+                const SizedBox(height: 12),
+                if (userTeams.isNotEmpty) ...[
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedTeamId,
+                    isExpanded: true,
+                    dropdownColor: AppColors.surface2,
+                    decoration: InputDecoration(
+                      labelText: 'Takım Seç',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    items: userTeams
+                        .map((t) => DropdownMenuItem<String>(
+                              value: t.id,
+                              child: Text(t.name,
+                                  overflow: TextOverflow.ellipsis),
+                            ))
+                        .toList(),
+                    onChanged: (v) => setDialogState(() => selectedTeamId = v),
+                  ),
+                  const SizedBox(height: 12),
+                ] else
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      'Kullanıcı herhangi bir takımda değil; puan genel olarak eklenecek.',
+                      style: TextStyle(
+                          color: AppColors.textSecondary, fontSize: 12),
+                    ),
+                  ),
+                TextField(
+                  controller: amountCtrl,
+                  autofocus: true,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: isAdd ? 'Eklenecek puan' : 'Düşülecek puan',
+                    hintText: 'Miktar girin (pozitif tam sayı)',
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: amountCtrl,
-              autofocus: true,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: isAdd ? 'Eklenecek puan' : 'Düşülecek puan',
-                hintText: 'Miktar girin (pozitif tam sayı)',
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('İptal'),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('İptal'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, amountCtrl.text.trim()),
-            child: const Text('Uygula'),
-          ),
-        ],
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, {
+                  'amount': amountCtrl.text.trim(),
+                  'teamId': selectedTeamId,
+                }),
+                child: const Text('Uygula'),
+              ),
+            ],
+          );
+        },
       ),
     );
 
-    if (amount == null) return;
+    if (result == null) return;
+    final amount = result['amount'] ?? '';
+    final selectedTeam = result['teamId'];
     final parsed = int.tryParse(amount) ?? 0;
     if (parsed <= 0) {
       if (mounted) {
@@ -347,6 +397,16 @@ class _AdminMemberPointsEditorState
     }
     final delta = isAdd ? parsed : -parsed;
 
+    ClubTeam? team;
+    if (selectedTeam != null && selectedTeam.isNotEmpty) {
+      for (final t in allTeams) {
+        if (t.id == selectedTeam) {
+          team = t;
+          break;
+        }
+      }
+    }
+
     setState(() => _busy = true);
     try {
       final currentUid = ref.read(authStateProvider).value?.uid;
@@ -356,6 +416,8 @@ class _AdminMemberPointsEditorState
           'targetName': widget.user.displayName,
           'delta': delta,
           'changedBy': currentUid,
+          if (team != null) 'teamId': team.id,
+          if (team != null) 'teamName': team.name,
           'createdAt': FieldValue.serverTimestamp(),
         });
       } catch (_) {}
@@ -364,13 +426,19 @@ class _AdminMemberPointsEditorState
           .read(firestoreProvider)
           .collection('users')
           .doc(widget.user.uid)
-          .update({'points': FieldValue.increment(delta)});
+          .update({
+        'points': FieldValue.increment(delta),
+        'weeklyPoints': FieldValue.increment(delta),
+        if (team != null)
+          'teamPoints.${team.id}': FieldValue.increment(delta),
+      });
 
       if (mounted) {
+        final teamLabel = team != null ? ' (${team.name})' : '';
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(isAdd
-              ? '$delta puan eklendi.'
-              : '${delta.abs()} puan düşüldü.'),
+              ? '$delta puan eklendi$teamLabel.'
+              : '${delta.abs()} puan düşüldü$teamLabel.'),
           backgroundColor: AppColors.success,
         ));
       }

@@ -23,7 +23,7 @@ class TeamScoreboardTab extends ConsumerWidget {
               child: Text('Bu takımda henüz üye yok.',
                   style: TextStyle(color: AppColors.textSecondary)));
         }
-        members.sort((a, b) => b.weeklyPoints.compareTo(a.weeklyPoints));
+        members.sort((a, b) => b.teamPointsFor(team.id).compareTo(a.teamPointsFor(team.id)));
         return ListView.separated(
           padding: const EdgeInsets.all(AppConstants.spacingMd),
           itemCount: members.length,
@@ -115,7 +115,7 @@ class TeamScoreboardTab extends ConsumerWidget {
                       border: Border.all(
                           color: AppColors.teamAccent.withValues(alpha: 0.4)),
                     ),
-                    child: Text('${user.weeklyPoints} puan',
+                    child: Text('Toplam: ${user.teamPointsFor(team.id)} puan',
                         style: const TextStyle(
                             color: AppColors.teamAccent,
                             fontSize: 13,

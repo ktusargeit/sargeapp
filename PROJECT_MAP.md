@@ -57,8 +57,8 @@ Projenin "haritası". Her yeni görevde önce bu dosya okunur ve gerektiğinde g
 
 ## 3. Firebase Yapısı (Firestore)
 
-- `users/{uid}` — `role` (member/unit_lead/admin/board_member/board_president), `displayName`, `points`, `weeklyPoints`, `teamIds`, `unitResponsibilities`, `titles`, `fcmToken`, vb.
-- `teams/{id}` — `name`, `description`, `photoUrl`, `memberIds`, `leadUid` (kaptan), `isActive`, `status` (`active`/`archived`), `period`, `story`, `photos` (hikaye galerisi), `pastMemberIds`.
+- `users/{uid}` — `role` (member/unit_lead/admin/board_member/board_president), `displayName`, `points` (global, geriye dönük), `weeklyPoints` (haftalık), `teamPoints` (takım bazlı toplam: `{teamId: toplam}`), `teamIds`, `unitResponsibilities`, `titles`, `fcmToken`, vb.
+- `teams/{id}` — `name`, `description`, `photoUrl`, `memberIds`, `leadUid` (kaptan), `isActive`, `status` (`active`/`archived`), `period`, `story`, `photos` (hikaye galerisi), `pastMemberIds`, `pastMemberNames` (sistemde kayıtlı olmayan geçmiş üyelerin serbest metin adları).
 - `units/{id}` — `teamId`, `name`, `description`, `memberUids`, `unitLeadUid` (birim sorumlusu), `createdAt`.
 - `tasks/{id}` — `title`, `description`, `assignedTo`, `assignedToName`, `assignedBy`, `assignedByName`, `points`, `status`, `teamId`, `teamName`, `unitId`, `unitName`, `pointsAwarded`, `imageUrl`, `createdAt`, `bulkGroupId` (toplu atamada aynı gruptaki tüm görevler aynı değeri taşır), `assignmentMode` (`single` | `team` | `unit`). Yorumlar: `tasks/{id}/comments/{commentId}`. Yorum dokümanı `senderUid`, `senderName`, `text`, `imageUrls`, `createdAt`, `isAdmin`, `replyToId`, `replyToText`, `replyToAuthor` içerir.
 - `announcements/{id}` — `title`, `description`, `imageUrl`, `createdBy`, `targetType`, `targetTeamIds`. Yorumlar alt koleksiyonda (aynı reply alanlarıyla).
@@ -70,7 +70,7 @@ Projenin "haritası". Her yeni görevde önce bu dosya okunur ve gerektiğinde g
  - `cleaning_meta/config` — temizlik başlangıç haftası (`startWeekKey`) + alışveriş listesi şablonu (`shoppingTemplate`).
  - `locations_backup_pre_migration/{id}` — lokasyon göçü öncesi yedek.
 - `club_info/info` — kulüp hikayesi + `galleryPhotos` + iletişim bilgileri (tek doküman).
-- `honorary_members/{id}` — `userId`, `note`, `addedDate`, `addedBy`.
+- `honorary_members/{id}` — `userId`, `note`, `story` (uzun hikaye/not), `photos` (galeri), `addedDate`, `addedBy`.
 - `role_permissions/{role}` — rol bazlı yetki override'ları (`permissions: []`).
 - `aboutSections/{id}`, `aboutMembers/{id}` — hakkımızda.
 - `contact/info` — iletişim bilgileri.
@@ -78,7 +78,9 @@ Projenin "haritası". Her yeni görevde önce bu dosya okunur ve gerektiğinde g
 - `notifications/{id}` — `recipientId`, `senderUid`, `senderName`, `title`, `body`, `isRead`, `type` (task_assigned, task_comment, task_submitted, team_application, announcement, announcement_comment, report_reply, cleaning vb.), `relatedId`, `count` (gruplu thread sayaç), `createdAt`/`updatedAt`.
 - `presence/{uid}` — `activeThreadId` (kullanıcının anlık açık tuttuğu `type:relatedId` thread anahtarı; bildirim/push bastırma için).
 - `fcm_tokens/{uid}` — cihaz FCM token'ı (client'tan gizli, sadece owner yazabilir).
-- `points_history/{id}` — puan geçmişi. `delta` (pozitif/negatif), `targetUid`, `targetName`, `changedBy`, `createdAt`. Açıklama (`reason`) alanı kaldırıldı (opsiyonel; mevcut eski kayıtlar bozulmaz).
+- `points_history/{id}` — puan geçmişi. `delta` (pozitif/negatif), `targetUid`, `targetName`, `changedBy`, `teamId` (opsiyonel), `teamName` (opsiyonel), `createdAt`. Açıklama (`reason`) alanı kaldırıldı (opsiyonel; mevcut eski kayıtlar bozulmaz).
+- `weekly_leaderboard_archive/{weekKey}` — biten haftanın `weeklyPoints` sıralamasının anlık arşivi (`weekStart`, `entries[]`). `resetWeeklyPoints` scheduled Cloud Function tarafından yazılır.
+- `weekly_meta/config` — haftalık sıfırlama metadata'sı: `lastResetWeekKey`, `lastResetAt` (Panel'de "Bu hafta: X'de sıfırlandı" metni).
 - `store_products/{id}` — Mağaza ürünü: `name`, `price`, `description`, `imageUrls` (ilk görsel kapak), `inStock`, `createdBy`, `createdAt`. Yazma: `manageStore` yetkisi; okuma: herkes.
 - `orders/{id}` — Mağaza siparişi: `userId`, `userName`, `productId`, `productName`, `price`, `receiptUrl` (dekont PDF), `note`, `status` (Ödeme Bekleniyor varsayılan), `createdAt`. Okuma: sahibi veya `manageStore`; oluşturma: giriş yapmış kullanıcı (kendi `userId`'si); durum güncelleme: `manageStore`.
 - `store_meta/settings` — Mağaza ayarları: `ibans` (string listesi). Yazma: `manageStore`; okuma: herkes.
@@ -93,6 +95,8 @@ Projenin "haritası". Her yeni görevde önce bu dosya okunur ve gerektiğinde g
 - Firestore kurallarında `isAdmin()` yalnızca `users/{uid}.role == 'admin'` kontrol eder.
 - **Hesap silme**: İstemci sadece Firebase Auth `user.delete()` çağırır (re-auth sonrası). Firestore/Storage temizliği `functions/` içindeki `cleanupDeletedUser` (`onUserDeleted`) Auth trigger'ı ile Admin SDK üzerinden yapılır — normal üye Firestore'da teams/units güncelleyemez veya kendi users doc'unu silemez (rules engeller).
 - **Toplu görev atama**: Takım/Birim modunda kaptan tüm birimlere atayabilir; birim sorumlusu yalnızca kendi birimine atayabilir (UI `_allowedUnitIdsFor` + firestore.rules `isCaptainOfTeam`/`isUnitLeadOfUnit`).
+- **Yönetim Kurulu görevleri**: Görev formunda Tekil Üye / Tüm Takım / Birim / "Yönetim Kurulu" segmentleri vardır. "Yönetim Kurulu" yalnızca kurul üyeleri (`board_member`) + başkan (`board_president`) + admin'e görünür; seçilince görev `assignmentMode: 'board'` + `teamId` boş olarak yalnızca kurul üyelerine atanır.
+- **Takım bazlı görev izolasyonu**: `tasks` okuma kuralı sıkılaştırıldı — admin/başkan + atanan kişi + aynı takım üyesi (`teams/{id}.memberIds`) + takım kaptanı görebilir; başka takımın görevi okunamaz. UI'da da görev listesi ve takım filtresi yalnızca kullanıcının kendi takımlarıyla sınırlıdır. `tasks` `assignmentMode` değeri artık `single | team | unit | board`.
 - **Rol/título senkronu**: Arayüz yetkileri `effectiveRoleCodes` ile `role` + `titles` birleşiminden hesaplanır, ancak Firestore/Storage kuralları yalnızca tek `users/{uid}.role` alanını okur. Bu yüzden `UserTitleService` her title mutasyonundan sonra `role` alanını en yüksek aktif title'a yükseltir (`_reconcileRole`, asla downgrade etmez). Aksi halde `store`/`depo` arayüzü görünür ama sunucu tarafında `permission-denied` / `firebase_storage/unauthorized` olur.
 
 ## 5. Sık Karışan Noktalar

@@ -367,10 +367,26 @@ class ReportCard extends ConsumerWidget {
                     ),
                   ],
                   const Spacer(),
-                  Text(
-                    report.submittedByName,
-                    style: TextStyle(
-                        color: AppColors.textSecondary, fontSize: 11),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        report.submittedByName,
+                        style: TextStyle(
+                            color: AppColors.textSecondary, fontSize: 11),
+                      ),
+                      if (report.createdAt != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          DateFormat('dd MMM yyyy, HH:mm', 'tr_TR')
+                              .format(report.createdAt!),
+                          style: TextStyle(
+                              color: AppColors.textSecondary
+                                  .withValues(alpha: 0.7),
+                              fontSize: 10),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),

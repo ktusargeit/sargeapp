@@ -30,6 +30,8 @@ class AboutScreen extends ConsumerWidget {
 
     final canEditStory =
         ref.watch(currentUserCanProvider(Permissions.editClubStory));
+    final canEditTeamStory =
+        ref.watch(currentUserCanProvider(Permissions.editTeamStory));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -119,8 +121,17 @@ class AboutScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 28),
 
-          const _SectionHeader(
-              title: 'GEÇMİŞ TAKIMLAR', icon: Icons.history_outlined),
+          _SectionHeader(
+            title: 'GEÇMİŞ TAKIMLAR',
+            icon: Icons.history_outlined,
+            trailing: canEditTeamStory
+                ? TextButton.icon(
+                    onPressed: () => _showAddArchivedTeamSheet(context),
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Geçmiş Takım Ekle'),
+                  )
+                : null,
+          ),
           const SizedBox(height: 10),
           teamsAsync.when(
             data: (teams) {
@@ -323,7 +334,9 @@ class _TeamCard extends ConsumerWidget {
     final canEditTeamStory =
         ref.watch(currentUserCanProvider(Permissions.editTeamStory));
 
-    return Container(
+    return GestureDetector(
+      onTap: () => _showTeamDetailSheet(context, team, canEditTeamStory),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -400,6 +413,7 @@ class _TeamCard extends ConsumerWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -611,7 +625,10 @@ class _HonoraryGrid extends ConsumerWidget {
       itemBuilder: (_, i) {
         final m = members[i];
         final user = byId[m.userId];
-        return _HonoraryCard(member: m, user: user);
+        return GestureDetector(
+          onTap: () => _showHonoraryDetailSheet(context, m, user),
+          child: _HonoraryCard(member: m, user: user),
+        );
       },
     );
   }
@@ -949,4 +966,670 @@ Future<void> _editTeamStory(BuildContext context, ClubTeam team) async {
       ),
     ),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Team detail sheet (story + gallery + members) — opens on card tap
+// ---------------------------------------------------------------------------
+
+Future<void> _showTeamDetailSheet(
+    BuildContext context, ClubTeam team, bool canEdit) async {
+  await showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: AppColors.surface,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+    builder: (_) => _TeamDetailSheet(team: team, canEdit: canEdit),
+  );
+}
+
+class _TeamDetailSheet extends ConsumerWidget {
+  final ClubTeam team;
+  final bool canEdit;
+  const _TeamDetailSheet({required this.team, required this.canEdit});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final usersAsync = ref.watch(allUsersProvider);
+    final allUsers = usersAsync.valueOrNull ?? const <AppUser>[];
+    final memberIds = {...team.memberIds, ...team.pastMemberIds}.toList();
+    final members = allUsers.where((u) => memberIds.contains(u.uid)).toList();
+    final freeNames = team.pastMemberNames;
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    team.name,
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.close, color: AppColors.textSecondary),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            if (team.period != null && team.period!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _PeriodBadge(period: team.period!, isPast: team.isArchived),
+              ),
+            if (team.description.isNotEmpty)
+              Text(team.description,
+                  style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                      height: 1.5)),
+            if (team.story != null && team.story!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(team.story!,
+                  style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                      height: 1.6)),
+            ],
+            if (team.photos.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _TeamGallery(photos: team.photos),
+            ],
+            if (members.isNotEmpty || freeNames.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text('ÜYELER',
+                  style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  ...members.map((m) => _MemberChip(team: team, user: m)),
+                  ...freeNames.map((n) => Chip(
+                        label: Text(n,
+                            style: TextStyle(
+                                color: AppColors.textPrimary, fontSize: 12)),
+                        backgroundColor: AppColors.surface2,
+                      )),
+                ],
+              ),
+            ],
+            if (canEdit) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _editTeamStory(context, team);
+                  },
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: const Text('Hikaye/Galeriyi Düzenle'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Honorary member detail sheet (gallery + story + profile link)
+// ---------------------------------------------------------------------------
+
+Future<void> _showHonoraryDetailSheet(
+    BuildContext context, HonoraryMember member, AppUser? user) async {
+  await showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: AppColors.surface,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+    builder: (_) => _HonoraryDetailSheet(member: member, user: user),
+  );
+}
+
+class _HonoraryDetailSheet extends ConsumerWidget {
+  final HonoraryMember member;
+  final AppUser? user;
+  const _HonoraryDetailSheet({required this.member, required this.user});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final canEdit =
+        ref.watch(currentUserCanProvider(Permissions.addHonoraryMember));
+    final name = user?.displayName ?? 'Bilinmiyor';
+    final photoUrl = user?.photoUrl;
+    final hasProfile = member.userId.isNotEmpty && user != null;
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                SafeAvatar(url: photoUrl, radius: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(name,
+                      style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700)),
+                ),
+                IconButton(
+                  icon: Icon(Icons.close, color: AppColors.textSecondary),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            if (member.note.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(member.note,
+                  style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                      height: 1.4)),
+            ],
+            if (member.story.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(member.story,
+                  style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                      height: 1.6)),
+            ],
+            if (member.photos.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _HonoraryGallery(photos: member.photos),
+            ],
+            const SizedBox(height: 16),
+            if (hasProfile)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    context.push('/profile/${member.userId}');
+                  },
+                  icon: const Icon(Icons.person_outline, size: 18),
+                  label: const Text('Profili Gör'),
+                ),
+              ),
+            if (canEdit) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _editHonoraryStory(context, member);
+                  },
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: const Text('Hikaye/Galeriyi Düzenle'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HonoraryGallery extends StatelessWidget {
+  final List<String> photos;
+  const _HonoraryGallery({required this.photos});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 90,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: photos.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (_, i) => GestureDetector(
+          onTap: () => showFullScreenImageViewer(
+            context,
+            urls: photos,
+            initialIndex: i,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(
+              width: 90,
+              height: 90,
+              child: SafeNetworkImage(
+                url: photos[i],
+                fit: BoxFit.cover,
+                showLoadingIndicator: false,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _editHonoraryStory(
+    BuildContext context, HonoraryMember member) async {
+  final storyCtrl = TextEditingController(text: member.story);
+  final existingPhotos = List<String>.from(member.photos);
+  final newPhotos = <PickedImage>[];
+  bool saving = false;
+  bool picking = false;
+
+  Future<List<String>> uploadNewPhotos() async {
+    final uploaded = <String>[];
+    for (var i = 0; i < newPhotos.length; i++) {
+      final img = newPhotos[i];
+      final ts = DateTime.now().microsecondsSinceEpoch;
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('honorary_members/${member.id}_${ts}_$i.jpg');
+      final compressed = await img.compressedUploadBytes();
+      if (compressed.isNotEmpty) {
+        await ref.putData(compressed);
+      } else if (img.bytes != null) {
+        await ref.putData(img.bytes!);
+      } else if (img.dartFile != null) {
+        await ref.putFile(img.dartFile!);
+      }
+      uploaded.add(await ref.getDownloadURL());
+    }
+    return uploaded;
+  }
+
+  await showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setDialogState) => AlertDialog(
+        title: const Text('Onursal Üye Hikayesi'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: storyCtrl,
+                maxLines: 6,
+                style: TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(labelText: 'Hikaye / Not'),
+              ),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('GÖRSELLER',
+                    style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2)),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ...existingPhotos.map((url) => Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              url,
+                              width: 72,
+                              height: 72,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 72,
+                                height: 72,
+                                color: AppColors.surface2,
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: GestureDetector(
+                              onTap: () => setDialogState(
+                                  () => existingPhotos.remove(url)),
+                              child: Container(
+                                decoration: const BoxDecoration(
+                                  color: Colors.black54,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.close,
+                                    size: 16, color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )),
+                  ...newPhotos.map((p) {
+                    ImageProvider? provider;
+                    if (kIsWeb && p.bytes != null) {
+                      provider = MemoryImage(p.bytes!);
+                    } else if (p.dartFile != null) {
+                      provider = FileImage(p.dartFile!);
+                    }
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: provider != null
+                          ? Image(image: provider,
+                              width: 72, height: 72, fit: BoxFit.cover)
+                          : Container(
+                              width: 72,
+                              height: 72,
+                              color: AppColors.surface2),
+                    );
+                  }),
+                ],
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: picking
+                    ? null
+                    : () async {
+                        setDialogState(() => picking = true);
+                        final imgs = await PickedImage.pickMultiple();
+                        if (imgs.isNotEmpty) {
+                          setDialogState(() => newPhotos.addAll(imgs));
+                        }
+                        setDialogState(() => picking = false);
+                      },
+                icon: picking
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.add_photo_alternate_outlined, size: 18),
+                label: const Text('Görsel Ekle'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: saving ? null : () => Navigator.pop(ctx),
+              child: const Text('İptal')),
+          ElevatedButton(
+            onPressed: saving
+                ? null
+                : () async {
+                    setDialogState(() => saving = true);
+                    final container = ProviderScope.containerOf(ctx, listen: false);
+                    try {
+                      final uploaded = await uploadNewPhotos();
+                      final repo = container.read(clubInfoRepositoryProvider);
+                      await repo.updateHonoraryMemberStory(
+                        id: member.id,
+                        story: storyCtrl.text.trim(),
+                        photos: [...existingPhotos, ...uploaded],
+                      );
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    } catch (e) {
+                      setDialogState(() => saving = false);
+                      if (ctx.mounted) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                          content: Text('Kaydedilemedi: $e'),
+                          backgroundColor: AppColors.error,
+                        ));
+                      }
+                    }
+                  },
+            child: const Text('Kaydet'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// "+ Geçmiş Takım Ekle" sheet
+// ---------------------------------------------------------------------------
+
+Future<void> _showAddArchivedTeamSheet(BuildContext context) async {
+  await showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: AppColors.surface,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+    builder: (_) => const _AddArchivedTeamSheet(),
+  );
+}
+
+class _AddArchivedTeamSheet extends ConsumerStatefulWidget {
+  const _AddArchivedTeamSheet();
+  @override
+  ConsumerState<_AddArchivedTeamSheet> createState() =>
+      _AddArchivedTeamSheetState();
+}
+
+class _AddArchivedTeamSheetState extends ConsumerState<_AddArchivedTeamSheet> {
+  final _nameCtrl = TextEditingController();
+  final _periodCtrl = TextEditingController();
+  final _freeTextCtrl = TextEditingController();
+  final Set<String> _selectedUids = {};
+  final List<String> _freeTextNames = [];
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _periodCtrl.dispose();
+    _freeTextCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_nameCtrl.text.trim().isEmpty) return;
+    setState(() => _saving = true);
+    try {
+      final repo = ref.read(clubInfoRepositoryProvider);
+      final addedBy = ref.read(currentAppUserProvider).value?.uid ?? '';
+      await repo.createArchivedTeam(
+        name: _nameCtrl.text.trim(),
+        period: _periodCtrl.text.trim(),
+        memberIds: _selectedUids.toList(),
+        freeTextMembers: _freeTextNames,
+        createdBy: addedBy,
+      );
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Geçmiş takım eklendi.'),
+          backgroundColor: AppColors.success,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Eklenemedi: $e'),
+          backgroundColor: AppColors.error,
+        ));
+      }
+    }
+  }
+
+  void _addFreeText() {
+    final v = _freeTextCtrl.text.trim();
+    if (v.isEmpty) return;
+    setState(() {
+      if (!_freeTextNames.contains(v)) _freeTextNames.add(v);
+      _freeTextCtrl.clear();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final usersAsync = ref.watch(allUsersProvider);
+    final allUsers = usersAsync.valueOrNull ?? const <AppUser>[];
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.9,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text('Geçmiş Takım Ekle',
+                        style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600)),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close, color: AppColors.textSecondary),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _nameCtrl,
+                style: TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(labelText: 'Takım Adı'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _periodCtrl,
+                style: TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(
+                    labelText: 'Dönem / Yıl (örn: 2019-2020)'),
+              ),
+              const SizedBox(height: 12),
+              Text('ÜYELER (sistemden seç)',
+                  style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.1)),
+              const SizedBox(height: 6),
+              Flexible(
+                child: usersAsync.when(
+                  data: (_) {
+                    if (allUsers.isEmpty) {
+                      return Text('Kayıtlı kullanıcı yok.',
+                          style: TextStyle(color: AppColors.textSecondary));
+                    }
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: allUsers.length,
+                      itemBuilder: (_, i) {
+                        final u = allUsers[i];
+                        final selected = _selectedUids.contains(u.uid);
+                        return CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          title: Text(u.displayName,
+                              style: TextStyle(color: AppColors.textPrimary)),
+                          subtitle: Text(u.email,
+                              style: TextStyle(color: AppColors.textSecondary)),
+                          value: selected,
+                          onChanged: (v) => setState(() {
+                            if (v == true) {
+                              _selectedUids.add(u.uid);
+                            } else {
+                              _selectedUids.remove(u.uid);
+                            }
+                          }),
+                        );
+                      },
+                    );
+                  },
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Text('Hata: $e'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _freeTextCtrl,
+                      style: TextStyle(color: AppColors.textPrimary),
+                      decoration: const InputDecoration(
+                          hintText: 'Sistemde olmayan üye adı'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _addFreeText,
+                    icon: const Icon(Icons.add_circle_outline,
+                        color: AppColors.primaryGreen),
+                  ),
+                ],
+              ),
+              if (_freeTextNames.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: _freeTextNames
+                      .map((n) => Chip(
+                            label: Text(n,
+                                style: TextStyle(
+                                    color: AppColors.textPrimary, fontSize: 12)),
+                            onDeleted: () =>
+                                setState(() => _freeTextNames.remove(n)),
+                          ))
+                      .toList(),
+                ),
+              ],
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _saving ? null : _save,
+                  child: _saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Text('Oluştur'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

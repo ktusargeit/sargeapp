@@ -9,17 +9,76 @@ import '../../../core/utils/image_utils.dart';
 import '../../admin/services/user_title_service.dart';
 import '../models/team_models.dart';
 
-/// Stream of all users ordered by points descending (weekly leaderboard).
-/// Stream of users that belong to at least one team, ordered by points descending.
+/// Stream of all users for the weekly leaderboard.
+///
+/// Ordered by `weeklyPoints` descending. The order is enforced server-side via
+/// `orderBy` and then re-asserted client-side so the rendered ranking can never
+/// drift from the actual point value.
 final leaderboardProvider = StreamProvider<List<LeaderboardEntry>>((ref) {
   final firestore = ref.watch(firestoreProvider);
   return firestore
       .collection('users')
       .orderBy('weeklyPoints', descending: true)
       .snapshots()
-      .map((snap) => snap.docs
-          .map((d) => LeaderboardEntry.fromDoc(d))
-          .toList());
+      .map((snap) {
+    final entries =
+        snap.docs.map((d) => LeaderboardEntry.fromDoc(d)).toList();
+    entries.sort((a, b) => b.weeklyPoints.compareTo(a.weeklyPoints));
+    return entries;
+  });
+});
+
+/// Monday-anchored `YYYY-MM-DD` week key, mirroring the cleaning module's
+/// `weekKey` concept (Monday = 0). Used as the id for `weekly_leaderboard_archive`.
+String leaderboardWeekKey(DateTime date) {
+  final day = DateTime(date.year, date.month, date.day);
+  final monday = day.subtract(Duration(days: day.weekday - 1));
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${monday.year.toString().padLeft(4, '0')}-${two(monday.month)}-${two(monday.day)}';
+}
+
+/// Stream of existing archived week keys, newest first.
+final weeklyArchiveWeeksProvider = StreamProvider<List<String>>((ref) {
+  final firestore = ref.watch(firestoreProvider);
+  return firestore
+      .collection('weekly_leaderboard_archive')
+      .orderBy('weekStart', descending: true)
+      .snapshots()
+      .map((snap) => snap.docs.map((d) => d.id).toList());
+});
+
+/// Stream of a single archived week's leaderboard, sorted by the archived
+/// weekly points descending.
+final weeklyArchiveLeaderboardProvider =
+    StreamProvider.family<List<LeaderboardEntry>, String>((ref, weekKey) {
+  if (weekKey.isEmpty) return Stream.value(const <LeaderboardEntry>[]);
+  final firestore = ref.watch(firestoreProvider);
+  return firestore
+      .collection('weekly_leaderboard_archive')
+      .doc(weekKey)
+      .snapshots()
+      .map((doc) {
+    if (!doc.exists) return const <LeaderboardEntry>[];
+    final entries = (doc.data()?['entries'] as List?)
+            ?.map((e) => LeaderboardEntry.fromArchiveMap(
+                Map<String, dynamic>.from(e as Map)))
+            .toList() ??
+        const <LeaderboardEntry>[];
+    final list = List<LeaderboardEntry>.from(entries);
+    list.sort((a, b) => b.weeklyPoints.compareTo(a.weeklyPoints));
+    return list;
+  });
+});
+
+/// Weekly reset metadata (`lastResetAt`, `lastResetWeekKey`) written by the
+/// `resetWeeklyPoints` scheduled Cloud Function.
+final weeklyMetaProvider = StreamProvider<Map<String, dynamic>>((ref) {
+  final firestore = ref.watch(firestoreProvider);
+  return firestore
+      .collection('weekly_meta')
+      .doc('config')
+      .snapshots()
+      .map((doc) => doc.exists ? doc.data()! : const <String, dynamic>{});
 });
 
 /// Stream of users currently checked-in to the workshop.
@@ -50,16 +109,41 @@ final clubTeamsProvider = StreamProvider<List<ClubTeam>>((ref) {
       );
 });
 
+/// Stream of Yönetim Kurulu (board) members — users whose `role` is
+/// `board_president` or `board_member`. Used exclusively by the gold-themed
+/// "Yönetim Kurulu" card on the Takımım screen.
+final boardMembersProvider = StreamProvider<List<AppUser>>((ref) {
+  final firestore = ref.watch(firestoreProvider);
+  return firestore
+      .collection('users')
+      .where('role', whereIn: ['board_president', 'board_member'])
+      .snapshots()
+      .map((snap) {
+        final members = snap.docs.map((d) => AppUser.fromDoc(d)).toList();
+        members.sort((a, b) {
+          // Başkan en üstte, sonra isme göre.
+          int rank(AppUser u) =>
+              u.role == 'board_president' ? 0 : 1;
+          final r = rank(a).compareTo(rank(b));
+          if (r != 0) return r;
+          return a.displayName.compareTo(b.displayName);
+        });
+        return members;
+      });
+});
+
 class TeamRepository {
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
 
   TeamRepository(this._firestore) : _storage = FirebaseStorage.instance;
 
-  Future<void> addPoints(String uid, int amount) async {
+  Future<void> addPoints(String uid, int amount, {String? teamId}) async {
     await _firestore.collection('users').doc(uid).update({
       'points': FieldValue.increment(amount),
       'weeklyPoints': FieldValue.increment(amount),
+      if (teamId != null && teamId.isNotEmpty)
+        'teamPoints.$teamId': FieldValue.increment(amount),
     });
   }
 

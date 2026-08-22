@@ -44,6 +44,8 @@ class ClubInfoRepository {
     await _firestore.collection('honorary_members').add({
       'userId': userId,
       'note': note.trim(),
+      'story': '',
+      'photos': <String>[],
       'addedDate': FieldValue.serverTimestamp(),
       'addedBy': addedBy,
     });
@@ -55,8 +57,48 @@ class ClubInfoRepository {
     });
   }
 
+  /// Updates the extended story + gallery photos of an honorary member.
+  Future<void> updateHonoraryMemberStory({
+    required String id,
+    required String story,
+    required List<String> photos,
+  }) async {
+    await _firestore.collection('honorary_members').doc(id).update({
+      'story': story.trim(),
+      'photos': photos,
+    });
+  }
+
   Future<void> removeHonoraryMember(String id) async {
     await _firestore.collection('honorary_members').doc(id).delete();
+  }
+
+  /// Creates a brand-new archived ("past") team directly, without it ever
+  /// appearing in the active team list.
+  Future<String> createArchivedTeam({
+    required String name,
+    required String period,
+    required List<String> memberIds,
+    required List<String> freeTextMembers,
+    required String createdBy,
+  }) async {
+    final docRef = await _firestore.collection('teams').add({
+      'name': name.trim(),
+      'description': '',
+      'photoUrl': null,
+      'status': 'archived',
+      'isActive': false,
+      'period': period.trim().isEmpty ? null : period.trim(),
+      'story': null,
+      'photos': <String>[],
+      'memberIds': memberIds,
+      'pastMemberIds': <String>[],
+      'pastMemberNames': freeTextMembers,
+      'leadUid': null,
+      'createdAt': FieldValue.serverTimestamp(),
+      'createdBy': createdBy,
+    });
+    return docRef.id;
   }
 }
 

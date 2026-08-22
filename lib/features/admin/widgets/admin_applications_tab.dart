@@ -54,17 +54,28 @@ class AdminApplicationsTab extends ConsumerWidget {
                           onPressed: () async {
                             final teamId = app['teamId'] as String?;
                             final uid = app['applicantUid'] as String?;
+                            final firestore = ref.read(firestoreProvider);
                             if (teamId != null && uid != null) {
-                              await ref
-                                  .read(firestoreProvider)
-                                  .collection('teams')
-                                  .doc(teamId)
-                                  .update({
-                                'memberIds': FieldValue.arrayUnion([uid]),
-                              });
+                              // Atomik (batch): hem `teams/{id}.memberIds`
+                              // hem de `users/{uid}.teamIds` güncellenir —
+                              // böylece iki kaynak asla senkronsuz kalmaz.
+                              final batch = firestore.batch();
+                              batch.update(
+                                firestore.collection('teams').doc(teamId),
+                                {
+                                  'memberIds':
+                                      FieldValue.arrayUnion([uid]),
+                                },
+                              );
+                              batch.update(
+                                firestore.collection('users').doc(uid),
+                                {
+                                  'teamIds': FieldValue.arrayUnion([teamId]),
+                                },
+                              );
+                              await batch.commit();
                             }
-                            await ref
-                                .read(firestoreProvider)
+                            await firestore
                                 .collection('teamApplications')
                                 .doc(app['id'] as String)
                                 .update({'status': 'approved'});

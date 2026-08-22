@@ -613,3 +613,225 @@ class CommentTile extends ConsumerWidget {
     );
   }
 }
+
+/// Smart-scroll controller shared by every chat/comment area.
+///
+/// Implements the WhatsApp/Telegram behaviour:
+///  * when the user is at the bottom (or the message is their own), new
+///    messages auto-scroll the list to the bottom;
+///  * when the user has scrolled up to read older messages, incoming messages
+///    are NOT scrolled into view — instead the "new message" counter grows and
+///    the floating indicator/button is shown.
+class SmartChatScroller extends ChangeNotifier {
+  SmartChatScroller({this.reverse = false, this.bottomThreshold = 100});
+
+  /// Whether the underlying list is a `reverse: true` list. For reversed lists
+  /// the visual "bottom" (latest messages) is at scroll offset 0.
+  final bool reverse;
+
+  /// Distance in logical pixels within which the user is considered "at bottom".
+  final double bottomThreshold;
+
+  ScrollController? _controller;
+  bool _isAtBottom = true;
+  int _newMessageCount = 0;
+
+  bool get isAtBottom => _isAtBottom;
+  int get newMessageCount => _newMessageCount;
+
+  /// Bind to the [ScrollController] of the scrollable that shows the messages.
+  ///
+  /// Safe to call multiple times (and from build) — it detaches from a previous
+  /// controller and only re-evaluates the position after the current frame.
+  void attach(ScrollController controller) {
+    if (identical(_controller, controller)) return;
+    _controller?.removeListener(_onScroll);
+    _controller = controller;
+    controller.addListener(_onScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_controller == controller) _onScroll();
+    });
+  }
+
+  void _onScroll() {
+    final c = _controller;
+    bool atBottom;
+    if (c == null || !c.hasClients) {
+      atBottom = true;
+    } else {
+      final pixels = c.position.pixels;
+      final max = c.position.maxScrollExtent;
+      atBottom = reverse
+          ? pixels <= bottomThreshold
+          : (max - pixels) <= bottomThreshold;
+    }
+
+    var changed = false;
+    if (atBottom != _isAtBottom) {
+      _isAtBottom = atBottom;
+      changed = true;
+    }
+    // Reaching the bottom means the user has "caught up" — clear the counter.
+    if (atBottom && _newMessageCount != 0) {
+      _newMessageCount = 0;
+      changed = true;
+    }
+    if (changed) notifyListeners();
+  }
+
+  /// React to a newly arrived message.
+  ///
+  /// [isMine] should be true when the current user wrote the message.
+  void onNewMessage({required bool isMine}) {
+    if (isMine || _isAtBottom) {
+      scrollToBottom();
+    } else {
+      _newMessageCount++;
+      notifyListeners();
+    }
+  }
+
+  /// Smoothly scroll to the bottom and reset the "new message" counter.
+  void scrollToBottom() {
+    final c = _controller;
+    if (c != null && c.hasClients) {
+      final target = reverse ? 0.0 : c.position.maxScrollExtent;
+      c.animateTo(
+        target,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      ).catchError((_) {});
+    }
+    if (_newMessageCount != 0) {
+      _newMessageCount = 0;
+    }
+    if (!_isAtBottom) {
+      _isAtBottom = true;
+    }
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _controller?.removeListener(_onScroll);
+    super.dispose();
+  }
+}
+
+/// Floating "new message" badge + "scroll down" button overlay.
+///
+/// Place this inside a `Stack` that wraps the message list so the controls
+/// float above the list (just above the compose input). The controls are
+/// hidden automatically while the user is at the bottom.
+class ChatScrollOverlay extends StatelessWidget {
+  final SmartChatScroller scroller;
+  final Color accentColor;
+
+  const ChatScrollOverlay({
+    super.key,
+    required this.scroller,
+    this.accentColor = AppColors.panelBlue,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: scroller,
+      builder: (context, _) {
+        final atBottom = scroller.isAtBottom;
+        final count = scroller.newMessageCount;
+        if (atBottom) return const SizedBox.shrink();
+        return Align(
+          alignment: Alignment.bottomRight,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 14, bottom: 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (count > 0) ...[
+                  _NewMessageBadge(count: count, onTap: scroller.scrollToBottom),
+                  const SizedBox(height: 8),
+                ],
+                _ScrollToBottomButton(
+                  onTap: scroller.scrollToBottom,
+                  accentColor: accentColor,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _NewMessageBadge extends StatelessWidget {
+  final int count;
+  final VoidCallback onTap;
+  const _NewMessageBadge({required this.count, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.panelBlue,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.arrow_downward_rounded,
+                size: 16, color: Colors.white),
+            const SizedBox(width: 6),
+            Text(
+              '$count yeni mesaj',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScrollToBottomButton extends StatelessWidget {
+  final VoidCallback onTap;
+  final Color accentColor;
+  const _ScrollToBottomButton({required this.onTap, required this.accentColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: accentColor,
+      shape: const CircleBorder(),
+      elevation: 4,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(color: accentColor, shape: BoxShape.circle),
+          child: const Icon(Icons.arrow_downward_rounded,
+              size: 22, color: Colors.white),
+        ),
+      ),
+    );
+  }
+}

@@ -95,6 +95,7 @@ class AuthController {
         'points': 0,
         'weeklyPoints': 0,
         'prevWeeklyPoints': 0,
+        'teamPoints': <String, int>{},
         'photoUrl': null,
         'bio': null,
         'department': null,

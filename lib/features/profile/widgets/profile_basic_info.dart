@@ -304,28 +304,6 @@ class ProfileIdentityShowcase extends StatelessWidget {
             label: rankLabel,
             color: rankColor,
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: ProfileStatBadge(
-                  icon: Icons.emoji_events_outlined,
-                  label: 'Toplam Puan',
-                  value: '${user.points}',
-                  color: AppColors.sargeGold,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ProfileStatBadge(
-                  icon: Icons.auto_awesome,
-                  label: 'Haftalık Puan',
-                  value: '${user.weeklyPoints}',
-                  color: AppColors.primaryGreen,
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );

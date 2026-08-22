@@ -505,6 +505,77 @@ export const notifyCleaningWeek = onSchedule(
   }
 );
 
+// Every Monday at 00:00 Europe/Istanbul:
+//  1. Archive the just-finished week's `weeklyPoints` (per user) into
+//     `weekly_leaderboard_archive/{weekKey}` so the UI can browse past weeks.
+//  2. Reset every user's `weeklyPoints` to 0 (total `points` / `teamPoints`
+//     are left untouched).
+//  3. Record the reset timestamp + week key in `weekly_meta/config`.
+export const resetWeeklyPoints = onSchedule(
+  {
+    schedule: "0 0 * * 1",
+    timeZone: "Europe/Istanbul",
+  },
+  async () => {
+    const db = admin.firestore();
+
+    // The week that is ENDING is the one starting on the previous Monday.
+    const now = new Date();
+    const mondayOfCurrent = weekKeyOf(now);
+    const [y, m, d] = mondayOfCurrent.split("-").map(Number);
+    const prevMonday = new Date(y, m - 1, d - 7);
+    const py = prevMonday.getFullYear();
+    const pm = String(prevMonday.getMonth() + 1).padStart(2, "0");
+    const pd = String(prevMonday.getDate()).padStart(2, "0");
+    const endingWeekKey = `${py}-${pm}-${pd}`;
+
+    // 1) Archive users who earned anything this week.
+    const usersSnap = await db
+      .collection("users")
+      .where("weeklyPoints", ">", 0)
+      .get();
+
+    const entries = usersSnap.docs.map((doc) => {
+      const data = doc.data() || {};
+      return {
+        uid: doc.id,
+        displayName: data.displayName || "İsimsiz Üye",
+        points: Number(data.weeklyPoints) || 0,
+        photoUrl: data.photoUrl || null,
+      };
+    });
+
+    if (entries.length > 0) {
+      entries.sort((a, b) => b.points - a.points);
+      await db.collection("weekly_leaderboard_archive").doc(endingWeekKey).set({
+        weekKey: endingWeekKey,
+        weekStart: prevMonday,
+        entries,
+        archivedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    // 2) Reset weekly points (total `points` and `teamPoints` are untouched).
+    const batch = db.batch();
+    for (const doc of usersSnap.docs) {
+      batch.update(doc.ref, { weeklyPoints: 0 });
+    }
+    if (usersSnap.docs.length > 0) {
+      await batch.commit();
+    }
+
+    // 3) Persist reset metadata for the UI ("Bu hafta: X'de sıfırlandı").
+    await db.collection("weekly_meta").doc("config").set({
+      lastResetWeekKey: endingWeekKey,
+      lastResetAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    console.log(
+      `Weekly points archived (${entries.length} users) and reset for week ${endingWeekKey}`
+    );
+  }
+);
+
 export const cleanupDeletedUser = v1.auth.user().onDelete(async (user) => {
   const uid = user.uid;
   const db = admin.firestore();

@@ -77,7 +77,7 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
   late final PresenceService _presenceService;
   final List<PendingMessage> _pendingMessages = [];
   int _pendingCounter = 0;
-  ScrollController? _scrollController;
+  final SmartChatScroller _scroller = SmartChatScroller(reverse: false);
   int _lastMsgCount = 0;
   late final Stream<DocumentSnapshot<Map<String, dynamic>>> _reportStream;
 
@@ -278,19 +278,13 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
         final messages = report.messages;
         final currentUid = ref.read(authStateProvider).value?.uid;
 
-        final msgCount = messages.length;
-        if (_scrollController != null && msgCount > _lastMsgCount) {
+        final msgCount = messages.length + _pendingMessages.length;
+        if (msgCount > _lastMsgCount) {
+          final isMine = _pendingMessages.isNotEmpty ||
+              (messages.isNotEmpty &&
+                  messages.last['senderUid'] == currentUid);
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted || _scrollController == null) return;
-            if (_scrollController!.hasClients) {
-              _scrollController!
-                  .animateTo(
-                    _scrollController!.position.maxScrollExtent,
-                    duration: const Duration(milliseconds: 250),
-                    curve: Curves.easeOut,
-                  )
-                  .catchError((_) {});
-            }
+            if (mounted) _scroller.onNewMessage(isMine: isMine);
           });
         }
         _lastMsgCount = msgCount;
@@ -301,7 +295,7 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
           maxChildSize: 1.0,
           expand: false,
           builder: (context, scrollController) {
-            _scrollController = scrollController;
+            _scroller.attach(scrollController);
             return Column(
               children: [
                 Padding(
@@ -318,10 +312,12 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
                   ),
                 ),
                 Expanded(
-                  child: ListView(
-                    controller: scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Stack(
                     children: [
+                      ListView(
+                        controller: scrollController,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        children: [
                       Row(
                         children: [
                           Icon(reportStatusIcon(report),
@@ -392,6 +388,22 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
                             style: TextStyle(
                                 color: AppColors.textSecondary, fontSize: 12),
                           ),
+                          if (report.createdAt != null) ...[
+                            const SizedBox(width: 8),
+                            Icon(Icons.schedule,
+                                size: 12,
+                                color: AppColors.textSecondary
+                                    .withValues(alpha: 0.7)),
+                            const SizedBox(width: 2),
+                            Text(
+                              DateFormat('dd MMM yyyy, HH:mm', 'tr_TR')
+                                  .format(report.createdAt!),
+                              style: TextStyle(
+                                  color: AppColors.textSecondary
+                                      .withValues(alpha: 0.7),
+                                  fontSize: 11),
+                            ),
+                          ],
                         ],
                       ),
                       if (report.message.isNotEmpty) ...[
@@ -568,8 +580,16 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
                       ],
                     ],
                   ),
+                    Positioned.fill(
+                      child: ChatScrollOverlay(
+                        scroller: _scroller,
+                        accentColor: AppColors.panelBlue,
+                      ),
+                    ),
+                  ],
                 ),
-                Container(
+              ),
+              Container(
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     border: Border(top: BorderSide(color: AppColors.border)),

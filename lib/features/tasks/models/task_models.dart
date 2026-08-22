@@ -31,8 +31,8 @@ class TaskModel {
   final String? imageUrl;         // task image (uploaded by creator)
   final DateTime? completedAt;    // when submitted/completed (for 24h "recent" window)
   final List<Map<String, dynamic>> comments; // [{senderUid, senderName, text, imageUrl, createdAt, isAdmin}]
-  final String? bulkGroupId;      // groups tasks created in one bulk assignment (team/unit)
-  final String? assignmentMode;   // 'single' | 'team' | 'unit'
+  final String? bulkGroupId;      // groups tasks created in one bulk assignment (team/unit/board)
+  final String? assignmentMode;   // 'single' | 'team' | 'unit' | 'board'
 
   const TaskModel({
     required this.id,
@@ -91,6 +91,10 @@ class TaskModel {
   }
 
   int get commentCount => comments.length;
+
+  /// Whether this task was created via the "Yönetim Kurulu" assignment mode
+  /// (targets board members only, carries no `teamId`).
+  bool get isBoardTask => assignmentMode == 'board';
 
   String get statusText {
     switch (status) {

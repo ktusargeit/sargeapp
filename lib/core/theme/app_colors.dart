@@ -6,6 +6,10 @@ class AppColors {
 
   // ── Brand & accent colors (theme-independent) ──────────────────────────────
   static const Color sargeGold = Color(0xFFD4AF37);
+  /// Yönetim Kurulu (board) accent — şaşaalı altın tonları.
+  static const Color gold = sargeGold;
+  static const Color goldLight = Color(0xFFF6E27A);
+  static const Color goldDark = Color(0xFF9B7A1F);
   static const Color primaryBlue = Color(0xFF2563EB);
   static const Color primaryBlueAccent = Color(0xFF3B82F6);
   static const Color primaryGreen = Color(0xFF35D07F);

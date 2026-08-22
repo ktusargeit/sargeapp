@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/app_user.dart';
+import '../../../core/permissions/permission_system.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/utils/image_utils.dart';
 import '../../../core/utils/operation_feedback.dart';
@@ -34,6 +35,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
     final isAdmin = ref.watch(isAdminProvider);
     final currentUser = ref.watch(currentAppUserProvider).value;
     final teamsAsync = ref.watch(clubTeamsProvider);
+    final isBoard = _isBoardAppUser(currentUser);
 
     return Scaffold(
       backgroundColor: AppColors.teamBg,
@@ -46,8 +48,23 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
         ],
         bottom: isAdmin ? TabBar(controller: _tabCtrl, indicatorColor: AppColors.teamAccent, labelColor: AppColors.textPrimary, unselectedLabelColor: AppColors.textSecondary, tabs: const [Tab(text: 'Takımlar'), Tab(text: 'Başvurular')]) : null,
       ),
-      body: isAdmin ? TabBarView(controller: _tabCtrl, children: [_buildTeamList(teamsAsync, isAdmin, currentUser), _ApplicationsTab()]) : _buildTeamList(teamsAsync, isAdmin, currentUser),
+      body: Column(
+        children: [
+          if (isBoard) const _YonetimKuruluCard(),
+          Expanded(
+            child: isAdmin
+                ? TabBarView(controller: _tabCtrl, children: [_buildTeamList(teamsAsync, isAdmin, currentUser), _ApplicationsTab()])
+                : _buildTeamList(teamsAsync, isAdmin, currentUser),
+          ),
+        ],
+      ),
     );
+  }
+
+  static bool _isBoardAppUser(AppUser? user) {
+    if (user == null) return false;
+    final roles = effectiveRoleCodes(user);
+    return roles.contains('board_member') || roles.contains('board_president');
   }
 
   Widget _buildTeamList(AsyncValue<List<ClubTeam>> teamsAsync, bool isAdmin, AppUser? currentUser) {
@@ -397,6 +414,153 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
     );
   }
 
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// YÖNETİM KURULU (gold-themed, board-only)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Altın temalı "Yönetim Kurulu" kartı. Sadece `board_member` / `board_president`
+/// rolüne sahip kullanıcılara render edilir (üst seviyede koşullu gösterilir).
+class _YonetimKuruluCard extends ConsumerWidget {
+  const _YonetimKuruluCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final membersAsync = ref.watch(boardMembersProvider);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.goldDark,
+            AppColors.gold,
+            AppColors.goldLight,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+        border: Border.all(color: AppColors.goldLight, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.gold.withValues(alpha: 0.45),
+            blurRadius: 18,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.black.withValues(alpha: 0.18),
+                ),
+                child: const Icon(Icons.workspace_premium,
+                    color: Colors.white, size: 26),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Yönetim Kurulu',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Yönetim Kurulu Üyeleri',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.star, color: Colors.white, size: 22),
+            ],
+          ),
+          const SizedBox(height: 12),
+          membersAsync.when(
+            data: (members) {
+              if (members.isEmpty) {
+                return Text(
+                  'Yönetim kurulu üyesi bulunamadı.',
+                  style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 13),
+                );
+              }
+              return Column(
+                children: members.map((m) {
+                  final label = _boardMemberLabel(m);
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.person, size: 15, color: Colors.white),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            m.displayName,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        Text(
+                          label,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Center(
+                child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white)),
+              ),
+            ),
+            error: (_, __) => Text(
+              'Yönetim kurulu listesi yüklenemedi.',
+              style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.9), fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _boardMemberLabel(AppUser member) {
+    if (member.role == 'board_president') return 'Başkan';
+    return 'Üye';
+  }
 }
 
 /// Inline display of a team's "birimler" (units) inside the Takımım list.

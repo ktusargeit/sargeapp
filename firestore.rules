@@ -24,6 +24,13 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['board_president', 'board_member'];
     }
 
+    // Yönetim Kurulu Başkanı — denetim amaçlı tüm görevleri görebilir.
+    function isBoardPresident() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'board_president';
+    }
+
     function isAdminOrUnitLead() {
       return isSignedIn() &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
@@ -92,7 +99,7 @@ service cloud.firestore {
         // Admins and unit leads can award points (e.g. after approving a task).
         isAdminOrUnitLead() &&
         request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['points', 'weeklyPoints', 'prevWeeklyPoints'])
+          .hasOnly(['points', 'weeklyPoints', 'prevWeeklyPoints', 'teamPoints'])
       );
       allow delete: if isAdmin();
     }
@@ -208,6 +215,21 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // ---------- WEEKLY LEADERBOARD ARCHIVE + META ----------
+    // Written by the `resetWeeklyPoints` scheduled Cloud Function (Admin SDK)
+    // and read by the dashboard weekly leaderboard week-selector. Reads are
+    // public; writes/updates/delete are admin-only (the Cloud Function bypasses
+    // these rules entirely).
+    match /weekly_leaderboard_archive/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /weekly_meta/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
     // ---------- NOTIFICATIONS ----------
     match /notifications/{id} {
       // Users can only see their own notifications; admin can see all.
@@ -290,7 +312,10 @@ service cloud.firestore {
     // ---------- TEAMS ----------
     match /teams/{id} {
       allow read: if true;
-      allow create: if isAdmin();
+      // Archived ("past") teams can be created directly from the About screen by
+      // roles holding `editTeamStory` / `manageTeams` (e.g. "+ Geçmiş Takım Ekle");
+      // otherwise only admins create teams.
+      allow create: if can('editTeamStory') || can('manageTeams');
       // `editTeamStory` / `manageTeams` granted roles can update; only admin deletes.
       // Any signed-in user may also update ONLY `pastMemberIds` — the two-way
       // "Geçmiş Takımlarım" link written by PastTeamLinkService.
@@ -373,8 +398,6 @@ service cloud.firestore {
 
     // ---------- TASKS ----------
     match /tasks/{id} {
-      allow read: if true;
-
       function isTeamLeadApprover() {
         return isSignedIn() &&
           resource.data.teamId != null &&
@@ -401,13 +424,35 @@ service cloud.firestore {
           get(/databases/$(database)/documents/units/$(unitId)).data.unitLeadUid == request.auth.uid;
       }
 
+      // Takım bazlı görev izolasyonu (okuma): bir kullanıcı yalnızca kendisine
+      // atanmış görevleri veya ÜYESİ olduğu takımın görevlerini okuyabilir. Bu,
+      // başka bir takımın görevini doğrudan API ile bile okuyamaması anlamına
+      // gelir. Admin ve Yönetim Kurulu Başkanı denetim amaçlı tüm görevleri görebilir.
+      // Aynı takım üyeliği, toplu görev yorum bildirimlerinde ilgililerin (bulk
+      // grubundaki diğer üyeler) ve takım kaptanının ilgili görev dokümanını
+      // okuyabilmesini de sağlar (composite query/index gerektirmez).
+      function isTeamMemberCanRead() {
+        return isSignedIn() &&
+          resource.data.teamId is string &&
+          exists(/databases/$(database)/documents/teams/$(resource.data.teamId)) &&
+          request.auth.uid in get(/databases/$(database)/documents/teams/$(resource.data.teamId)).data.memberIds;
+      }
+
+      allow read: if isAdmin() ||
+        isBoardPresident() ||
+        (isSignedIn() && resource.data.assignedTo == request.auth.uid) ||
+        isTeamMemberCanRead() ||
+        isTeamLeadApprover();
+
       // Admin → anything.
       // Captain → only tasks in teams they lead (with or without a unitId).
       // Unit lead → only tasks whose unitId is a unit they lead.
+      // Board member/president → only "Yönetim Kurulu" (board) tasks.
       // Everyone else → denied.
       allow create: if isAdmin() ||
         isCaptainOfTeam(request.resource.data.teamId) ||
-        isUnitLeadOfUnit(request.resource.data.unitId);
+        isUnitLeadOfUnit(request.resource.data.unitId) ||
+        (isBoardMember() && request.resource.data.assignmentMode == 'board');
 
       allow update: if isAdmin() || (
         isSignedIn() &&

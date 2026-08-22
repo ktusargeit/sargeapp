@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/app_user.dart';
 import '../../../core/models/user_profile_models.dart';
+import '../../../core/providers/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../team/models/team_models.dart';
 import '../../team/providers/team_providers.dart';
@@ -9,7 +10,24 @@ import 'profile_common.dart';
 
 // ---------------------------------------------------------------------------
 // CURRENT TEAMS & ROLES — "Güncel Takımlar & Roller".
+//
+// Single source of truth: `teams/{id}.memberIds`. We query the `teams`
+// collection with `array-contains` on the user's uid instead of relying on the
+// (frequently out-of-sync) `users/{uid}.teamIds` denormalized copy, so a user
+// added/removed via `teams/{id}.memberIds` always shows up correctly here.
 // ---------------------------------------------------------------------------
+
+/// Stream of teams the given [uid] is an ACTIVE member of, queried directly
+/// from `teams` using `array-contains` (source of truth).
+final userActiveTeamsProvider = StreamProvider.family<List<ClubTeam>, String>(
+    (ref, uid) {
+  final firestore = ref.watch(firestoreProvider);
+  return firestore
+      .collection('teams')
+      .where('memberIds', arrayContains: uid)
+      .snapshots()
+      .map((snap) => snap.docs.map((d) => ClubTeam.fromDoc(d)).toList());
+});
 
 class ProfileTeamsRolesSection extends ConsumerWidget {
   final AppUser user;
@@ -17,11 +35,10 @@ class ProfileTeamsRolesSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final teamsAsync = ref.watch(clubTeamsProvider);
+    final teamsAsync = ref.watch(userActiveTeamsProvider(user.uid));
     final unitsAsync = ref.watch(teamUnitListProvider);
     final teams = teamsAsync.valueOrNull ?? [];
     final units = unitsAsync.valueOrNull ?? const [];
-    final myTeams = teams.where((t) => user.teamIds.contains(t.id)).toList();
     final isAdmin = user.role == 'admin' ||
         user.activeTitles.any((t) => t.titleType == TitleType.admin);
 
@@ -31,7 +48,7 @@ class ProfileTeamsRolesSection extends ConsumerWidget {
 
     return ProfileSectionTitleWithCard(
       header: const ProfileSectionHeader(title: 'GÜNCEL TAKIMLAR & ROLLER'),
-      child: (myTeams.isEmpty && !isAdmin)
+      child: (teams.isEmpty && !isAdmin)
           ? const ProfileEmptyCard(
               'Aktif takım bulunmuyor.',
               icon: Icons.groups_outlined,
@@ -39,16 +56,16 @@ class ProfileTeamsRolesSection extends ConsumerWidget {
           : Column(
               children: [
                 if (isAdmin) const ProfileAdminBadgeRow(),
-                for (var i = 0; i < myTeams.length; i++)
+                for (var i = 0; i < teams.length; i++)
                   ProfileTeamCard(
-                    team: myTeams[i],
-                    isCaptain: myTeams[i].leadUid == user.uid,
+                    team: teams[i],
+                    isCaptain: teams[i].leadUid == user.uid,
                     ledUnitNames: ledUnits
-                        .where((u) => u['teamId'] == myTeams[i].id)
+                        .where((u) => u['teamId'] == teams[i].id)
                         .map((u) => u['name'] as String? ?? '')
                         .where((n) => n.isNotEmpty)
                         .toList(),
-                    isLast: i == myTeams.length - 1,
+                    isLast: i == teams.length - 1,
                   ),
               ],
             ),

@@ -165,9 +165,66 @@ class StoreOrderStatus {
   }
 }
 
+/// A single IBAN entry with the account holder name (and optional label).
+///
+/// Backwards compatible: legacy entries stored as a plain string are parsed
+/// with an empty account holder name so they still render.
+class IbanEntry {
+  final String iban;
+  final String accountHolderName;
+  final String label;
+
+  const IbanEntry({
+    required this.iban,
+    this.accountHolderName = '',
+    this.label = '',
+  });
+
+  /// Displays "Account Holder - TRxx ..." when the holder name is present;
+  /// falls back to the bare IBAN for legacy records.
+  String get displayText {
+    final parts = <String>[
+      if (accountHolderName.trim().isNotEmpty) accountHolderName.trim(),
+      if (label.trim().isNotEmpty) label.trim(),
+      _formatIban(iban),
+    ];
+    return parts.join(' - ');
+  }
+
+  static String _formatIban(String iban) {
+    final cleaned = iban.replaceAll(' ', '').replaceAll('-', '');
+    final buffer = StringBuffer();
+    for (var i = 0; i < cleaned.length; i++) {
+      if (i > 0 && i % 4 == 0) buffer.write(' ');
+      buffer.write(cleaned[i]);
+    }
+    return buffer.toString();
+  }
+
+  factory IbanEntry.fromRaw(dynamic raw) {
+    if (raw is String) {
+      return IbanEntry(iban: raw);
+    }
+    final map = raw is Map
+        ? Map<String, dynamic>.from(raw)
+        : const <String, dynamic>{};
+    return IbanEntry(
+      iban: (map['iban'] as String?)?.trim().replaceAll(' ', '') ?? '',
+      accountHolderName: map['accountHolderName'] as String? ?? '',
+      label: map['label'] as String? ?? '',
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'iban': iban,
+        'accountHolderName': accountHolderName,
+        'label': label,
+      };
+}
+
 /// Store settings (IBAN list).
 class StoreSettings {
-  final List<String> ibans;
+  final List<IbanEntry> ibans;
 
   const StoreSettings({this.ibans = const []});
 
@@ -175,10 +232,14 @@ class StoreSettings {
     if (doc == null || !doc.exists) return const StoreSettings();
     final data = doc.data() as Map<String, dynamic>? ?? {};
     final raw = data['ibans'];
-    return StoreSettings(
-      ibans: raw is List ? raw.whereType<String>().toList() : const [],
-    );
+    if (raw is List) {
+      return StoreSettings(
+        ibans: raw.map((e) => IbanEntry.fromRaw(e)).toList(),
+      );
+    }
+    return const StoreSettings();
   }
 
-  Map<String, dynamic> toMap() => {'ibans': ibans};
+  Map<String, dynamic> toMap() =>
+      {'ibans': ibans.map((e) => e.toMap()).toList()};
 }

@@ -66,6 +66,31 @@ service firebase.storage {
           defaultHasClubStory(clubStoryRole())));
     }
 
+    // Honorary member gallery editors. Mirrors the Firestore
+    // `can('addHonoraryMember')` check so a role granted "Onursal Üye
+    // Ekleyebilir" at runtime can also upload gallery images to
+    // `honorary_members/...`.
+    function honoraryRole() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function roleHasHonorary(role) {
+      return firestore.exists(/databases/(default)/documents/role_permissions/$(role)) &&
+        'addHonoraryMember' in firestore.get(/databases/(default)/documents/role_permissions/$(role)).data.permissions;
+    }
+
+    function defaultHasHonorary(role) {
+      return role == 'admin' || role == 'board_president' || role == 'board_member';
+    }
+
+    function isHonoraryEditor() {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        (roleHasHonorary(honoraryRole()) ||
+         (!firestore.exists(/databases/(default)/documents/role_permissions/$(honoraryRole())) &&
+          defaultHasHonorary(honoraryRole())));
+    }
+
     // Helper: admin or unit lead (team lead).
     function isAdminOrYetkili() {
       return isSignedIn() &&
@@ -169,6 +194,12 @@ service firebase.storage {
     match /club_info/{allPaths=**} {
       allow read: if true;
       allow write: if isClubStoryEditor();
+    }
+
+    // Honorary member gallery images (uploaded by "Onursal Üye" editors).
+    match /honorary_members/{allPaths=**} {
+      allow read: if true;
+      allow write: if isHonoraryEditor();
     }
 
     // Default: read for everyone. Write is intentionally left un-granted here.

@@ -64,6 +64,13 @@ class HonoraryMember {
   final String id;
   final String userId;
   final String note;
+
+  /// Extended free-form story/note about the member.
+  final String story;
+
+  /// Gallery photos for the member's detail screen.
+  final List<String> photos;
+
   final DateTime? addedDate;
   final String? addedBy;
 
@@ -71,6 +78,8 @@ class HonoraryMember {
     required this.id,
     required this.userId,
     this.note = '',
+    this.story = '',
+    this.photos = const [],
     this.addedDate,
     this.addedBy,
   });
@@ -81,6 +90,10 @@ class HonoraryMember {
       id: doc.id,
       userId: data['userId'] as String? ?? '',
       note: data['note'] as String? ?? '',
+      story: data['story'] as String? ?? '',
+      photos:
+          (data['photos'] as List?)?.map((e) => e.toString()).toList() ??
+              const [],
       addedDate: (data['addedDate'] as Timestamp?)?.toDate(),
       addedBy: data['addedBy'] as String?,
     );
@@ -89,6 +102,8 @@ class HonoraryMember {
   Map<String, dynamic> toMap() => {
         'userId': userId,
         'note': note,
+        'story': story,
+        'photos': photos,
         'addedDate': FieldValue.serverTimestamp(),
         'addedBy': addedBy,
       };

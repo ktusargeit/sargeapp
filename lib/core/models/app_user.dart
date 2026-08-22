@@ -10,6 +10,14 @@ class AppUser {
   final int points;
   final int weeklyPoints;
   final int prevWeeklyPoints;
+
+  /// Team-scoped total points: `{ teamId: totalPoints }`.
+  ///
+  /// A user can belong to more than one team and contribute a DIFFERENT amount
+  /// in each team, so the single global `points` field is no longer the source
+  /// of truth for team leaderboards. `points` is kept for backwards
+  /// compatibility (profile header) but team screens read from this map.
+  final Map<String, int> teamPoints;
   final String? photoUrl;
   final String? coverPhotoUrl;
   final String? bio;
@@ -34,6 +42,7 @@ class AppUser {
     this.points = 0,
     this.weeklyPoints = 0,
     this.prevWeeklyPoints = 0,
+    this.teamPoints = const {},
     this.photoUrl,
     this.coverPhotoUrl,
     this.bio,
@@ -92,6 +101,10 @@ class AppUser {
     return teamIds.first;
   }
 
+  /// Total points earned in [teamId], falling back to 0 for teams the user
+  /// has no recorded contribution in.
+  int teamPointsFor(String teamId) => teamPoints[teamId] ?? 0;
+
   factory AppUser.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
     return AppUser(
@@ -102,6 +115,9 @@ class AppUser {
       points: (data['points'] as num?)?.toInt() ?? 0,
       weeklyPoints: (data['weeklyPoints'] as num?)?.toInt() ?? 0,
       prevWeeklyPoints: (data['prevWeeklyPoints'] as num?)?.toInt() ?? 0,
+      teamPoints: (data['teamPoints'] as Map?)
+              ?.map((key, value) => MapEntry(key.toString(), (value as num).toInt())) ??
+          const {},
       photoUrl: data['photoUrl'] as String?,
       coverPhotoUrl: data['coverPhotoUrl'] as String?,
       bio: data['bio'] as String?,

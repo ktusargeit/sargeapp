@@ -191,7 +191,7 @@ class _StoreOrderFormScreenState extends ConsumerState<StoreOrderFormScreen> {
             ),
           )
         else
-          ...settings.ibans.map((iban) => Container(
+          ...settings.ibans.map((entry) => Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -205,7 +205,7 @@ class _StoreOrderFormScreenState extends ConsumerState<StoreOrderFormScreen> {
                         size: 18, color: AppColors.sargeGold),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: SelectableText(iban,
+                      child: SelectableText(entry.displayText,
                           style:
                               TextStyle(color: AppColors.textPrimary, fontSize: 13)),
                     ),

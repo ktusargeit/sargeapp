@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/permissions/permission_system.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../team/models/team_models.dart';
 import '../../team/providers/team_providers.dart';
@@ -101,8 +102,15 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     final currentUid = authUser?.uid ?? appUser?.uid;
     final profileStillLoading = authUser != null && appUser == null;
     final teamsAsync = ref.watch(clubTeamsProvider);
-    final visibleTeams = teamsAsync.valueOrNull ?? [];
+    final allTeams = teamsAsync.valueOrNull ?? [];
+    // Takım bazlı izolasyon: admin/başkan tüm takımları görür; diğer herkes
+    // yalnızca ÜYESİ olduğu takımları filtre olarak seçebilir.
+    final seesAllTeams = isAdmin || userIsBoardPresident(appUser);
+    final visibleTeams = seesAllTeams
+        ? allTeams
+        : allTeams.where((t) => t.memberIds.contains(currentUid)).toList();
     final isUnitLead = appUser?.isUnitLead ?? false;
+    final isBoardCreator = userIsBoard(appUser);
     final isCaptain =
         currentUid != null && visibleTeams.any((t) => t.leadUid == currentUid);
 
@@ -256,7 +264,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
               isAdmin: isAdmin,
               isUnitLead: isUnitLead,
             ),
-      floatingActionButton: (isAdmin || isUnitLead || isCaptain)
+      floatingActionButton: (isAdmin || isUnitLead || isCaptain || isBoardCreator)
           ? FloatingActionButton.extended(
               onPressed: () => _showAddTaskDialog(context),
               backgroundColor: AppColors.tasksAccent,

@@ -171,6 +171,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
 
   ImageProvider? _avatarProvider() {
     if (_avatar?.bytes != null) return MemoryImage(_avatar!.bytes!);
+    if (_avatar?.dartFile != null) return FileImage(_avatar!.dartFile!);
     if (widget.user.photoUrl != null && widget.user.photoUrl!.isNotEmpty) {
       return NetworkImage(widget.user.photoUrl!);
     }
@@ -179,6 +180,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
 
   ImageProvider? _coverProvider() {
     if (_cover?.bytes != null) return MemoryImage(_cover!.bytes!);
+    if (_cover?.dartFile != null) return FileImage(_cover!.dartFile!);
     if (widget.user.coverPhotoUrl != null &&
         widget.user.coverPhotoUrl!.isNotEmpty) {
       return NetworkImage(widget.user.coverPhotoUrl!);

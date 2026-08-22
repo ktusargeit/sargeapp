@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../models/store_models.dart';
 import '../providers/store_providers.dart';
 
 /// Mağaza Ayarları — IBAN listesi yönetimi.
@@ -15,21 +16,27 @@ class StoreSettingsScreen extends ConsumerStatefulWidget {
 
 class _StoreSettingsScreenState extends ConsumerState<StoreSettingsScreen> {
   final _ibanCtrl = TextEditingController();
+  final _accountHolderCtrl = TextEditingController();
+  final _labelCtrl = TextEditingController();
   bool _loading = false;
 
   @override
   void dispose() {
     _ibanCtrl.dispose();
+    _accountHolderCtrl.dispose();
+    _labelCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _addIban() async {
     final iban = _ibanCtrl.text.trim().replaceAll(' ', '');
+    final holder =
+        _accountHolderCtrl.text.trim().replaceAll(RegExp(r'\s+'), ' ');
     if (iban.isEmpty) return;
     setState(() => _loading = true);
     try {
       final current = await ref.read(storeRepositoryProvider).loadIbans();
-      if (current.contains(iban)) {
+      if (current.any((e) => e.iban == iban)) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -37,10 +44,21 @@ class _StoreSettingsScreenState extends ConsumerState<StoreSettingsScreen> {
                   backgroundColor: AppColors.warning));
         }
         _ibanCtrl.clear();
+        _accountHolderCtrl.clear();
+        _labelCtrl.clear();
         return;
       }
-      await ref.read(storeRepositoryProvider).saveIbans([...current, iban]);
+      await ref.read(storeRepositoryProvider).saveIbans([
+        ...current,
+        IbanEntry(
+          iban: iban,
+          accountHolderName: holder,
+          label: _labelCtrl.text.trim(),
+        ),
+      ]);
       _ibanCtrl.clear();
+      _accountHolderCtrl.clear();
+      _labelCtrl.clear();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('IBAN eklendi.'),
@@ -81,7 +99,7 @@ class _StoreSettingsScreenState extends ConsumerState<StoreSettingsScreen> {
       final current = await ref.read(storeRepositoryProvider).loadIbans();
       await ref
           .read(storeRepositoryProvider)
-          .saveIbans(current.where((e) => e != iban).toList());
+          .saveIbans(current.where((e) => e.iban != iban).toList());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('IBAN silindi.'),
@@ -119,34 +137,52 @@ class _StoreSettingsScreenState extends ConsumerState<StoreSettingsScreen> {
             const SizedBox(height: 4),
             Text(
               'Kullanıcılar sipariş verirken bu IBAN\'lara havale/EFT yapar.',
-              style:
-                  TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
             ),
             const SizedBox(height: 12),
             // Add IBAN
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _ibanCtrl,
-                    style: TextStyle(color: AppColors.textPrimary),
-                    decoration: const InputDecoration(
-                      labelText: 'Yeni IBAN',
-                      hintText: 'TR00 0000 0000 0000 0000 0000 00',
-                    ),
-                    onSubmitted: (_) => _addIban(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.add_circle_outline,
-                      color: AppColors.sargeGold),
-                  tooltip: 'Ekle',
-                  onPressed: _loading ? null : _addIban,
-                ),
-              ],
+            TextField(
+              controller: _ibanCtrl,
+              style: TextStyle(color: AppColors.textPrimary),
+              decoration: const InputDecoration(
+                labelText: 'Yeni IBAN *',
+                hintText: 'TR00 0000 0000 0000 0000 0000 00',
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _accountHolderCtrl,
+              style: TextStyle(color: AppColors.textPrimary),
+              decoration: const InputDecoration(
+                labelText: 'Hesap Sahibi Adı *',
+                hintText: 'Örn: Muhammet Mete Aksoy',
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _labelCtrl,
+              style: TextStyle(color: AppColors.textPrimary),
+              decoration: const InputDecoration(
+                labelText: 'Etiket (opsiyonel)',
+                hintText: 'Örn: Kulüp Kasası',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: ElevatedButton.icon(
+                onPressed: _loading || _accountHolderCtrl.text.trim().isEmpty
+                    ? null
+                    : _addIban,
+                icon: const Icon(Icons.add_circle_outline, size: 18),
+                label: const Text('IBAN Ekle'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.sargeGold,
+                  foregroundColor: Colors.black,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             // IBAN list
             if (settings.ibans.isEmpty)
               Container(
@@ -165,20 +201,20 @@ class _StoreSettingsScreenState extends ConsumerState<StoreSettingsScreen> {
                 ),
               )
             else
-              ...settings.ibans.map((iban) => Card(
+              ...settings.ibans.map((entry) => Card(
                     color: AppColors.surface,
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
                       leading: const Icon(Icons.account_balance,
                           color: AppColors.sargeGold),
-                      title: SelectableText(iban,
+                      title: SelectableText(entry.displayText,
                           style: TextStyle(
                               color: AppColors.textPrimary, fontSize: 13)),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline,
                             color: AppColors.error),
                         tooltip: 'Sil',
-                        onPressed: _loading ? null : () => _removeIban(iban),
+                        onPressed: _loading ? null : () => _removeIban(entry.iban),
                       ),
                     ),
                   )),

@@ -464,6 +464,9 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
       final taskDoc = await firestore.collection('tasks').doc(widget.taskId).get();
       final data = taskDoc.data() ?? {};
       final assignedTo = data['assignedTo'] as String? ?? '';
+      final assignedToName = data['assignedToName'] as String? ?? '';
+      final teamId = data['teamId'] as String?;
+      final teamName = data['teamName'] as String?;
       final points = (data['points'] as num?)?.toInt() ?? 0;
       final alreadyAwarded = (data['pointsAwarded'] as bool?) ?? false;
 
@@ -477,12 +480,30 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
           batch.update(firestore.collection('users').doc(assignedTo), {
             'points': FieldValue.increment(points),
             'weeklyPoints': FieldValue.increment(points),
+            if (teamId != null && teamId.isNotEmpty)
+              'teamPoints.$teamId': FieldValue.increment(points),
           });
           batch.update(firestore.collection('tasks').doc(widget.taskId), {
             'pointsAwarded': true,
           });
         }
         await batch.commit();
+
+        // Best-effort points history (admin-only per rules); non-admin
+        // approvers skip this without failing the approval.
+        if (!alreadyAwarded && assignedTo.isNotEmpty) {
+          try {
+            await firestore.collection('points_history').add({
+              'targetUid': assignedTo,
+              'targetName': assignedToName,
+              'delta': points,
+              'changedBy': uid,
+              if (teamId != null) 'teamId': teamId,
+              if (teamName != null) 'teamName': teamName,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+          } catch (_) {}
+        }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
               content: Text('Görev onaylandı, puan verildi.'),
@@ -528,6 +549,9 @@ class TaskCommentsList extends ConsumerStatefulWidget {
 
 class _TaskCommentsListState extends ConsumerState<TaskCommentsList> {
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _stream;
+  final SmartChatScroller _scroller = SmartChatScroller(reverse: true);
+  final ScrollController _scrollController = ScrollController();
+  int? _lastCount;
 
   @override
   void initState() {
@@ -539,6 +563,14 @@ class _TaskCommentsListState extends ConsumerState<TaskCommentsList> {
         .collection('comments')
         .orderBy('createdAt', descending: false)
         .snapshots();
+    _scroller.attach(_scrollController);
+  }
+
+  @override
+  void dispose() {
+    _scroller.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -560,32 +592,57 @@ class _TaskCommentsListState extends ConsumerState<TaskCommentsList> {
         final orderedComments = comments.reversed.toList();
         final totalCount =
             widget.pendingComments.length + orderedComments.length;
-        return ListView.builder(
-          reverse: true,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          itemCount: totalCount,
-          itemBuilder: (_, i) {
-            if (i < widget.pendingComments.length) {
-              final pending = widget.pendingComments[i];
-              return PendingMessageBubble(
-                message: pending,
-                uploading: !pending.failed,
-                onRetry: () => widget.onRetryPending(pending),
-              );
-            }
-            final doc = orderedComments[i - widget.pendingComments.length];
-            final data = doc.data();
-            return CommentTile(
-              data: data,
-              isMine: data['senderUid'] == widget.currentUid,
-              onReply: () => widget.onReply({
-                'id': doc.id,
-                'text': data['text'] as String? ?? '',
-                'senderName': data['senderName'] as String? ?? '',
-                'senderUid': data['senderUid'] as String? ?? '',
-              }),
-            );
-          },
+
+        // Detect newly arrived messages and apply smart scroll behaviour.
+        final previous = _lastCount;
+        if (previous != null && totalCount > previous) {
+          final isMine = widget.pendingComments.isNotEmpty ||
+              (orderedComments.isNotEmpty &&
+                  orderedComments.first.data()['senderUid'] ==
+                      widget.currentUid);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _scroller.onNewMessage(isMine: isMine);
+          });
+        }
+        _lastCount = totalCount;
+
+        return Stack(
+          children: [
+            ListView.builder(
+              controller: _scrollController,
+              reverse: true,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              itemCount: totalCount,
+              itemBuilder: (_, i) {
+                if (i < widget.pendingComments.length) {
+                  final pending = widget.pendingComments[i];
+                  return PendingMessageBubble(
+                    message: pending,
+                    uploading: !pending.failed,
+                    onRetry: () => widget.onRetryPending(pending),
+                  );
+                }
+                final doc = orderedComments[i - widget.pendingComments.length];
+                final data = doc.data();
+                return CommentTile(
+                  data: data,
+                  isMine: data['senderUid'] == widget.currentUid,
+                  onReply: () => widget.onReply({
+                    'id': doc.id,
+                    'text': data['text'] as String? ?? '',
+                    'senderName': data['senderName'] as String? ?? '',
+                    'senderUid': data['senderUid'] as String? ?? '',
+                  }),
+                );
+              },
+            ),
+            Positioned.fill(
+              child: ChatScrollOverlay(
+                scroller: _scroller,
+                accentColor: AppColors.tasksAccent,
+              ),
+            ),
+          ],
         );
       },
     );

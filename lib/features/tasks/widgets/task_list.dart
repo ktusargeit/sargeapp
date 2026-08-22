@@ -350,6 +350,8 @@ class TaskCard extends ConsumerWidget {
               ref.read(firestoreProvider).collection('users').doc(task.assignedTo), {
             'points': FieldValue.increment(task.points),
             'weeklyPoints': FieldValue.increment(task.points),
+            if (task.teamId != null && task.teamId!.isNotEmpty)
+              'teamPoints.${task.teamId}': FieldValue.increment(task.points),
           });
           batch.update(
               ref.read(firestoreProvider).collection('tasks').doc(task.id), {
@@ -357,6 +359,26 @@ class TaskCard extends ConsumerWidget {
           });
         }
         await batch.commit();
+
+        // Best-effort points history (admin-only per rules), so the team-scoped
+        // contribution is auditable too. Non-admin approvers simply skip this.
+        if (!alreadyAwarded && !task.pointsAwarded) {
+          try {
+            await ref
+                .read(firestoreProvider)
+                .collection('points_history')
+                .add({
+              'targetUid': task.assignedTo,
+              'targetName': task.assignedToName,
+              'delta': task.points,
+              'changedBy': uid,
+              if (task.teamId != null) 'teamId': task.teamId,
+              if (task.teamName != null) 'teamName': task.teamName,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+          } catch (_) {}
+        }
+
         if (ctx.mounted) {
           ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
               content: Text('Görev onaylandı, puan verildi.'),

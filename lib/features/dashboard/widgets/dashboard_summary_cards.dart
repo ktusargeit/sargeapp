@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -334,16 +335,50 @@ class _DashboardLeaderboardCardState
     extends ConsumerState<DashboardLeaderboardCard> {
   String? _teamId;
 
+  /// Null => current (live) week; otherwise a past archived week key.
+  String? _weekKey;
+
+  static String _weekLabel(String weekKey) {
+    final parts = weekKey.split('-');
+    if (parts.length != 3) return weekKey;
+    final monday = DateTime(
+        int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+    final sunday = monday.add(const Duration(days: 6));
+    final f = DateFormat('d MMMM', 'tr_TR');
+    return '${f.format(monday)} – ${f.format(sunday)}';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final leaderboardAsync = ref.watch(leaderboardProvider);
+    final leaderboardAsync = _weekKey == null
+        ? ref.watch(leaderboardProvider)
+        : ref.watch(weeklyArchiveLeaderboardProvider(_weekKey!));
     final teamsAsync = ref.watch(clubTeamsProvider);
+    final archiveWeeksAsync = ref.watch(weeklyArchiveWeeksProvider);
+    final metaAsync = ref.watch(weeklyMetaProvider);
     final currentUid = ref.watch(currentAppUserProvider).value?.uid;
     final allTeams = teamsAsync.valueOrNull ?? [];
     final teams = currentUid == null
         ? const <ClubTeam>[]
         : allTeams.where((t) => t.memberIds.contains(currentUid)).toList();
     final selectedTeamId = _teamId ?? (teams.isNotEmpty ? teams.first.id : null);
+    final archiveWeeks = archiveWeeksAsync.valueOrNull ?? const <String>[];
+    final meta = metaAsync.valueOrNull ?? const <String, dynamic>{};
+
+    final weekItems = <DropdownMenuItem<String?>>[
+      const DropdownMenuItem<String?>(value: null, child: Text('Bu Hafta')),
+      ...archiveWeeks.map((wk) => DropdownMenuItem<String?>(
+            value: wk,
+            child: Text(_weekLabel(wk)),
+          )),
+    ];
+
+    String? resetText;
+    final lastReset = meta['lastResetAt'];
+    if (lastReset is Timestamp) {
+      final dt = DateFormat('d MMMM, HH:mm', 'tr_TR').format(lastReset.toDate());
+      resetText = "Bu hafta: $dt'de sıfırlandı";
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -357,40 +392,83 @@ class _DashboardLeaderboardCardState
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Takım',
-                    style:
-                        TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String?>(
-                      value: selectedTeamId,
-                      isDense: true,
-                      dropdownColor: AppColors.surface2,
-                      style:
-                          TextStyle(color: AppColors.textPrimary, fontSize: 12),
-                      hint: Text('Takım Seç',
+                Row(
+                  children: [
+                    Text('Takım',
+                        style: TextStyle(
+                            color: AppColors.textSecondary, fontSize: 12)),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String?>(
+                          value: selectedTeamId,
+                          isDense: true,
+                          dropdownColor: AppColors.surface2,
                           style: TextStyle(
-                              color: AppColors.textSecondary, fontSize: 12)),
-                      items: [
-                        ...teams.map((t) => DropdownMenuItem<String?>(
-                              value: t.id,
-                              child: Text(t.name,
-                                  style: const TextStyle(fontSize: 12)),
-                            )),
-                      ],
-                      onChanged: (v) => setState(() => _teamId = v),
+                              color: AppColors.textPrimary, fontSize: 12),
+                          hint: Text('Takım Seç',
+                              style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12)),
+                          items: [
+                            ...teams.map((t) => DropdownMenuItem<String?>(
+                                  value: t.id,
+                                  child: Text(t.name,
+                                      style: const TextStyle(fontSize: 12)),
+                                )),
+                          ],
+                          onChanged: (v) => setState(() => _teamId = v),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Text('Hafta',
+                        style: TextStyle(
+                            color: AppColors.textSecondary, fontSize: 12)),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String?>(
+                          value: _weekKey,
+                          isDense: true,
+                          dropdownColor: AppColors.surface2,
+                          style: TextStyle(
+                              color: AppColors.textPrimary, fontSize: 12),
+                          items: weekItems,
+                          onChanged: (v) => setState(() => _weekKey = v),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (resetText != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      resetText,
+                      style: TextStyle(
+                          color: AppColors.textSecondary, fontSize: 11),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -429,7 +507,13 @@ class _DashboardLeaderboardCardState
                     final isLast = e.key == top5.length - 1;
                     return Column(
                       children: [
-                        DashboardLeaderboardRow(rank: e.key + 1, entry: e.value),
+                        DashboardLeaderboardRow(
+                          rank: e.key + 1,
+                          entry: e.value,
+                          pointsLabel: _weekKey == null
+                              ? 'Bu Hafta: ${e.value.weeklyPoints} puan'
+                              : '${e.value.points} puan',
+                        ),
                         if (!isLast)
                           Divider(height: 1, color: AppColors.border),
                       ],
@@ -480,9 +564,13 @@ class _DashboardLeaderboardCardState
 class DashboardLeaderboardRow extends ConsumerWidget {
   final int rank;
   final LeaderboardEntry entry;
+  final String? pointsLabel;
 
   const DashboardLeaderboardRow(
-      {super.key, required this.rank, required this.entry});
+      {super.key,
+      required this.rank,
+      required this.entry,
+      this.pointsLabel});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -535,7 +623,7 @@ class DashboardLeaderboardRow extends ConsumerWidget {
               ),
             ),
             Text(
-              '${entry.points} puan',
+              pointsLabel ?? '${entry.points} puan',
               style: const TextStyle(
                 color: AppColors.panelBlue,
                 fontSize: 12,

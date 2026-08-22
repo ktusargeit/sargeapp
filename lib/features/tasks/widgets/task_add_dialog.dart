@@ -3,6 +3,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../core/permissions/permission_system.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/image_utils.dart';
@@ -15,7 +16,7 @@ import '../../team/providers/team_providers.dart';
 // ADD TASK DIALOG — Takım → Birim → Kişi (+ görsel)
 // ═══════════════════════════════════════════════════════════════════════
 
-enum TaskAssignmentMode { single, team, unit }
+enum TaskAssignmentMode { single, team, unit, board }
 
 class AddTaskDialog extends ConsumerStatefulWidget {
   const AddTaskDialog({super.key});
@@ -67,6 +68,12 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
     return teams.where((t) => ledTeamIds.contains(t.id)).toList();
   }
 
+  /// Whether the current user may create "Yönetim Kurulu" (board) tasks.
+  bool get _isBoardCreator {
+    final appUser = ref.read(currentAppUserProvider).value;
+    return appUser != null && (userIsBoard(appUser) || appUser.isAdmin);
+  }
+
   Set<String> _allowedUnitIdsFor(String teamId) {
     final uid = ref.read(authStateProvider).value?.uid;
     final appUser = ref.read(currentAppUserProvider).value;
@@ -96,6 +103,30 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
   Widget build(BuildContext context) {
     final teamsAsync = ref.watch(clubTeamsProvider);
 
+    final assignmentSegments = <ButtonSegment<TaskAssignmentMode>>[
+      const ButtonSegment(
+        value: TaskAssignmentMode.single,
+        label: Text('Tekil Üye'),
+        icon: Icon(Icons.person, size: 16),
+      ),
+      const ButtonSegment(
+        value: TaskAssignmentMode.team,
+        label: Text('Tüm Takım'),
+        icon: Icon(Icons.groups, size: 16),
+      ),
+      const ButtonSegment(
+        value: TaskAssignmentMode.unit,
+        label: Text('Birim'),
+        icon: Icon(Icons.apartment, size: 16),
+      ),
+      if (_isBoardCreator)
+        const ButtonSegment(
+          value: TaskAssignmentMode.board,
+          label: Text('Yönetim Kurulu'),
+          icon: Icon(Icons.workspace_premium, size: 16),
+        ),
+    ];
+
     return AlertDialog(
       title: const Text('Yeni Görev Ata'),
       content: ConstrainedBox(
@@ -104,70 +135,85 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              teamsAsync.when(
-                data: (teams) {
-                  final availableTeams = _visibleTeams(teams);
-                  if (availableTeams.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Text('Görev atayabileceğiniz bir takım yok.',
-                          style: TextStyle(
-                              color: AppColors.textSecondary, fontSize: 13)),
+              if (_mode != TaskAssignmentMode.board)
+                teamsAsync.when(
+                  data: (teams) {
+                    final availableTeams = _visibleTeams(teams);
+                    if (availableTeams.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Text('Görev atayabileceğiniz bir takım yok.',
+                            style: TextStyle(
+                                color: AppColors.textSecondary, fontSize: 13)),
+                      );
+                    }
+                    return DropdownButtonFormField<ClubTeam>(
+                      dropdownColor: AppColors.surface2,
+                      style: TextStyle(color: AppColors.textPrimary),
+                      decoration: const InputDecoration(
+                          labelText: 'Takım *', hintText: 'Takım seçin'),
+                      initialValue: _selectedTeam,
+                      items: availableTeams
+                          .map((t) => DropdownMenuItem(value: t, child: Text(t.name)))
+                          .toList(),
+                      onChanged: (v) => setState(() {
+                        _selectedTeam = v;
+                        _selectedUnit = null;
+                        _selectedUid = null;
+                        _selectedName = null;
+                      }),
                     );
+                  },
+                  loading: () => const CircularProgressIndicator(),
+                  error: (e, _) => Text('Hata: $e'),
+                ),
+              const SizedBox(height: 12),
+              SegmentedButton<TaskAssignmentMode>(
+                segments: assignmentSegments,
+                selected: {_mode},
+                onSelectionChanged: (s) => setState(() {
+                  _mode = s.first;
+                  _selectedUid = null;
+                  _selectedName = null;
+                  _selectedUnit = null;
+                  if (_mode == TaskAssignmentMode.board) {
+                    _selectedTeam = null;
                   }
-                  return DropdownButtonFormField<ClubTeam>(
-                    dropdownColor: AppColors.surface2,
-                    style: TextStyle(color: AppColors.textPrimary),
-                    decoration: const InputDecoration(
-                        labelText: 'Takım *', hintText: 'Takım seçin'),
-                    initialValue: _selectedTeam,
-                    items: availableTeams
-                        .map((t) => DropdownMenuItem(value: t, child: Text(t.name)))
-                        .toList(),
-                    onChanged: (v) => setState(() {
-                      _selectedTeam = v;
-                      _selectedUnit = null;
-                      _selectedUid = null;
-                      _selectedName = null;
-                    }),
-                  );
-                },
-                loading: () => const CircularProgressIndicator(),
-                error: (e, _) => Text('Hata: $e'),
+                }),
+                showSelectedIcon: false,
+                style: ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  textStyle: WidgetStatePropertyAll(
+                    TextStyle(fontSize: 12, color: AppColors.textPrimary),
+                  ),
+                ),
               ),
-              if (_selectedTeam != null) ...[
-                const SizedBox(height: 12),
-                SegmentedButton<TaskAssignmentMode>(
-                  segments: const [
-                    ButtonSegment(
-                      value: TaskAssignmentMode.single,
-                      label: Text('Tekil Üye'),
-                      icon: Icon(Icons.person, size: 16),
+              if (_mode == TaskAssignmentMode.board) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        AppColors.goldDark,
+                        AppColors.gold,
+                        AppColors.goldLight,
+                      ],
                     ),
-                    ButtonSegment(
-                      value: TaskAssignmentMode.team,
-                      label: Text('Tüm Takım'),
-                      icon: Icon(Icons.groups, size: 16),
-                    ),
-                    ButtonSegment(
-                      value: TaskAssignmentMode.unit,
-                      label: Text('Birim'),
-                      icon: Icon(Icons.apartment, size: 16),
-                    ),
-                  ],
-                  selected: {_mode},
-                  onSelectionChanged: (s) => setState(() {
-                    _mode = s.first;
-                    _selectedUid = null;
-                    _selectedName = null;
-                    _selectedUnit = null;
-                  }),
-                  showSelectedIcon: false,
-                  style: ButtonStyle(
-                    visualDensity: VisualDensity.compact,
-                    textStyle: WidgetStatePropertyAll(
-                      TextStyle(fontSize: 12, color: AppColors.textPrimary),
-                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.workspace_premium, color: Colors.white, size: 18),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Bu görev yalnızca Yönetim Kurulu üyelerine atanır.',
+                          style: TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -272,17 +318,33 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
       return;
     }
 
-    if (title.isEmpty || (_selectedTeam == null) || requiresPerson) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Takım ve başlık zorunludur'),
-          backgroundColor: AppColors.error));
-      return;
-    }
-    if (requiresUnit) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Birim seçmelisiniz'),
-          backgroundColor: AppColors.error));
-      return;
+    final isBoardMode = _mode == TaskAssignmentMode.board;
+    if (isBoardMode) {
+      if (title.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Görev başlığı zorunludur'),
+            backgroundColor: AppColors.error));
+        return;
+      }
+      if (!_isBoardCreator) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Yönetim Kurulu görevi atama yetkiniz yok.'),
+            backgroundColor: AppColors.error));
+        return;
+      }
+    } else {
+      if (title.isEmpty || (_selectedTeam == null) || requiresPerson) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Takım ve başlık zorunludur'),
+            backgroundColor: AppColors.error));
+        return;
+      }
+      if (requiresUnit) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Birim seçmelisiniz'),
+            backgroundColor: AppColors.error));
+        return;
+      }
     }
 
     setState(() => _loading = true);
@@ -293,7 +355,27 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
       final points = int.tryParse(_pointsCtrl.text.trim()) ?? 10;
 
       final recipients = <({String uid, String name})>[];
-      if (_mode == TaskAssignmentMode.unit) {
+      if (isBoardMode) {
+        final boardSnap = await firestore
+            .collection('users')
+            .where('role', whereIn: ['board_president', 'board_member'])
+            .get();
+        for (final doc in boardSnap.docs) {
+          recipients.add((
+            uid: doc.id,
+            name: (doc.data()['displayName'] as String?) ?? 'Üye',
+          ));
+        }
+        if (recipients.isEmpty) {
+          setState(() => _loading = false);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Yönetim Kurulu üyesi bulunamadı.'),
+                backgroundColor: AppColors.warning));
+          }
+          return;
+        }
+      } else if (_mode == TaskAssignmentMode.unit) {
         final unitDoc =
             await firestore.collection('units').doc(_selectedUnit!['id'] as String).get();
         final memberUids = (unitDoc.data()?['memberUids'] as List?)

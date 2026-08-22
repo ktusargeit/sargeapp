@@ -195,7 +195,7 @@ class StoreRepository {
   // ── Settings (IBAN management) ─────────────────────────────────────────────
 
   /// Loads the current IBAN list.
-  Future<List<String>> loadIbans() async {
+  Future<List<IbanEntry>> loadIbans() async {
     final snap =
         await _firestore.collection('store_meta').doc('settings').get();
     final settings = StoreSettings.fromDoc(snap);
@@ -203,11 +203,11 @@ class StoreRepository {
   }
 
   /// Saves the IBAN list (full replace).
-  Future<void> saveIbans(List<String> ibans) async {
+  Future<void> saveIbans(List<IbanEntry> ibans) async {
     // Keep only non-empty trimmed values.
     final cleaned = ibans
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
+        .where((e) => e.iban.trim().isNotEmpty)
+        .map((e) => e.toMap())
         .toList();
     await _firestore.collection('store_meta').doc('settings').set({
       'ibans': cleaned,

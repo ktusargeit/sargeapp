@@ -32,6 +32,19 @@ class LeaderboardEntry {
       teamIds: (data['teamIds'] as List?)?.map((e) => e.toString()).toList() ?? const [],
     );
   }
+
+  /// Builds an entry from an archived weekly-leaderboard snapshot, where the
+  /// stored `points` is the user's `weeklyPoints` at archive time.
+  factory LeaderboardEntry.fromArchiveMap(Map<String, dynamic> data) {
+    final pts = (data['points'] as num?)?.toInt() ?? 0;
+    return LeaderboardEntry(
+      uid: data['uid'] as String? ?? '',
+      displayName: data['displayName'] as String? ?? 'Isimsiz Uye',
+      points: pts,
+      weeklyPoints: pts,
+      photoUrl: data['photoUrl'] as String?,
+    );
+  }
 }
 
 /// A bug/issue report submitted by a user.
@@ -151,6 +164,11 @@ class ClubTeam {
   /// `users/{uid}.pastTeamIds`.
   final List<String> pastMemberIds;
 
+  /// Free-text names of past members who are no longer registered in the
+  /// system (e.g. for legacy/archived teams). These are displayed alongside
+  /// [pastMemberIds]-resolved profiles but are not linked to a user account.
+  final List<String> pastMemberNames;
+
   final DateTime? createdAt;
   final String? createdBy;
   final String? leadUid;         // team captain uid
@@ -166,6 +184,7 @@ class ClubTeam {
     this.photos = const [],
     this.memberIds = const [],
     this.pastMemberIds = const [],
+    this.pastMemberNames = const [],
     this.createdAt,
     this.createdBy,
     this.leadUid,
@@ -194,6 +213,7 @@ class ClubTeam {
       photos: (data['photos'] as List?)?.map((e) => e.toString()).toList() ?? const [],
       memberIds: (data['memberIds'] as List?)?.map((e) => e.toString()).toList() ?? const [],
       pastMemberIds: (data['pastMemberIds'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      pastMemberNames: (data['pastMemberNames'] as List?)?.map((e) => e.toString()).toList() ?? const [],
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       createdBy: data['createdBy'] as String?,
       leadUid: data['leadUid'] as String?,
@@ -211,6 +231,7 @@ class ClubTeam {
         'photos': photos,
         'memberIds': memberIds,
         'pastMemberIds': pastMemberIds,
+        'pastMemberNames': pastMemberNames,
         'createdAt': FieldValue.serverTimestamp(),
         'createdBy': createdBy,
         'leadUid': leadUid,

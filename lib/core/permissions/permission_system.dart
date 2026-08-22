@@ -159,6 +159,18 @@ Set<String> effectiveRoleCodes(AppUser? user) {
   return roles;
 }
 
+/// Whether [user] is a Yönetim Kurulu member (`board_member` or
+/// `board_president`), honoring both the legacy `role` field and active titles.
+bool userIsBoard(AppUser? user) {
+  final roles = effectiveRoleCodes(user);
+  return roles.contains('board_member') || roles.contains('board_president');
+}
+
+/// Whether [user] is the Yönetim Kurulu Başkanı (`board_president`).
+bool userIsBoardPresident(AppUser? user) {
+  return effectiveRoleCodes(user).contains('board_president');
+}
+
 /// Human-readable Turkish label for a role value.
 String roleLabel(String role) {
   switch (role) {
