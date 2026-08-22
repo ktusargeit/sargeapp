@@ -21,9 +21,9 @@ const List<String> _rolePriority = [
 /// Service for managing the `users/{uid}/titles` array.
 ///
 /// Titles can be added, "retired" (marked as former) or completely removed.
-/// The legacy `role` field is intentionally left untouched so that existing
-/// permission checks (`isAdmin`, `isUnitLead`) keep working exactly as before;
-/// `titles` provides the richer, historical view.
+/// The legacy `role` field is intentionally kept in sync with the user's
+/// highest active title so that Firestore/Storage rules (which read only the
+/// single `role` field) keep working exactly as before.
 ///
 /// Because the Firestore and Storage security rules resolve permissions from
 /// the single `role` field (they cannot iterate over the `titles` array), every
@@ -76,7 +76,7 @@ class UserTitleService {
       'titles': FieldValue.arrayUnion([title.toMap()]),
     });
 
-    await _reconcileRole(uid);
+    await reconcileRole(uid);
 
     return title;
   }
@@ -110,7 +110,7 @@ class UserTitleService {
         txn.update(userRef, {'titles': updated});
       }
     });
-    await _reconcileRole(uid);
+    await reconcileRole(uid);
   }
 
   /// Retires the active `unit_lead` title for a specific [unitName].
@@ -147,8 +147,40 @@ class UserTitleService {
         txn.update(userRef, {'titles': updated});
       }
     });
-    await _reconcileRole(uid);
+    await reconcileRole(uid);
     return retired;
+  }
+
+  /// Retires all active titles of [titleType] for [uid].
+  ///
+  /// Used when a global role (e.g. admin, board president, board member) is
+  /// removed from a user via the multi-role sheet. Matching titles are kept as
+  /// former titles instead of being deleted. Reconciles `role` afterwards so a
+  /// user who is still holding e.g. a `board_member` title is promoted back to
+  /// `board_member` after their `admin` title is retired.
+  Future<void> retireActiveTitleByType({
+    required String uid,
+    required String titleType,
+  }) async {
+    final userRef = _users().doc(uid);
+    var changed = false;
+    await _firestore.runTransaction((txn) async {
+      final snap = await txn.get(userRef);
+      if (!snap.exists) return;
+      final data = snap.data()!;
+      final titles = _titlesFromData(data);
+      final updated = titles.map((t) {
+        if (t.isActive && t.titleType == titleType) {
+          changed = true;
+          return t.copyWith(isActive: false, endDate: DateTime.now());
+        }
+        return t;
+      }).map((t) => t.toMap()).toList();
+      if (changed) {
+        txn.update(userRef, {'titles': updated});
+      }
+    });
+    await reconcileRole(uid);
   }
 
   /// Completely removes a title (only for accidental additions).
@@ -170,20 +202,26 @@ class UserTitleService {
         txn.update(userRef, {'titles': updated});
       }
     });
-    await _reconcileRole(uid);
+    await reconcileRole(uid);
   }
 
-  /// Upgrades the legacy `users/{uid}.role` field when a plain `member` user
-  /// now holds a privileged active title (e.g. `unit_lead`, `captain`). Firestore
-  /// and Storage rules resolve authorization from this single `role` field, so
-  /// without this sync a title-granted privilege would show in the UI but be
-  /// denied server-side with `permission-denied` / `firebase_storage/unauthorized`.
+  /// Re-syncs the legacy `users/{uid}.role` field to the user's highest active
+  /// privileged title. Firestore and Storage rules resolve authorization from
+  /// this single `role` field, so without this sync a title-granted privilege
+  /// would show in the UI but be denied server-side with `permission-denied` /
+  /// `firebase_storage/unauthorized`.
   ///
   /// This is intentionally a best-effort, upgrade-only operation:
   ///  * It never downgrades an already-privileged role.
+  ///  * If the caller previously wrote `role: 'member'` (e.g. when a global
+  ///    title is removed), the remaining privileged titles are re-promoted.
   ///  * Failures are swallowed so a title mutation is never blocked by a role
   ///    write the caller might not be authorized to perform.
-  Future<void> _reconcileRole(String uid) async {
+  ///
+  /// Public so the multi-role editor can call it AFTER writing `role: 'member'`
+  /// when a global title is removed, letting the remaining privileged titles
+  /// (e.g. `board_member` staying while `admin` is removed) re-promote `role`.
+  Future<void> reconcileRole(String uid) async {
     try {
       final snap = await _users().doc(uid).get();
       if (!snap.exists) return;

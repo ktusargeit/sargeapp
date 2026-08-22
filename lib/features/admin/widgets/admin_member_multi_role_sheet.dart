@@ -41,7 +41,14 @@ class _AdminMemberMultiRoleSheetState
     final teams = teamsAsync.valueOrNull ?? const <ClubTeam>[];
     final units = unitsAsync.valueOrNull ?? const <Map<String, dynamic>>[];
 
-    final isAdmin = widget.user.role == 'admin';
+    final isAdmin = widget.user.role == 'admin' ||
+        widget.user.activeTitles.any((t) => t.titleType == TitleType.admin);
+    final isBoardPresident = widget.user.role == 'board_president' ||
+        widget.user.activeTitles
+            .any((t) => t.titleType == TitleType.boardPresident);
+    final isBoardMember = widget.user.role == 'board_member' ||
+        widget.user.activeTitles
+            .any((t) => t.titleType == TitleType.boardMember);
     final captainTeamIds = teams
         .where((t) => t.leadUid == widget.user.uid)
         .map((t) => t.id)
@@ -107,8 +114,44 @@ class _AdminMemberMultiRoleSheetState
                       activeColor: AppColors.error,
                       title: const Text('Admin'),
                       subtitle: const Text('Sistem genelinde tam yetki'),
-                      onChanged:
-                          _busy ? null : (v) => _setAdmin(v ?? false),
+                      onChanged: _busy
+                          ? null
+                          : (v) => _setGlobalRole(
+                                TitleType.admin,
+                                v ?? false,
+                                'Admin yapıldı.',
+                                'Adminlik kaldırıldı.',
+                              ),
+                    ),
+                    CheckboxListTile(
+                      value: isBoardPresident,
+                      contentPadding: EdgeInsets.zero,
+                      activeColor: AppColors.info,
+                      title: const Text('Yönetim Kurulu Başkanı'),
+                      subtitle: const Text('Yönetim kurulu başkanı'),
+                      onChanged: _busy
+                          ? null
+                          : (v) => _setGlobalRole(
+                                TitleType.boardPresident,
+                                v ?? false,
+                                'Yönetim Kurulu Başkanı yapıldı.',
+                                'Yönetim Kurulu Başkanlığı kaldırıldı.',
+                              ),
+                    ),
+                    CheckboxListTile(
+                      value: isBoardMember,
+                      contentPadding: EdgeInsets.zero,
+                      activeColor: AppColors.info,
+                      title: const Text('Yönetim Kurulu Üyesi'),
+                      subtitle: const Text('Yönetim kurulu üyesi'),
+                      onChanged: _busy
+                          ? null
+                          : (v) => _setGlobalRole(
+                                TitleType.boardMember,
+                                v ?? false,
+                                'Yönetim Kurulu Üyesi yapıldı.',
+                                'Yönetim Kurulu Üyeliği kaldırıldı.',
+                              ),
                     ),
                     const Divider(height: 16),
                     const AdminMemberSectionLabel('TAKIM KAPTANI'),
@@ -177,16 +220,45 @@ class _AdminMemberMultiRoleSheetState
     );
   }
 
-  Future<void> _setAdmin(bool value) async {
+  /// Sets a GLOBAL role (admin / board president / board member) for the user.
+  ///
+  /// Every global role is stored BOTH in the legacy single `role` field (so
+  /// Firestore/Storage rules keep working) AND in the `titles` array (so the
+  /// profile can display all roles simultaneously). Removing a role retires its
+  /// title and lets `_reconcileRole` promote the `role` field back to whatever
+  /// privileged title the user still holds — meaning Admin + Yönetim Kurulu
+  /// Üyesi can coexist without overwriting each other.
+  Future<void> _setGlobalRole(
+    String titleType,
+    bool value,
+    String successMessage,
+    String removedMessage,
+  ) async {
     setState(() => _busy = true);
     try {
+      final titleService = ref.read(userTitleServiceProvider);
+      if (value) {
+        await titleService.addTitle(
+          uid: widget.user.uid,
+          titleType: titleType,
+        );
+      } else {
+        await titleService.retireActiveTitleByType(
+          uid: widget.user.uid,
+          titleType: titleType,
+        );
+      }
       await ref.read(permissionServiceProvider).updateRole(
             targetUid: widget.user.uid,
-            newRole: value ? 'admin' : 'member',
+            newRole: value ? titleType : 'member',
           );
+      // After writing `role: 'member'` (when a global title was removed),
+      // re-promote `role` to any remaining privileged active title (e.g. a
+      // board_member title staying while admin is removed).
+      await titleService.reconcileRole(widget.user.uid);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(value ? 'Admin yapıldı.' : 'Adminlik kaldırıldı.'),
+          content: Text(value ? successMessage : removedMessage),
           backgroundColor: AppColors.success,
         ));
       }

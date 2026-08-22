@@ -60,7 +60,21 @@ class AppUser {
     this.isSuspended = false,
   });
 
-  bool get isAdmin => role == 'admin';
+  /// Whether the user holds the Admin role, honoring BOTH the legacy single
+  /// `role` field and the `titles` array (a user can hold Admin + other global
+  /// roles simultaneously, and Admin may only exist as an active title).
+  bool get isAdmin =>
+      role == 'admin' ||
+      activeTitles.any((t) => t.titleType == TitleType.admin);
+
+  /// Whether the user holds the Yönetim Kurulu Üyesi role (including Başkan).
+  bool get isBoardMember =>
+      role == 'board_member' ||
+      role == 'board_president' ||
+      activeTitles.any((t) =>
+          t.titleType == TitleType.boardMember ||
+          t.titleType == TitleType.boardPresident);
+
   bool get isUnitLead => role == 'unit_lead';
 
   String get roleLabel {

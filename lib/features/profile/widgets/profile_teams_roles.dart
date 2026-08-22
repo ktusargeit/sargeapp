@@ -39,8 +39,35 @@ class ProfileTeamsRolesSection extends ConsumerWidget {
     final unitsAsync = ref.watch(teamUnitListProvider);
     final teams = teamsAsync.valueOrNull ?? [];
     final units = unitsAsync.valueOrNull ?? const [];
-    final isAdmin = user.role == 'admin' ||
-        user.activeTitles.any((t) => t.titleType == TitleType.admin);
+
+    // Global roller: role alanı + aktif titles birleşimi. Aynı anda birden
+    // fazla global rol taşınabilir (örn. Admin + Yönetim Kurulu Üyesi).
+    final globalRoles = <({String type, String label, IconData icon, Color color})>[
+      if (user.role == 'admin' ||
+          user.activeTitles.any((t) => t.titleType == TitleType.admin))
+        (
+          type: 'admin',
+          label: 'Admin',
+          icon: Icons.admin_panel_settings,
+          color: AppColors.error,
+        ),
+      if (user.role == 'board_president' ||
+          user.activeTitles.any((t) => t.titleType == TitleType.boardPresident))
+        (
+          type: 'board_president',
+          label: 'Yönetim Kurulu Başkanı',
+          icon: Icons.gavel_outlined,
+          color: AppColors.info,
+        ),
+      if (user.role == 'board_member' ||
+          user.activeTitles.any((t) => t.titleType == TitleType.boardMember))
+        (
+          type: 'board_member',
+          label: 'Yönetim Kurulu Üyesi',
+          icon: Icons.groups_2_outlined,
+          color: AppColors.info,
+        ),
+    ];
 
     // Birim sorumlulukları: units koleksiyonunda unitLeadUid == user.uid.
     final ledUnits =
@@ -48,14 +75,19 @@ class ProfileTeamsRolesSection extends ConsumerWidget {
 
     return ProfileSectionTitleWithCard(
       header: const ProfileSectionHeader(title: 'GÜNCEL TAKIMLAR & ROLLER'),
-      child: (teams.isEmpty && !isAdmin)
+      child: (teams.isEmpty && globalRoles.isEmpty)
           ? const ProfileEmptyCard(
               'Aktif takım bulunmuyor.',
               icon: Icons.groups_outlined,
             )
           : Column(
               children: [
-                if (isAdmin) const ProfileAdminBadgeRow(),
+                for (final role in globalRoles)
+                  ProfileGlobalRoleRow(
+                    label: role.label,
+                    icon: role.icon,
+                    color: role.color,
+                  ),
                 for (var i = 0; i < teams.length; i++)
                   ProfileTeamCard(
                     team: teams[i],
@@ -89,11 +121,13 @@ class ProfileTeamCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final photoUrl = team.photoUrl;
-    final roleLabel = isCaptain
-        ? 'Kaptan'
-        : (ledUnitNames.isNotEmpty
-            ? 'Birim Sorumlusu: ${ledUnitNames.join(', ')}'
-            : 'Üye');
+    final roles = <String>[
+      if (isCaptain) 'Kaptan',
+      if (ledUnitNames.isNotEmpty)
+        'Birim Sorumlusu: ${ledUnitNames.join(', ')}',
+      if (!isCaptain && ledUnitNames.isEmpty) 'Üye',
+    ];
+    final roleLabel = roles.join(' • ');
     final roleColor = isCaptain
         ? AppColors.warning
         : (ledUnitNames.isNotEmpty
@@ -159,8 +193,10 @@ class ProfileTeamCard extends StatelessWidget {
                       color: AppColors.warning,
                       fontSize: 9,
                       fontWeight: FontWeight.w800)),
-            )
-          else if (ledUnitNames.isNotEmpty)
+            ),
+          if (ledUnitNames.isNotEmpty)
+            const SizedBox(width: 6),
+          if (ledUnitNames.isNotEmpty)
             Container(
               padding:
                   const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -182,8 +218,20 @@ class ProfileTeamCard extends StatelessWidget {
   }
 }
 
-class ProfileAdminBadgeRow extends StatelessWidget {
-  const ProfileAdminBadgeRow({super.key});
+/// Row showing a single GLOBAL role (Admin / Yönetim Kurulu Başkanı /
+/// Yönetim Kurulu Üyesi). Multiple rows render one after another so a user who
+/// holds several global roles at once sees all of them listed.
+class ProfileGlobalRoleRow extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  const ProfileGlobalRoleRow({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -198,17 +246,16 @@ class ProfileAdminBadgeRow extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: AppColors.error.withValues(alpha: 0.14),
+              color: color.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.error.withValues(alpha: 0.5)),
+              border: Border.all(color: color.withValues(alpha: 0.5)),
             ),
-            child: const Icon(Icons.admin_panel_settings,
-                color: AppColors.error, size: 20),
+            child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Admin',
+              label,
               style: TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 14,
@@ -219,15 +266,17 @@ class ProfileAdminBadgeRow extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: AppColors.error.withValues(alpha: 0.18),
+              color: color.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.error.withValues(alpha: 0.5)),
+              border: Border.all(color: color.withValues(alpha: 0.5)),
             ),
-            child: const Text('SİSTEM YÖNETİCİSİ',
-                style: TextStyle(
-                    color: AppColors.error,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800)),
+            child: Text(
+              label == 'Admin' ? 'SİSTEM YÖNETİCİSİ' : 'KURUL',
+              style: TextStyle(
+                  color: color,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800),
+            ),
           ),
         ],
       ),

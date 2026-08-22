@@ -142,7 +142,7 @@ class _AdminMemberDetailScreenState
             onPressed: () => _openMultiRoleSheet(user),
             icon: const Icon(Icons.checklist, size: 18),
             label: const Text(
-                'Çoklu Rol Yönetimi (Admin + Kaptan + Birim Sorumlusu)'),
+                'Çoklu Rol Yönetimi (Admin + Yönetim Kurulu + Kaptan + Birim Sorumlusu)'),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.sargeGold,
               side: BorderSide(
