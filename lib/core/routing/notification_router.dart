@@ -2,10 +2,16 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 
 /// Maps a notification `type` to the GoRouter location that owns its content.
 ///
-/// Deep-link targets are passed separately as `extra` so each screen can
-/// auto-open the right thread (task detail sheet, announcement detail sheet,
-/// or report detail view).
-String locationForNotificationType(String? type) {
+/// For notification types whose owning document id is known up front
+/// (`team_application` → team detail, `store_order` → order detail), the id is
+/// embedded directly into the returned path so the user lands on the specific
+/// content instead of a generic list page.
+///
+/// For list-backed screens (tasks, announcements, reports) the id is still
+/// passed separately as `extra` because there is no dedicated detail route —
+/// the list screen auto-opens the thread when it receives that `extra`.
+String locationForNotificationType(String? type, {String? relatedId}) {
+  final id = (relatedId != null && relatedId.isNotEmpty) ? relatedId : null;
   switch (type) {
     case 'task_comment':
     case 'task_assigned':
@@ -18,11 +24,12 @@ String locationForNotificationType(String? type) {
     case 'report':
       return '/report-bug';
     case 'team_application':
-      return '/team';
+      return id != null ? '/team/$id' : '/team';
     case 'cleaning':
-      return '/cleaning';
+      // Cleaning notifications carry the weekKey (Monday YYYY-MM-DD) as relatedId.
+      return id != null ? '/cleaning/week/$id' : '/cleaning';
     case 'store_order':
-      return '/store/orders';
+      return id != null ? '/store/order-detail/$id' : '/store/orders';
     default:
       return '/dashboard';
   }

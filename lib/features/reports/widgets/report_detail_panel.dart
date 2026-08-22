@@ -75,7 +75,6 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
   PickedImage? _msgImage;
   Map<String, dynamic>? _replyTo;
   late final PresenceService _presenceService;
-  bool _sending = false;
   final List<PendingMessage> _pendingMessages = [];
   int _pendingCounter = 0;
   ScrollController? _scrollController;
@@ -164,7 +163,6 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
   }
 
   Future<void> _sendMessage(BugReport report) async {
-    if (_sending) return;
     final text = _msgCtrl.text.trim();
     if (text.isEmpty && _msgImage == null) return;
 
@@ -187,7 +185,6 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
       replyToUid: replyTo?['senderUid'] as String?,
     );
 
-    _sending = true;
     setState(() {
       _pendingMessages.add(pending);
       _msgCtrl.clear();
@@ -247,14 +244,12 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
       if (mounted) {
         setState(() {
           _pendingMessages.remove(pending);
-          _sending = false;
         });
       }
     } catch (_) {
       if (mounted) {
         setState(() {
           pending.failed = true;
-          _sending = false;
         });
       }
     }

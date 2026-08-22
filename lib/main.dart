@@ -153,7 +153,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void _handleTappedNotification(RemoteMessage message) {
   final type = message.data['type'];
   final targetId = targetIdOf(message);
-  final location = locationForNotificationType(type);
+  final location = locationForNotificationType(type, relatedId: targetId);
   debugPrint('Notification tapped: type=$type targetId=$targetId');
 
   final navigator = rootNavigatorKey.currentState;

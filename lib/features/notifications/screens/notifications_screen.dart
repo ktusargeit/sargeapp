@@ -89,7 +89,8 @@ class NotificationsScreen extends ConsumerWidget {
                         .markRead(notificationId);
                   }
                   if (context.mounted) {
-                    final location = locationForNotificationType(type);
+                    final location =
+                        locationForNotificationType(type, relatedId: relatedId);
                     context.go(location,
                         extra: relatedId != null && relatedId.isNotEmpty
                             ? relatedId

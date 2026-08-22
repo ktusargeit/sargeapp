@@ -27,7 +27,6 @@ class TaskDetailSheet extends ConsumerStatefulWidget {
 class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
   final _commentCtrl = TextEditingController();
   List<PickedImage> _commentImages = [];
-  bool _sending = false;
   Map<String, dynamic>? _replyTo;
   late final PresenceService _presenceService;
   final List<PendingMessage> _pendingComments = [];
@@ -80,7 +79,6 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
   }
 
   Future<void> _sendComment() async {
-    if (_sending) return;
     final text = _commentCtrl.text.trim();
     if (text.isEmpty && _commentImages.isEmpty) return;
 
@@ -107,7 +105,6 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
       _pendingComments.add(pending);
       _commentImages = [];
       _replyTo = null;
-      _sending = true;
     });
     _commentCtrl.clear();
 
@@ -145,14 +142,12 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
       if (mounted) {
         setState(() {
           _pendingComments.remove(pending);
-          _sending = false;
         });
       }
     } catch (_) {
       if (mounted) {
         setState(() {
           pending.failed = true;
-          _sending = false;
         });
       }
     }
@@ -441,7 +436,6 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                 TaskCommentInputBar(
                   controller: _commentCtrl,
                   images: _commentImages,
-                  sending: _sending,
                   replyTo: _replyTo,
                   onClearReply: () => setState(() => _replyTo = null),
                   onPickImages: () async {
@@ -601,7 +595,6 @@ class _TaskCommentsListState extends ConsumerState<TaskCommentsList> {
 class TaskCommentInputBar extends StatelessWidget {
   final TextEditingController controller;
   final List<PickedImage> images;
-  final bool sending;
   final VoidCallback onPickImages;
   final void Function(int) onRemoveImage;
   final VoidCallback onSend;
@@ -612,7 +605,6 @@ class TaskCommentInputBar extends StatelessWidget {
     super.key,
     required this.controller,
     required this.images,
-    required this.sending,
     required this.onPickImages,
     required this.onRemoveImage,
     required this.onSend,
@@ -708,22 +700,15 @@ class TaskCommentInputBar extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               GestureDetector(
-                onTap: sending ? null : onSend,
+                onTap: onSend,
                 child: Container(
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: sending
-                        ? AppColors.tasksAccent.withValues(alpha: 0.5)
-                        : AppColors.tasksAccent,
+                  decoration: const BoxDecoration(
+                    color: AppColors.tasksAccent,
                     shape: BoxShape.circle,
                   ),
-                  child: sending
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.send_rounded, size: 18, color: Colors.white),
+                  child: const Icon(Icons.send_rounded,
+                      size: 18, color: Colors.white),
                 ),
               ),
             ],

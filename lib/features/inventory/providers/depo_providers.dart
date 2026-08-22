@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -169,16 +170,33 @@ class DepoRepository {
   Future<String> _uploadImage(String path,
       {File? file, Uint8List? bytes}) async {
     final ref = _storage.ref().child(path);
-    // Client-side compression: max-1280px JPEG at ~75% quality.
-    final compressed = await _compressedBytes(file: file, bytes: bytes);
-    if (compressed.isNotEmpty) {
-      await ref.putData(compressed);
-    } else if (bytes != null) {
-      await ref.putData(bytes);
-    } else if (file != null) {
-      await ref.putFile(file);
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    debugPrint(
+        '[depo-upload] path=${ref.fullPath} uid=$uid hasFile=${file != null} hasBytes=${bytes != null}');
+
+    if (uid == null) {
+      throw Exception(
+          'Görsel yüklenemedi: oturum bilgisi bulunamadı. Lütfen çıkış yapıp tekrar giriş yapın.');
     }
-    return ref.getDownloadURL();
+
+    try {
+      // Client-side compression: max-1280px JPEG at ~75% quality.
+      final compressed = await _compressedBytes(file: file, bytes: bytes);
+      if (compressed.isNotEmpty) {
+        await ref.putData(compressed);
+      } else if (bytes != null) {
+        await ref.putData(bytes);
+      } else if (file != null) {
+        await ref.putFile(file);
+      }
+      final url = await ref.getDownloadURL();
+      debugPrint('[depo-upload] OK path=${ref.fullPath}');
+      return url;
+    } catch (e, st) {
+      debugPrint(
+          '[depo-upload] FAILED path=${ref.fullPath} uid=$uid error=$e\n$st');
+      rethrow;
+    }
   }
 
   /// Reads [file]/[bytes] and returns JPEG bytes ≤1280px wide; empty if no data.

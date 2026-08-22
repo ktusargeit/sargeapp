@@ -520,6 +520,14 @@ class ChatBubble extends ConsumerWidget {
                           fontSize: 10,
                         ),
                       ),
+                      if (isMine) ...[
+                        const SizedBox(width: 3),
+                        const Icon(
+                          Icons.check,
+                          size: 12,
+                          color: Colors.white70,
+                        ),
+                      ],
                       if (onReply != null) ...[
                         const SizedBox(width: 6),
                         GestureDetector(

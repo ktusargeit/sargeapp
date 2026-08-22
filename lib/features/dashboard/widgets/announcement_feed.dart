@@ -645,7 +645,6 @@ class _AnnouncementDetailSheetState
   List<PickedImage> _commentImages = [];
   Map<String, dynamic>? _replyTo;
   late final PresenceService _presenceService;
-  bool _sending = false;
   final List<PendingMessage> _pendingComments = [];
   int _pendingCounter = 0;
 
@@ -675,7 +674,6 @@ class _AnnouncementDetailSheetState
   }
 
   Future<void> _sendComment() async {
-    if (_sending) return;
     final text = _commentCtrl.text.trim();
     if (text.isEmpty && _commentImages.isEmpty) return;
 
@@ -703,7 +701,6 @@ class _AnnouncementDetailSheetState
       _pendingComments.add(pending);
       _commentImages = [];
       _replyTo = null;
-      _sending = true;
     });
     _commentCtrl.clear();
 
@@ -757,14 +754,12 @@ class _AnnouncementDetailSheetState
       if (mounted) {
         setState(() {
           _pendingComments.remove(pending);
-          _sending = false;
         });
       }
     } catch (_) {
       if (mounted) {
         setState(() {
           pending.failed = true;
-          _sending = false;
         });
       }
     }
@@ -1029,23 +1024,15 @@ class _AnnouncementDetailSheetState
                         ),
                         const SizedBox(width: 8),
                         GestureDetector(
-                          onTap: _sending ? null : _sendComment,
+                          onTap: _sendComment,
                           child: Container(
                             padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: _sending
-                                  ? AppColors.panelBlue.withValues(alpha: 0.5)
-                                  : AppColors.panelBlue,
+                            decoration: const BoxDecoration(
+                              color: AppColors.panelBlue,
                               shape: BoxShape.circle,
                             ),
-                            child: _sending
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: Colors.white))
-                                : const Icon(Icons.send_rounded,
-                                    size: 18, color: Colors.white),
+                            child: const Icon(Icons.send_rounded,
+                                size: 18, color: Colors.white),
                           ),
                         ),
                       ],
