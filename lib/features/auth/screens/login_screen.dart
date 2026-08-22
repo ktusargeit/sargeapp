@@ -97,6 +97,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         textAlign: TextAlign.center,
                         style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
                       ),
+                      const SizedBox(height: 8),
+                       Text(
+                        'v${AppConstants.appVersion}',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppColors.textSecondary.withValues(alpha: 0.6),
+                          fontSize: 12,
+                          letterSpacing: 1,
+                        ),
+                      ),
                       const SizedBox(height: AppConstants.spacingXl),
                       const _FieldLabel('E-posta'),
                       const SizedBox(height: 6),
