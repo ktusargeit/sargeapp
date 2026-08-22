@@ -355,26 +355,45 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
       final points = int.tryParse(_pointsCtrl.text.trim()) ?? 10;
 
       final recipients = <({String uid, String name})>[];
-      if (isBoardMode) {
-        final boardSnap = await firestore
-            .collection('users')
-            .where('role', whereIn: ['board_president', 'board_member'])
-            .get();
-        for (final doc in boardSnap.docs) {
-          recipients.add((
-            uid: doc.id,
-            name: (doc.data()['displayName'] as String?) ?? 'Üye',
-          ));
-        }
-        if (recipients.isEmpty) {
-          setState(() => _loading = false);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Yönetim Kurulu üyesi bulunamadı.'),
-                backgroundColor: AppColors.warning));
-          }
-          return;
-        }
+       if (isBoardMode) {
+         final boardSnap = await firestore
+             .collection('users')
+             .where('role', whereIn: ['board_president', 'board_member'])
+             .get();
+         for (final doc in boardSnap.docs) {
+           recipients.add((
+             uid: doc.id,
+             name: (doc.data()['displayName'] as String?) ?? 'Üye',
+           ));
+         }
+         // Ayrıca titles array'inde board_member/board_president olan kullanıcıları da ekle
+         final titlesSnap = await firestore
+             .collection('users')
+             .get();
+         for (final doc in titlesSnap.docs) {
+           final titles = (doc.data()['titles'] as List?) ?? [];
+           final hasBoard = titles.any((t) {
+             final titleType = (t as Map)['titleType'] as String?;
+             final isActive = (t as Map)['isActive'] as bool? ?? true;
+             return isActive && (titleType == 'board_president' || titleType == 'board_member');
+           });
+           if (hasBoard && !recipients.any((r) => r.uid == doc.id)) {
+             recipients.add((
+               uid: doc.id,
+               name: (doc.data()['displayName'] as String?) ?? 'Üye',
+             ));
+           }
+         }
+         if (recipients.isEmpty) {
+           setState(() => _loading = false);
+           if (mounted) {
+             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                 content: Text('Yönetim Kurulu üyesi bulunamadı.'),
+                 backgroundColor: AppColors.warning));
+           }
+           return;
+         }
+         recipients.sort((a, b) => a.name.compareTo(b.name));
       } else if (_mode == TaskAssignmentMode.unit) {
         final unitDoc =
             await firestore.collection('units').doc(_selectedUnit!['id'] as String).get();

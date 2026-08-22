@@ -124,32 +124,44 @@ class _AdminMemberDetailScreenState
         ],
         const SizedBox(height: 20),
 
-        // ── Rol ─────────────────────────────────────────────────────────────
-        const AdminMemberSectionTitle(
-            icon: Icons.badge_outlined, title: 'Rol'),
+        // ── Roller ──────────────────────────────────────────────────────────
+        AdminMemberSectionTitle(
+          icon: Icons.badge_outlined,
+          title: 'Roller',
+          trailing: caps.canChangeRoles
+              ? TextButton.icon(
+                  onPressed: () => _openMultiRoleSheet(user),
+                  icon: const Icon(Icons.edit, size: 16),
+                  label: const Text('Yönet'),
+                )
+              : null,
+        ),
         const SizedBox(height: 8),
-        if (caps.canChangeRoles)
-          AdminMemberRoleEditor(
-            user: user,
-            saving: _savingRole == user.uid,
-            onChanged: (newRole) => _changeRole(user, newRole),
-          )
+        if (user.activeTitles.isEmpty)
+          _muted('Güncel rol yok.')
         else
-          _muted('Rol değiştirme yetkisi yalnızca admin rolündedir.'),
-        if (caps.canChangeRoles) ...[
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: () => _openMultiRoleSheet(user),
-            icon: const Icon(Icons.checklist, size: 18),
-            label: const Text(
-                'Çoklu Rol Yönetimi (Admin + Yönetim Kurulu + Kaptan + Birim Sorumlusu)'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.sargeGold,
-              side: BorderSide(
-                  color: AppColors.sargeGold.withValues(alpha: 0.5)),
-            ),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: user.activeTitles
+                .map((t) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: AppColors.sargeGold.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.sargeGold.withValues(alpha: 0.4)),
+                      ),
+                      child: Text(
+                        t.displayLabel,
+                        style: TextStyle(
+                          color: AppColors.sargeGold,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ))
+                .toList(),
           ),
-        ],
         const SizedBox(height: 20),
 
         // ── Puan ────────────────────────────────────────────────────────────

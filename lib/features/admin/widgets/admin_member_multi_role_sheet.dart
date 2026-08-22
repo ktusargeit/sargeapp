@@ -190,26 +190,53 @@ class _AdminMemberMultiRoleSheetState
                                 color: AppColors.textSecondary, fontSize: 13)),
                       )
                     else
-                      ...units.map((u) {
-                        final name = u['name'] as String? ?? '';
-                        final id = u['id'] as String;
-                        final teamName = teams
-                            .where((t) => t.id == u['teamId'])
-                            .map((t) => t.name)
-                            .firstOrNull;
-                        final checked =
-                            leadUnitIds.contains(id) || _pendingUnitIds.contains(id);
-                        return CheckboxListTile(
-                          value: checked,
-                          contentPadding: EdgeInsets.zero,
-                          activeColor: AppColors.warning,
-                          title: Text(name),
-                          subtitle: Text(teamName ?? 'Birim sorumlusu'),
-                          onChanged: _busy
-                              ? null
-                              : (v) => _setUnitLead(id, name, v ?? false),
-                        );
-                      }),
+                       ...units.fold<Map<String, List<Map<String, dynamic>>>>(
+                         {},
+                         (acc, u) {
+                           final teamId = u['teamId'] as String?;
+                           if (teamId != null) {
+                             acc.putIfAbsent(teamId, () => []).add(u);
+                           }
+                           return acc;
+                         },
+                       ).entries.expand((entry) {
+                         final teamId = entry.key;
+                         final teamName = teams
+                             .where((t) => t.id == teamId)
+                             .map((t) => t.name)
+                             .firstOrNull ?? 'Bilinmeyen Takım';
+                         final unitsInTeam = entry.value;
+                         return [
+                           Padding(
+                             padding: const EdgeInsets.only(top: 8, bottom: 4),
+                             child: Text(
+                               teamName,
+                               style: TextStyle(
+                                 color: AppColors.textSecondary,
+                                 fontSize: 11,
+                                 fontWeight: FontWeight.w600,
+                                 letterSpacing: 1.2,
+                               ),
+                             ),
+                           ),
+                           ...unitsInTeam.map((u) {
+                             final name = u['name'] as String? ?? '';
+                             final id = u['id'] as String;
+                             final checked =
+                                 leadUnitIds.contains(id) || _pendingUnitIds.contains(id);
+                             return CheckboxListTile(
+                               value: checked,
+                               contentPadding: const EdgeInsets.only(left: 16),
+                               activeColor: AppColors.warning,
+                               title: Text(name),
+                               subtitle: const Text('Birim sorumlusu'),
+                               onChanged: _busy
+                                   ? null
+                                   : (v) => _setUnitLead(id, name, v ?? false),
+                             );
+                           }),
+                         ];
+                       }),
                   ],
                 ),
               ),
