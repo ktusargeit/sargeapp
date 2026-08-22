@@ -194,11 +194,15 @@ class _OrderList extends ConsumerWidget {
                               ),
                             ),
                             const SizedBox(width: 10),
-                            Text(
-                              _formatDate(order.createdAt),
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 11,
+                            Expanded(
+                              child: Text(
+                                _formatDate(order.createdAt),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 11,
+                                ),
                               ),
                             ),
                           ],

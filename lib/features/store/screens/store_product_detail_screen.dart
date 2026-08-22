@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/permissions/permission_system.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/full_screen_image_view.dart';
 import '../../../core/widgets/safe_network_image.dart';
 import '../models/store_models.dart';
 import '../providers/store_providers.dart';
@@ -125,13 +126,20 @@ class _ProductDetailBodyState extends State<_ProductDetailBody> {
         children: [
           // Gallery
           if (images.isNotEmpty) ...[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-              child: AspectRatio(
-                aspectRatio: 4 / 3,
-                child: SafeNetworkImage(
-                  url: images[_currentImage.clamp(0, images.length - 1)],
-                  fit: BoxFit.cover,
+            GestureDetector(
+              onTap: () => showFullScreenImageViewer(
+                context,
+                urls: images,
+                initialIndex: _currentImage.clamp(0, images.length - 1),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+                child: AspectRatio(
+                  aspectRatio: 4 / 3,
+                  child: SafeNetworkImage(
+                    url: images[_currentImage.clamp(0, images.length - 1)],
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
             ),

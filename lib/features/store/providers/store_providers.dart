@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -70,14 +68,14 @@ final myOrdersProvider = StreamProvider<List<StoreOrder>>((ref) {
 });
 
 /// A picked PDF file (receipt/dekont).
+///
+/// Only `bytes` is stored (always populated via `withData: true`), because on
+/// the web the `path` property is unavailable and throws when accessed.
 class PickedPdf {
-  final String path;
-  final Uint8List? bytes;
+  final Uint8List bytes;
   final String name;
 
-  const PickedPdf({required this.path, required this.bytes, required this.name});
-
-  bool get onWeb => kIsWeb;
+  const PickedPdf({required this.bytes, required this.name});
 }
 
 /// Store repository: product CRUD + orders + settings (IBAN management).
@@ -264,7 +262,7 @@ class StoreRepository {
     final ref = _storage.ref().child(path);
     final uid = FirebaseAuth.instance.currentUser?.uid;
     debugPrint(
-        '[store-upload-pdf] path=${ref.fullPath} uid=$uid hasBytes=${pdf.bytes != null}');
+        '[receipt-upload] path=${ref.fullPath} uid=$uid hasBytes=${pdf.bytes.isNotEmpty}');
 
     if (uid == null) {
       throw Exception(
@@ -272,17 +270,13 @@ class StoreRepository {
     }
 
     try {
-      if (pdf.bytes != null && pdf.bytes!.isNotEmpty) {
-        await ref.putData(pdf.bytes!);
-      } else if (!kIsWeb && pdf.path.isNotEmpty) {
-        await ref.putFile(File(pdf.path));
-      }
+      await ref.putData(pdf.bytes);
       final url = await ref.getDownloadURL();
-      debugPrint('[store-upload-pdf] OK path=${ref.fullPath} url=$url');
+      debugPrint('[receipt-upload] OK path=${ref.fullPath} url=$url');
       return url;
     } catch (e, st) {
       debugPrint(
-          '[store-upload-pdf] FAILED path=${ref.fullPath} uid=$uid error=$e\n$st');
+          '[receipt-upload] FAILED path=${ref.fullPath} uid=$uid error=$e\n$st');
       rethrow;
     }
   }
@@ -299,6 +293,7 @@ Future<PickedPdf?> pickReceiptPdf({int maxBytes = 10 * 1024 * 1024}) async {
   final result = await FilePicker.platform.pickFiles(
     type: FileType.custom,
     allowedExtensions: const ['pdf'],
+    withData: true,
   );
   if (result == null || result.files.isEmpty) return null;
 
@@ -312,11 +307,12 @@ Future<PickedPdf?> pickReceiptPdf({int maxBytes = 10 * 1024 * 1024}) async {
         'Dosya boyutu 10MB sınırını aşıyor. Lütfen daha küçük bir PDF seçin.');
   }
 
-  return PickedPdf(
-    path: file.path ?? '',
-    bytes: kIsWeb ? file.bytes : null,
-    name: file.name,
-  );
+  final bytes = file.bytes;
+  if (bytes == null || bytes.isEmpty) {
+    throw const FormatException('PDF dosyası okunamadı. Lütfen tekrar deneyin.');
+  }
+
+  return PickedPdf(bytes: bytes, name: file.name);
 }
 
 /// Sends a notification to all users with `manageStore` permission
