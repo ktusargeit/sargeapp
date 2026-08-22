@@ -187,7 +187,7 @@ class _OrderList extends ConsumerWidget {
                           children: [
                             Text(
                               '₺${order.price.toStringAsFixed(0)}',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: AppColors.sargeGold,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,

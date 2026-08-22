@@ -222,7 +222,7 @@ class _ProductDetailBodyState extends State<_ProductDetailBody> {
           // Price
           Text(
             product.formattedPrice,
-            style: TextStyle(
+            style: const TextStyle(
               color: AppColors.sargeGold,
               fontSize: 24,
               fontWeight: FontWeight.w700,
@@ -259,7 +259,7 @@ class _ProductDetailBodyState extends State<_ProductDetailBody> {
               onPressed: product.inStock
                   ? () => context.push('/store/order/${product.id}')
                   : null,
-              icon: Icon(Icons.shopping_bag_outlined, size: 18),
+              icon: const Icon(Icons.shopping_bag_outlined, size: 18),
               label: Text(product.inStock ? 'Al' : 'Stokta Yok'),
               style: ElevatedButton.styleFrom(
                 backgroundColor:

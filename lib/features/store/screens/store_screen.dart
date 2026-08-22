@@ -98,7 +98,7 @@ class StoreScreen extends ConsumerWidget {
 
                 return GridView.builder(
                   padding: const EdgeInsets.all(16),
-                  gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                     maxCrossAxisExtent: 200,
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
@@ -207,7 +207,7 @@ class _ProductCard extends ConsumerWidget {
                   const SizedBox(height: 4),
                   Text(
                     product.formattedPrice,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: AppColors.sargeGold,
                       fontSize: 15,
                       fontWeight: FontWeight.w700,

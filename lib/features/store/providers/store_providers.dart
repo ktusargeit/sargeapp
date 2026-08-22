@@ -231,25 +231,60 @@ class StoreRepository {
 
   Future<String> _uploadImage(String path, PickedImage image) async {
     final ref = _storage.ref().child(path);
-    final compressed = await image.compressedUploadBytes();
-    if (compressed.isNotEmpty) {
-      await ref.putData(compressed);
-    } else if (image.bytes != null) {
-      await ref.putData(image.bytes!);
-    } else if (image.dartFile != null) {
-      await ref.putFile(image.dartFile!);
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    debugPrint(
+        '[store-upload] path=${ref.fullPath} uid=$uid hasBytes=${image.bytes != null} hasFile=${image.dartFile != null}');
+
+    if (uid == null) {
+      throw Exception(
+          'Görsel yüklenemedi: oturum bilgisi bulunamadı. Lütfen çıkış yapıp tekrar giriş yapın.');
     }
-    return ref.getDownloadURL();
+
+    try {
+      // Client-side compression: max-1280px JPEG at ~75% quality.
+      final compressed = await image.compressedUploadBytes();
+      if (compressed.isNotEmpty) {
+        await ref.putData(compressed);
+      } else if (image.bytes != null) {
+        await ref.putData(image.bytes!);
+      } else if (image.dartFile != null) {
+        await ref.putFile(image.dartFile!);
+      }
+      final url = await ref.getDownloadURL();
+      debugPrint('[store-upload] OK path=${ref.fullPath} url=$url');
+      return url;
+    } catch (e, st) {
+      debugPrint(
+          '[store-upload] FAILED path=${ref.fullPath} uid=$uid error=$e\n$st');
+      rethrow;
+    }
   }
 
   Future<String> _uploadPdf(String path, PickedPdf pdf) async {
     final ref = _storage.ref().child(path);
-    if (pdf.bytes != null && pdf.bytes!.isNotEmpty) {
-      await ref.putData(pdf.bytes!);
-    } else if (!kIsWeb && pdf.path.isNotEmpty) {
-      await ref.putFile(File(pdf.path));
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    debugPrint(
+        '[store-upload-pdf] path=${ref.fullPath} uid=$uid hasBytes=${pdf.bytes != null}');
+
+    if (uid == null) {
+      throw Exception(
+          'Dekont yüklenemedi: oturum bilgisi bulunamadı. Lütfen çıkış yapıp tekrar giriş yapın.');
     }
-    return ref.getDownloadURL();
+
+    try {
+      if (pdf.bytes != null && pdf.bytes!.isNotEmpty) {
+        await ref.putData(pdf.bytes!);
+      } else if (!kIsWeb && pdf.path.isNotEmpty) {
+        await ref.putFile(File(pdf.path));
+      }
+      final url = await ref.getDownloadURL();
+      debugPrint('[store-upload-pdf] OK path=${ref.fullPath} url=$url');
+      return url;
+    } catch (e, st) {
+      debugPrint(
+          '[store-upload-pdf] FAILED path=${ref.fullPath} uid=$uid error=$e\n$st');
+      rethrow;
+    }
   }
 }
 

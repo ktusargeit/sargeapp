@@ -36,7 +36,8 @@ service firebase.storage {
     function isStoreManager() {
       return isSignedIn() &&
         firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
-        (roleHasStore(storeRole()) ||
+        (storeRole() == 'admin' ||
+         roleHasStore(storeRole()) ||
          (!firestore.exists(/databases/(default)/documents/role_permissions/$(storeRole())) &&
           defaultHasStore(storeRole())));
     }

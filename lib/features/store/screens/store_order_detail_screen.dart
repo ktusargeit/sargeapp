@@ -188,7 +188,7 @@ class _OrderDetailBody extends StatelessWidget {
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w600)),
             subtitle: Text('₺${order.price.toStringAsFixed(0)}',
-                style: TextStyle(
+                style: const TextStyle(
                     color: AppColors.sargeGold,
                     fontWeight: FontWeight.w700)),
           ),

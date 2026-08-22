@@ -157,7 +157,7 @@ class _StoreOrderFormScreenState extends ConsumerState<StoreOrderFormScreen> {
                               fontWeight: FontWeight.w600)),
                       const SizedBox(height: 4),
                       Text('₺${product.price.toStringAsFixed(0)}',
-                          style: TextStyle(
+                          style: const TextStyle(
                               color: AppColors.sargeGold,
                               fontSize: 16,
                               fontWeight: FontWeight.w700)),
@@ -201,7 +201,7 @@ class _StoreOrderFormScreenState extends ConsumerState<StoreOrderFormScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.account_balance,
+                    const Icon(Icons.account_balance,
                         size: 18, color: AppColors.sargeGold),
                     const SizedBox(width: 10),
                     Expanded(
