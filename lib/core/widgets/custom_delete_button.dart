@@ -24,8 +24,7 @@ class CustomDeleteButton extends StatelessWidget {
     this.onPressed,
     this.onConfirm,
     this.confirmTitle = 'Sil',
-    this.confirmMessage =
-        'Bu öğe kalıcı olarak silinecek. Onaylıyor musunuz?',
+    this.confirmMessage = 'Bu öğe kalıcı olarak silinecek. Onaylıyor musunuz?',
     this.iconSize = 18,
     this.tooltip = 'Sil',
   });

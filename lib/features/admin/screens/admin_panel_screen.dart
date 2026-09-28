@@ -5,8 +5,6 @@ import '../admin_permissions.dart';
 import '../widgets/admin_applications_tab.dart';
 import '../widgets/admin_approvals_tab.dart';
 import '../widgets/admin_members_tab.dart';
-import '../widgets/admin_pending_tab.dart';
-import '../widgets/admin_stats_tab.dart';
 import '../widgets/admin_team_unit_tab.dart';
 import 'role_permission_screen.dart';
 
@@ -17,8 +15,6 @@ import 'role_permission_screen.dart';
 ///  * Takım & Birim   — team CRUD + unit management
 ///  * Başvurular      — centralized team-application review
 ///  * Kayıt Onayları  — approve/reject newly registered (pending) users
-///  * Bekleyen İşler  — pending action summary cards
-///  * İstatistikler   — high-level system statistics
 ///  * Yetkiler        — role → permission editing
 class AdminPanelScreen extends ConsumerStatefulWidget {
   const AdminPanelScreen({super.key});
@@ -49,7 +45,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> {
         backgroundColor: AppColors.surface,
       ),
       body: DefaultTabController(
-        length: 7,
+        length: 5,
         child: Column(
           children: [
             TabBar(
@@ -63,8 +59,6 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> {
                 Tab(text: 'Takım & Birim'),
                 Tab(text: 'Başvurular'),
                 Tab(text: 'Kayıt Onayları'),
-                Tab(text: 'Bekleyen İşler'),
-                Tab(text: 'İstatistikler'),
                 Tab(text: 'Yetkiler'),
               ],
             ),
@@ -75,8 +69,6 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> {
                   AdminTeamUnitTab(),
                   AdminApplicationsTab(),
                   AdminApprovalsTab(),
-                  AdminPendingTab(),
-                  AdminStatsTab(),
                   RolePermissionScreen(),
                 ],
               ),

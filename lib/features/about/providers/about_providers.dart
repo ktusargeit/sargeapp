@@ -8,19 +8,15 @@ import '../models/about_models.dart';
 
 final aboutSectionsProvider = StreamProvider<List<AboutSection>>((ref) {
   final firestore = ref.watch(firestoreProvider);
-  return firestore
-      .collection('aboutSections')
-      .orderBy('order')
-      .snapshots()
-      .map((snap) => snap.docs.map((d) => AboutSection.fromMap(d.id, d.data())).toList());
+  return firestore.collection('aboutSections').orderBy('order').snapshots().map(
+      (snap) =>
+          snap.docs.map((d) => AboutSection.fromMap(d.id, d.data())).toList());
 });
 
 final aboutMembersProvider = StreamProvider<List<AboutMember>>((ref) {
   final firestore = ref.watch(firestoreProvider);
-  return firestore
-      .collection('aboutMembers')
-      .snapshots()
-      .map((snap) => snap.docs.map((d) => AboutMember.fromMap(d.id, d.data())).toList());
+  return firestore.collection('aboutMembers').snapshots().map((snap) =>
+      snap.docs.map((d) => AboutMember.fromMap(d.id, d.data())).toList());
 });
 
 class AboutRepository {
@@ -33,7 +29,10 @@ class AboutRepository {
     if (section.id.isEmpty) {
       await _firestore.collection('aboutSections').add(section.toMap());
     } else {
-      await _firestore.collection('aboutSections').doc(section.id).update(section.toMap());
+      await _firestore
+          .collection('aboutSections')
+          .doc(section.id)
+          .update(section.toMap());
     }
   }
 
@@ -42,7 +41,10 @@ class AboutRepository {
   }
 
   Future<void> addMember(AboutMember member) async {
-    await _firestore.collection('aboutMembers').doc(member.id).set(member.toMap());
+    await _firestore
+        .collection('aboutMembers')
+        .doc(member.id)
+        .set(member.toMap());
   }
 
   Future<void> updateMember(String id, Map<String, dynamic> data) async {

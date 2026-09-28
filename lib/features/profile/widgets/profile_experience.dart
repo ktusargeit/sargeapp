@@ -78,7 +78,8 @@ List<ProfileExperienceEntry> buildProfileTimeline(AppUser user) {
   // with the automatically retired titles above into one timeline.
   for (final e in user.pastExperiences) {
     entries.add(ProfileExperienceEntry(
-      icon: e.isBoard ? Icons.workspace_premium_outlined : Icons.groups_outlined,
+      icon:
+          e.isBoard ? Icons.workspace_premium_outlined : Icons.groups_outlined,
       color: e.isBoard ? AppColors.sargeGold : AppColors.teamAccent,
       title: e.headline,
       subtitle: e.periodLabel,
@@ -166,8 +167,7 @@ class ProfileTimeline extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(entry.subtitle,
                             style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 12)),
+                                color: AppColors.textSecondary, fontSize: 12)),
                       ],
                     ),
                   ),
@@ -206,8 +206,8 @@ class ProfileAwardsGrid extends StatelessWidget {
               colors: [AppColors.surface2, AppColors.surface],
             ),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-                color: AppColors.sargeGold.withValues(alpha: 0.35)),
+            border:
+                Border.all(color: AppColors.sargeGold.withValues(alpha: 0.35)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,8 +237,8 @@ class ProfileAwardsGrid extends StatelessWidget {
                   desc,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      color: AppColors.textSecondary, fontSize: 11),
+                  style:
+                      TextStyle(color: AppColors.textSecondary, fontSize: 11),
                 ),
             ],
           ),

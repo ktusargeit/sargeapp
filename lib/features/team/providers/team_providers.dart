@@ -21,8 +21,7 @@ final leaderboardProvider = StreamProvider<List<LeaderboardEntry>>((ref) {
       .orderBy('weeklyPoints', descending: true)
       .snapshots()
       .map((snap) {
-    final entries =
-        snap.docs.map((d) => LeaderboardEntry.fromDoc(d)).toList();
+    final entries = snap.docs.map((d) => LeaderboardEntry.fromDoc(d)).toList();
     entries.sort((a, b) => b.weeklyPoints.compareTo(a.weeklyPoints));
     return entries;
   });
@@ -88,7 +87,8 @@ final workshopPresenceProvider = StreamProvider<List<LeaderboardEntry>>((ref) {
       .collection('users')
       .where('inWorkshop', isEqualTo: true)
       .snapshots()
-      .map((snap) => snap.docs.map((d) => LeaderboardEntry.fromDoc(d)).toList());
+      .map(
+          (snap) => snap.docs.map((d) => LeaderboardEntry.fromDoc(d)).toList());
 });
 
 /// Stream of all bug reports, newest first.
@@ -116,12 +116,11 @@ final boardMembersProvider = StreamProvider<List<AppUser>>((ref) {
   final firestore = ref.watch(firestoreProvider);
   return firestore
       .collection('users')
-      .where('role',
-          whereIn: [
-            'board_president',
-            'board_vice_president',
-            'board_member',
-          ])
+      .where('role', whereIn: [
+        'board_president',
+        'board_vice_president',
+        'board_member',
+      ])
       .snapshots()
       .map((snap) {
         final members = snap.docs.map((d) => AppUser.fromDoc(d)).toList();
@@ -166,9 +165,8 @@ class TeamRepository {
       {File? file, Uint8List? bytes}) async {
     final ref = _storage.ref().child('reports/$reportId.jpg');
     // Client-side compression: max-1280px JPEG at ~75% quality.
-    final PickedImage img = file != null
-        ? PickedImage(dartFile: file)
-        : PickedImage(bytes: bytes);
+    final PickedImage img =
+        file != null ? PickedImage(dartFile: file) : PickedImage(bytes: bytes);
     final compressed = await img.compressedUploadBytes();
     if (compressed.isNotEmpty) {
       await ref.putData(compressed);
@@ -238,66 +236,94 @@ final teamUnitListProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
 /// Equality-only query (no server-side `orderBy`) so it never requires a
 /// composite index. Sorting happens client-side below, which is safe for these
 /// small per-team unit lists.
-final teamUnitsProvider = StreamProvider.family<List<Map<String, dynamic>>, String>(
-    (ref, teamId) {
+final teamUnitsProvider =
+    StreamProvider.family<List<Map<String, dynamic>>, String>((ref, teamId) {
   final firestore = ref.watch(firestoreProvider);
   return firestore
       .collection('units')
       .where('teamId', isEqualTo: teamId)
       .snapshots()
       .map((snap) {
-        final units = snap.docs.map((d) {
-          final data = d.data();
-          return {
-            'id': d.id,
-            'name': data['name'] as String? ?? '',
-            'teamId': data['teamId'] as String? ?? '',
-            'unitLeadUid': data['unitLeadUid'] as String? ?? '',
-          };
-        }).toList();
-        units.sort(
-            (a, b) => (a['name'] as String).compareTo(b['name'] as String));
-        return units;
-      });
+    final units = snap.docs.map((d) {
+      final data = d.data();
+      return {
+        'id': d.id,
+        'name': data['name'] as String? ?? '',
+        'teamId': data['teamId'] as String? ?? '',
+        'unitLeadUid': data['unitLeadUid'] as String? ?? '',
+      };
+    }).toList();
+    units.sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
+    return units;
+  });
 });
 
 /// Stream of team members (users whose uid is in team.memberIds).
 final teamMembersProvider =
     StreamProvider.family<List<AppUser>, String>((ref, teamId) {
   final firestore = ref.watch(firestoreProvider);
-    return firestore
-        .collection('teams')
-        .doc(teamId)
-        .snapshots()
-        .asyncMap((teamDoc) async {
-        final data = teamDoc.data();
-        final memberIds = (data?['memberIds'] as List?)
-                ?.map((e) => e.toString())
-                .toList() ??
-            [];
-        if (memberIds.isEmpty) return <AppUser>[];
-        // Firestore 'whereIn' supports up to 10 items; chunk for larger teams.
-        final users = <AppUser>[];
-        final chunks = <List<String>>[];
-        for (var i = 0; i < memberIds.length; i += 10) {
-          chunks.add(memberIds.sublist(
-              i,
-              i + 10 > memberIds.length
-                  ? memberIds.length
-                  : i + 10));
+  return firestore
+      .collection('teams')
+      .doc(teamId)
+      .snapshots()
+      .asyncMap((teamDoc) async {
+    final data = teamDoc.data();
+    final memberIds =
+        (data?['memberIds'] as List?)?.map((e) => e.toString()).toList() ?? [];
+    if (memberIds.isEmpty)
+      memberIds.add(
+          'dummy_id'); // Just to allow execution, we also need board members
+
+    // Fetch board members
+    final boardSnap = await firestore.collection('users').where('role',
+        whereIn: [
+          'board_president',
+          'board_vice_president',
+          'board_member'
+        ]).get();
+
+    final users = <AppUser>[];
+    for (final doc in boardSnap.docs) {
+      users.add(AppUser.fromDoc(doc));
+    }
+
+    // Add users by titles (if any)
+    final titlesSnap = await firestore.collection('users').get();
+    for (final doc in titlesSnap.docs) {
+      if (!users.any((u) => u.uid == doc.id)) {
+        final appUser = AppUser.fromDoc(doc);
+        if (appUser.isBoardMember) {
+          users.add(appUser);
         }
-        for (final chunk in chunks) {
-          final snap = await firestore
-              .collection('users')
-              .where(FieldPath.documentId, whereIn: chunk)
-              .get();
-          for (final doc in snap.docs) {
+      }
+    }
+
+    // Remove duplicates and keep track of added users
+    final addedUids = users.map((u) => u.uid).toSet();
+
+    // Fetch team members
+    if (memberIds.isNotEmpty && memberIds.first != 'dummy_id') {
+      final chunks = <List<String>>[];
+      for (var i = 0; i < memberIds.length; i += 10) {
+        chunks.add(memberIds.sublist(
+            i, i + 10 > memberIds.length ? memberIds.length : i + 10));
+      }
+      for (final chunk in chunks) {
+        final snap = await firestore
+            .collection('users')
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get();
+        for (final doc in snap.docs) {
+          if (!addedUids.contains(doc.id)) {
             users.add(AppUser.fromDoc(doc));
+            addedUids.add(doc.id);
           }
         }
-        users.sort((a, b) => a.displayName.compareTo(b.displayName));
-        return users;
-      });
+      }
+    }
+    users.sort((a, b) => a.displayName.compareTo(b.displayName));
+    return users;
+  });
 });
 
 /// Typed, team-scoped units ("birimler").
@@ -312,15 +338,14 @@ final teamUnitsListProvider =
       .where('teamId', isEqualTo: teamId)
       .snapshots()
       .map((snap) {
-        final units = snap.docs.map((d) => TeamUnit.fromDoc(d)).toList();
-        units.sort((a, b) => a.name.compareTo(b.name));
-        return units;
-      });
+    final units = snap.docs.map((d) => TeamUnit.fromDoc(d)).toList();
+    units.sort((a, b) => a.name.compareTo(b.name));
+    return units;
+  });
 });
 
 /// Live stream of a single unit document.
-final unitDocProvider =
-    StreamProvider.family<TeamUnit?, String>((ref, unitId) {
+final unitDocProvider = StreamProvider.family<TeamUnit?, String>((ref, unitId) {
   final firestore = ref.watch(firestoreProvider);
   return firestore
       .collection('units')
@@ -339,16 +364,14 @@ final unitMembersProvider =
       .snapshots()
       .asyncMap((doc) async {
     final data = doc.data();
-    final memberUids = (data?['memberUids'] as List?)
-            ?.map((e) => e.toString())
-            .toList() ??
-        const [];
+    final memberUids =
+        (data?['memberUids'] as List?)?.map((e) => e.toString()).toList() ??
+            const [];
     if (memberUids.isEmpty) return <AppUser>[];
     final users = <AppUser>[];
     for (var i = 0; i < memberUids.length; i += 10) {
       final chunk = memberUids.sublist(
-          i,
-          i + 10 > memberUids.length ? memberUids.length : i + 10);
+          i, i + 10 > memberUids.length ? memberUids.length : i + 10);
       final snap = await firestore
           .collection('users')
           .where(FieldPath.documentId, whereIn: chunk)
@@ -395,10 +418,9 @@ class UnitService {
   }) async {
     await _firestore.collection('units').doc(unitId).update({
       'name': name.trim(),
-      'description':
-          (description == null || description.trim().isEmpty)
-              ? null
-              : description.trim(),
+      'description': (description == null || description.trim().isEmpty)
+          ? null
+          : description.trim(),
     });
   }
 
@@ -466,7 +488,8 @@ final unitServiceProvider = Provider<UnitService>((ref) {
 });
 
 /// Team applications stream (for admin to review).
-final teamApplicationsProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+final teamApplicationsProvider =
+    StreamProvider<List<Map<String, dynamic>>>((ref) {
   final firestore = ref.watch(firestoreProvider);
   return firestore
       .collection('teamApplications')

@@ -32,8 +32,8 @@ class ContactScreen extends ConsumerWidget {
             IconButton(
               icon: const Icon(Icons.edit_outlined,
                   color: AppColors.primaryGreen),
-              onPressed: () => _showEditDialog(
-                  context, ref, contactAsync.valueOrNull),
+              onPressed: () =>
+                  _showEditDialog(context, ref, contactAsync.valueOrNull),
             ),
         ],
       ),
@@ -45,18 +45,16 @@ class ContactScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                     Icon(Icons.contact_mail_outlined,
+                    Icon(Icons.contact_mail_outlined,
                         size: 48, color: AppColors.textSecondary),
                     const SizedBox(height: 12),
-                     Text('Henüz iletişim bilgileri eklenmemiş.',
+                    Text('Henüz iletişim bilgileri eklenmemiş.',
                         style: TextStyle(
                             color: AppColors.textSecondary, fontSize: 14)),
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
-                      onPressed: () =>
-                          _showEditDialog(context, ref, null),
-                      icon:
-                          const Icon(Icons.edit_outlined, size: 18),
+                      onPressed: () => _showEditDialog(context, ref, null),
+                      icon: const Icon(Icons.edit_outlined, size: 18),
                       label: const Text('İletişim Bilgisi Ekle'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryGreen,
@@ -67,10 +65,9 @@ class ContactScreen extends ConsumerWidget {
                 ),
               );
             }
-            return  Center(
+            return Center(
               child: Text('Henüz iletişim bilgisi eklenmemiş.',
-                  style:
-                      TextStyle(color: AppColors.textSecondary)),
+                  style: TextStyle(color: AppColors.textSecondary)),
             );
           }
 
@@ -79,14 +76,14 @@ class ContactScreen extends ConsumerWidget {
             children: [
               if (data['title'] != null)
                 Text(data['title'] as String,
-                    style:  TextStyle(
+                    style: TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 22,
                         fontWeight: FontWeight.w700)),
               if (data['description'] != null) ...[
                 const SizedBox(height: 12),
                 Text(data['description'] as String,
-                    style:  TextStyle(
+                    style: TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 14,
                         height: 1.5)),
@@ -95,7 +92,7 @@ class ContactScreen extends ConsumerWidget {
               if (data['email'] != null ||
                   data['phone'] != null ||
                   data['address'] != null) ...[
-                 Text('İLETİŞİM BİLGİLERİ',
+                Text('İLETİŞİM BİLGİLERİ',
                     style: TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 11,
@@ -137,7 +134,7 @@ class ContactScreen extends ConsumerWidget {
                   data['website'] != null ||
                   data['socialLinks'] != null) ...[
                 const SizedBox(height: 28),
-                 Text('SOSYAL MEDYA',
+                Text('SOSYAL MEDYA',
                     style: TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 11,
@@ -179,8 +176,7 @@ class ContactScreen extends ConsumerWidget {
             ],
           );
         },
-        loading: () =>
-            const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
             child: Text('Yüklenemedi: $e',
                 style: const TextStyle(color: AppColors.error))),
@@ -193,8 +189,8 @@ void _showEditDialog(
     BuildContext context, WidgetRef ref, Map<String, dynamic>? existing) {
   final titleCtrl =
       TextEditingController(text: existing?['title'] as String? ?? '');
-  final descCtrl = TextEditingController(
-      text: existing?['description'] as String? ?? '');
+  final descCtrl =
+      TextEditingController(text: existing?['description'] as String? ?? '');
   final emailCtrl =
       TextEditingController(text: existing?['email'] as String? ?? '');
   final phoneCtrl =
@@ -205,8 +201,8 @@ void _showEditDialog(
       TextEditingController(text: existing?['instagram'] as String? ?? '');
   final webCtrl =
       TextEditingController(text: existing?['website'] as String? ?? '');
-  final socialCtrl = TextEditingController(
-      text: existing?['socialLinks'] as String? ?? '');
+  final socialCtrl =
+      TextEditingController(text: existing?['socialLinks'] as String? ?? '');
   bool saving = false;
 
   showDialog(
@@ -219,8 +215,7 @@ void _showEditDialog(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildField(titleCtrl, 'Sayfa Başlığı',
-                  'Örn: Bize Ulaşın'),
+              _buildField(titleCtrl, 'Sayfa Başlığı', 'Örn: Bize Ulaşın'),
               const SizedBox(height: 12),
               _buildField(descCtrl, 'Açıklama', 'Kulüp iletişim metni...',
                   maxLines: 3),
@@ -229,17 +224,14 @@ void _showEditDialog(
               const SizedBox(height: 12),
               _buildField(phoneCtrl, 'Telefon', '+90 ...'),
               const SizedBox(height: 12),
-              _buildField(
-                  addressCtrl, 'Adres', 'Üniversite Kampüsü...'),
+              _buildField(addressCtrl, 'Adres', 'Üniversite Kampüsü...'),
+              const SizedBox(height: 12),
+              _buildField(instaCtrl, 'Instagram', '@kullaniciadi'),
+              const SizedBox(height: 12),
+              _buildField(webCtrl, 'Web Sitesi', 'https://...'),
               const SizedBox(height: 12),
               _buildField(
-                  instaCtrl, 'Instagram', '@kullaniciadi'),
-              const SizedBox(height: 12),
-              _buildField(webCtrl, 'Web Sitesi',
-                  'https://...'),
-              const SizedBox(height: 12),
-              _buildField(socialCtrl, 'Diğer Bağlantılar',
-                  'Linkler veya metin...',
+                  socialCtrl, 'Diğer Bağlantılar', 'Linkler veya metin...',
                   maxLines: 2),
             ],
           ),
@@ -278,8 +270,7 @@ void _showEditDialog(
                 ? const SizedBox(
                     width: 16,
                     height: 16,
-                    child:
-                        CircularProgressIndicator(strokeWidth: 2))
+                    child: CircularProgressIndicator(strokeWidth: 2))
                 : const Text('Kaydet'),
           ),
         ],
@@ -293,7 +284,7 @@ Widget _buildField(TextEditingController ctrl, String label, String hint,
   return TextField(
     controller: ctrl,
     maxLines: maxLines,
-    style:  TextStyle(color: AppColors.textPrimary),
+    style: TextStyle(color: AppColors.textPrimary),
     decoration: InputDecoration(
       labelText: label,
       hintText: hint,
@@ -323,14 +314,12 @@ class _ContactRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label,
-                    style:  TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 11)),
+                    style: TextStyle(
+                        color: AppColors.textSecondary, fontSize: 11)),
                 const SizedBox(height: 2),
                 Text(value,
-                    style:  TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 14)),
+                    style:
+                        TextStyle(color: AppColors.textPrimary, fontSize: 14)),
               ],
             ),
           ),

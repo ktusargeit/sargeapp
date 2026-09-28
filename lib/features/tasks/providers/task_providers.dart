@@ -20,29 +20,24 @@ final myActiveTasksProvider =
   return firestore
       .collection('tasks')
       .where('assignedTo', isEqualTo: uid)
-      .where('status',
-          whereIn: [
-            'assigned',
-            'inProgress',
-            'pendingApproval',
-          ])
+      .where('status', whereIn: [
+        'assigned',
+        'inProgress',
+        'pendingApproval',
+      ])
       .snapshots()
       .map((snap) {
         final now = DateTime.now();
-        final tasks = snap.docs
-            .map((d) => TaskModel.fromDoc(d))
-            .where((t) {
-              // Submitted tasks ("Onay Bekliyor") only stay visible for 24h
-              // after they were completed/submitted.
-              if (t.status == TaskStatus.pendingApproval) {
-                final completedAt = t.completedAt;
-                if (completedAt == null) return true;
-                return now.difference(completedAt) <
-                    const Duration(hours: 24);
-              }
-              return true;
-            })
-            .toList();
+        final tasks = snap.docs.map((d) => TaskModel.fromDoc(d)).where((t) {
+          // Submitted tasks ("Onay Bekliyor") only stay visible for 24h
+          // after they were completed/submitted.
+          if (t.status == TaskStatus.pendingApproval) {
+            final completedAt = t.completedAt;
+            if (completedAt == null) return true;
+            return now.difference(completedAt) < const Duration(hours: 24);
+          }
+          return true;
+        }).toList();
         tasks.sort((a, b) {
           final at = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
           final bt = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -54,8 +49,7 @@ final myActiveTasksProvider =
 
 /// Live stream of a single task document, used by the detail sheet so that
 /// status changes (Atandı → Devam Ediyor → Tamamlandı) reflect immediately.
-final taskDocProvider =
-    StreamProvider.family<TaskModel, String>((ref, taskId) {
+final taskDocProvider = StreamProvider.family<TaskModel, String>((ref, taskId) {
   final firestore = ref.watch(firestoreProvider);
   return firestore
       .collection('tasks')
@@ -122,9 +116,7 @@ final tasksScreenProvider =
     // applied here, so this query does NOT require a composite index (avoids
     // the "The query requires an index" / failed-precondition error for
     // members). Sorting happens client-side below.
-    q = firestore
-        .collection('tasks')
-        .where('assignedTo', isEqualTo: key.uid);
+    q = firestore.collection('tasks').where('assignedTo', isEqualTo: key.uid);
   } else {
     // Auth still loading — caller shows a loader instead.
     return Stream.value(const <TaskModel>[]);

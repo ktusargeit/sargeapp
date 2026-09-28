@@ -51,36 +51,50 @@ class AnnouncementRepository {
       'targetTeamIds': targetTeamIds,
     });
 
-    // Send notifications
-    if (targetType == 'club') {
-      final usersSnap = await _firestore.collection('users').get();
-      for (final userDoc in usersSnap.docs) {
-        await _notifService.send(
-          recipientId: userDoc.id,
-          title: 'Yeni Duyuru: $title',
-          body: description.isNotEmpty ? description : 'Yeni bir kulüp duyurusu yayınlandı.',
-          type: 'announcement',
-          relatedId: docRef.id,
-        );
+    // Send notifications in background
+    Future(() async {
+      if (targetType == 'club') {
+        final usersSnap = await _firestore.collection('users').get();
+        for (final userDoc in usersSnap.docs) {
+          try {
+            await _notifService.send(
+              recipientId: userDoc.id,
+              title: 'Yeni Duyuru: $title',
+              body: description.isNotEmpty
+                  ? description
+                  : 'Yeni bir kulüp duyurusu yayınlandı.',
+              type: 'announcement',
+              relatedId: docRef.id,
+            );
+          } catch (_) {}
+        }
+      } else {
+        // Send to selected team members
+        final notifiedUids = <String>{};
+        for (final teamId in targetTeamIds) {
+          final teamDoc =
+              await _firestore.collection('teams').doc(teamId).get();
+          final memberIds = (teamDoc.data()?['memberIds'] as List?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              [];
+          notifiedUids.addAll(memberIds);
+        }
+        for (final uid in notifiedUids) {
+          try {
+            await _notifService.send(
+              recipientId: uid,
+              title: 'Yeni Duyuru: $title',
+              body: description.isNotEmpty
+                  ? description
+                  : 'Takımınıza yeni bir duyuru yayınlandı.',
+              type: 'announcement',
+              relatedId: docRef.id,
+            );
+          } catch (_) {}
+        }
       }
-    } else {
-      // Send to selected team members
-      final notifiedUids = <String>{};
-      for (final teamId in targetTeamIds) {
-        final teamDoc = await _firestore.collection('teams').doc(teamId).get();
-        final memberIds = (teamDoc.data()?['memberIds'] as List?)?.map((e) => e.toString()).toList() ?? [];
-        notifiedUids.addAll(memberIds);
-      }
-      for (final uid in notifiedUids) {
-        await _notifService.send(
-          recipientId: uid,
-          title: 'Yeni Duyuru: $title',
-          body: description.isNotEmpty ? description : 'Takımınıza yeni bir duyuru yayınlandı.',
-          type: 'announcement',
-          relatedId: docRef.id,
-        );
-      }
-    }
+    });
 
     return docRef.id;
   }
@@ -131,7 +145,8 @@ class AnnouncementRepository {
             await FirebaseFirestore.instance.collection('users').doc(uid).get();
         if (userDoc.exists) {
           debugPrint('[DEBUG] Firestore users/$uid data: ${userDoc.data()}');
-          debugPrint('[DEBUG] Firestore users/$uid role: ${userDoc.data()?['role']}');
+          debugPrint(
+              '[DEBUG] Firestore users/$uid role: ${userDoc.data()?['role']}');
         } else {
           debugPrint('[DEBUG] Firestore users/$uid doc DOES NOT EXIST');
         }
@@ -150,7 +165,8 @@ class AnnouncementRepository {
     // ── Upload with try/catch ──
     try {
       if (bytes != null && bytes.isNotEmpty) {
-        debugPrint('[DEBUG] Uploading compressed bytes (${bytes.length} bytes)');
+        debugPrint(
+            '[DEBUG] Uploading compressed bytes (${bytes.length} bytes)');
         await ref.putData(bytes);
       } else if (file != null) {
         debugPrint('[DEBUG] Uploading via putFile: ${file.path}');

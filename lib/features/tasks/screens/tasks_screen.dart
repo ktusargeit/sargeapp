@@ -56,7 +56,8 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     });
   }
 
-  List<TaskModel> _applyClientFilters(List<TaskModel> tasks, String? currentUid) {
+  List<TaskModel> _applyClientFilters(
+      List<TaskModel> tasks, String? currentUid) {
     if (_filterTeamId != null && _filterTeamId!.isNotEmpty) {
       tasks = tasks.where((t) => t.teamId == _filterTeamId).toList();
     }
@@ -127,14 +128,17 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: TextField(
                   controller: _searchCtrl,
                   style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'Görev ara...',
-                    hintStyle: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-                    prefixIcon: Icon(Icons.search, size: 20, color: AppColors.textSecondary),
+                    hintStyle:
+                        TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                    prefixIcon: Icon(Icons.search,
+                        size: 20, color: AppColors.textSecondary),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear, size: 18),
@@ -152,40 +156,51 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                       borderSide: BorderSide.none,
                     ),
                   ),
-                  onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
+                  onChanged: (v) =>
+                      setState(() => _searchQuery = v.trim().toLowerCase()),
                 ),
               ),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 child: Row(
                   children: [
                     FilterChip(
-                      label: const Text('Aktif', style: TextStyle(fontSize: 12)),
+                      label:
+                          const Text('Aktif', style: TextStyle(fontSize: 12)),
                       selected: !_showHistory,
-                      selectedColor: AppColors.tasksAccent.withValues(alpha: 0.2),
+                      selectedColor:
+                          AppColors.tasksAccent.withValues(alpha: 0.2),
                       checkmarkColor: AppColors.tasksAccent,
                       onSelected: (_) => setState(() => _showHistory = false),
                     ),
                     const SizedBox(width: 6),
                     FilterChip(
-                      label: const Text('Geçmiş', style: TextStyle(fontSize: 12)),
+                      label:
+                          const Text('Geçmiş', style: TextStyle(fontSize: 12)),
                       selected: _showHistory,
-                      selectedColor: AppColors.textSecondary.withValues(alpha: 0.2),
+                      selectedColor:
+                          AppColors.textSecondary.withValues(alpha: 0.2),
                       onSelected: (_) => setState(() => _showHistory = true),
                     ),
                     const SizedBox(width: 12),
                     FilterChip(
-                      label: const Text('Benim Görevlerim', style: TextStyle(fontSize: 12)),
+                      label: const Text('Benim Görevlerim',
+                          style: TextStyle(fontSize: 12)),
                       selected: _filterMyTasks,
-                      selectedColor: AppColors.tasksGreen.withValues(alpha: 0.2),
+                      selectedColor:
+                          AppColors.tasksGreen.withValues(alpha: 0.2),
                       checkmarkColor: AppColors.tasksGreen,
                       avatar: Icon(
                         Icons.person,
                         size: 16,
-                        color: _filterMyTasks ? AppColors.tasksGreen : AppColors.textSecondary,
+                        color: _filterMyTasks
+                            ? AppColors.tasksGreen
+                            : AppColors.textSecondary,
                       ),
-                      onSelected: (_) => setState(() => _filterMyTasks = !_filterMyTasks),
+                      onSelected: (_) =>
+                          setState(() => _filterMyTasks = !_filterMyTasks),
                     ),
                     const SizedBox(width: 12),
                     TaskFilterDropdown<ClubTeam>(
@@ -221,7 +236,8 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                       TaskPersonFilterDropdown(
                         teamId: _filterTeamId!,
                         value: _filterPersonId,
-                        onChanged: (uid) => setState(() => _filterPersonId = uid),
+                        onChanged: (uid) =>
+                            setState(() => _filterPersonId = uid),
                       ),
                     const SizedBox(width: 8),
                     TaskFilterDropdown<TaskStatus>(
@@ -266,7 +282,10 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
               isAdmin: isAdmin,
               isUnitLead: isUnitLead,
             ),
-      floatingActionButton: (isAdmin || isUnitLead || isCaptain || isBoardCreator)
+      floatingActionButton: (isAdmin ||
+              isUnitLead ||
+              isCaptain ||
+              isBoardCreator)
           ? FloatingActionButton.extended(
               onPressed: () => _showAddTaskDialog(context),
               backgroundColor: AppColors.tasksAccent,

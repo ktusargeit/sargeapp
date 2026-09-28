@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/app_user.dart';
 import '../../../core/models/user_profile_models.dart';
@@ -213,53 +214,60 @@ class _AdminMemberMultiRoleSheetState
                                 color: AppColors.textSecondary, fontSize: 13)),
                       )
                     else
-                       ...units.fold<Map<String, List<Map<String, dynamic>>>>(
-                         {},
-                         (acc, u) {
-                           final teamId = u['teamId'] as String?;
-                           if (teamId != null) {
-                             acc.putIfAbsent(teamId, () => []).add(u);
-                           }
-                           return acc;
-                         },
-                       ).entries.expand((entry) {
-                         final teamId = entry.key;
-                         final teamName = teams
-                             .where((t) => t.id == teamId)
-                             .map((t) => t.name)
-                             .firstOrNull ?? 'Bilinmeyen Takım';
-                         final unitsInTeam = entry.value;
-                         return [
-                           Padding(
-                             padding: const EdgeInsets.only(top: 8, bottom: 4),
-                             child: Text(
-                               teamName,
-                               style: TextStyle(
-                                 color: AppColors.textSecondary,
-                                 fontSize: 11,
-                                 fontWeight: FontWeight.w600,
-                                 letterSpacing: 1.2,
-                               ),
-                             ),
-                           ),
-                           ...unitsInTeam.map((u) {
-                             final name = u['name'] as String? ?? '';
-                             final id = u['id'] as String;
-                             final checked =
-                                 leadUnitIds.contains(id) || _pendingUnitIds.contains(id);
-                             return CheckboxListTile(
-                               value: checked,
-                               contentPadding: const EdgeInsets.only(left: 16),
-                               activeColor: AppColors.warning,
-                               title: Text(name),
-                               subtitle: const Text('Birim sorumlusu'),
-                               onChanged: _busy
-                                   ? null
-                                   : (v) => _setUnitLead(id, name, v ?? false),
-                             );
-                           }),
-                         ];
-                       }),
+                      ...units
+                          .fold<Map<String, List<Map<String, dynamic>>>>(
+                            {},
+                            (acc, u) {
+                              final teamId = u['teamId'] as String?;
+                              if (teamId != null) {
+                                acc.putIfAbsent(teamId, () => []).add(u);
+                              }
+                              return acc;
+                            },
+                          )
+                          .entries
+                          .expand((entry) {
+                            final teamId = entry.key;
+                            final teamName = teams
+                                    .where((t) => t.id == teamId)
+                                    .map((t) => t.name)
+                                    .firstOrNull ??
+                                'Bilinmeyen Takım';
+                            final unitsInTeam = entry.value;
+                            return [
+                              Padding(
+                                padding:
+                                    const EdgeInsets.only(top: 8, bottom: 4),
+                                child: Text(
+                                  teamName,
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                              ),
+                              ...unitsInTeam.map((u) {
+                                final name = u['name'] as String? ?? '';
+                                final id = u['id'] as String;
+                                final checked = leadUnitIds.contains(id) ||
+                                    _pendingUnitIds.contains(id);
+                                return CheckboxListTile(
+                                  value: checked,
+                                  contentPadding:
+                                      const EdgeInsets.only(left: 16),
+                                  activeColor: AppColors.warning,
+                                  title: Text(name),
+                                  subtitle: const Text('Birim sorumlusu'),
+                                  onChanged: _busy
+                                      ? null
+                                      : (v) =>
+                                          _setUnitLead(id, name, v ?? false),
+                                );
+                              }),
+                            ];
+                          }),
                   ],
                 ),
               ),
@@ -316,17 +324,21 @@ class _AdminMemberMultiRoleSheetState
           );
       await titleService.reconcileRole(widget.user.uid);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(value ? successMessage : removedMessage),
-          backgroundColor: AppColors.success,
-        ));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+              content: Text(value ? successMessage : removedMessage),
+              backgroundColor: AppColors.success,
+            ));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Güncellenemedi: $e'),
-          backgroundColor: AppColors.error,
-        ));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+              content: Text('Güncellenemedi: $e'),
+              backgroundColor: AppColors.error,
+            ));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -349,7 +361,11 @@ class _AdminMemberMultiRoleSheetState
       _pendingTeamIds.add(team.id);
     });
     try {
-      await ref.read(firestoreProvider).collection('teams').doc(team.id).update({
+      await ref
+          .read(firestoreProvider)
+          .collection('teams')
+          .doc(team.id)
+          .update({
         'leadUid': value ? widget.user.uid : null,
       });
 
@@ -372,19 +388,23 @@ class _AdminMemberMultiRoleSheetState
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(value
-              ? '${widget.user.displayName}, ${team.name} kaptanı yapıldı.'
-              : 'Kaptanlık kaldırıldı.'),
-          backgroundColor: AppColors.success,
-        ));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+              content: Text(value
+                  ? '${widget.user.displayName}, ${team.name} kaptanı yapıldı.'
+                  : 'Kaptanlık kaldırıldı.'),
+              backgroundColor: AppColors.success,
+            ));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Güncellenemedi: $e'),
-          backgroundColor: AppColors.error,
-        ));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+              content: Text('Güncellenemedi: $e'),
+              backgroundColor: AppColors.error,
+            ));
       }
     } finally {
       if (mounted) {
@@ -425,19 +445,23 @@ class _AdminMemberMultiRoleSheetState
       } catch (_) {}
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(value
-              ? '$unitName birim sorumlusu yapıldı.'
-              : 'Birim sorumluluğu kaldırıldı.'),
-          backgroundColor: AppColors.success,
-        ));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+              content: Text(value
+                  ? '$unitName birim sorumlusu yapıldı.'
+                  : 'Birim sorumluluğu kaldırıldı.'),
+              backgroundColor: AppColors.success,
+            ));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Güncellenemedi: $e'),
-          backgroundColor: AppColors.error,
-        ));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+              content: Text('Güncellenemedi: $e'),
+              backgroundColor: AppColors.error,
+            ));
       }
     } finally {
       if (mounted) {

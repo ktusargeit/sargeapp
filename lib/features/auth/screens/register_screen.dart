@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -34,8 +35,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_passwordCtrl.text != _confirmPasswordCtrl.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Şifreler eşleşmiyor.'), backgroundColor: AppColors.error),
+      TopSnackBar.showSnackBar(
+        context,
+        const SnackBar(
+            content: Text('Şifreler eşleşmiyor.'),
+            backgroundColor: AppColors.error),
       );
       return;
     }
@@ -49,8 +53,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       if (mounted) context.go('/pending-approval');
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_mapAuthError(e)), backgroundColor: AppColors.error),
+      TopSnackBar.showSnackBar(
+        context,
+        SnackBar(
+            content: Text(_mapAuthError(e)), backgroundColor: AppColors.error),
       );
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -87,7 +93,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   children: [
                     const _Logo(),
                     const SizedBox(height: AppConstants.spacingXl),
-                     Text(
+                    Text(
                       'Kayıt Ol',
                       textAlign: TextAlign.center,
                       style: TextStyle(
@@ -97,10 +103,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                     Text(
+                    Text(
                       'SARGE Kulüp Yönetim Sistemine katılın',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                      style: TextStyle(
+                          color: AppColors.textSecondary, fontSize: 13),
                     ),
                     const SizedBox(height: AppConstants.spacingXl),
                     const _FieldLabel('Ad Soyad'),
@@ -108,13 +115,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     TextFormField(
                       controller: _displayNameCtrl,
                       textInputAction: TextInputAction.next,
-                      style:  TextStyle(color: AppColors.textPrimary),
+                      style: TextStyle(color: AppColors.textPrimary),
                       decoration: const InputDecoration(
                         hintText: 'Adınız Soyadınız',
                         prefixIcon: Icon(Icons.person_outline, size: 18),
                       ),
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'İsim zorunlu';
+                        if (v == null || v.trim().isEmpty)
+                          return 'İsim zorunlu';
                         return null;
                       },
                     ),
@@ -126,14 +134,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       keyboardType: TextInputType.emailAddress,
                       autofillHints: const [AutofillHints.email],
                       textInputAction: TextInputAction.next,
-                      style:  TextStyle(color: AppColors.textPrimary),
+                      style: TextStyle(color: AppColors.textPrimary),
                       decoration: const InputDecoration(
                         hintText: 'ornek@sarge.org',
                         prefixIcon: Icon(Icons.mail_outline, size: 18),
                       ),
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'E-posta zorunlu';
-                        if (!v.contains('@')) return 'Geçerli bir e-posta girin';
+                        if (v == null || v.trim().isEmpty)
+                          return 'E-posta zorunlu';
+                        if (!v.contains('@'))
+                          return 'Geçerli bir e-posta girin';
                         return null;
                       },
                     ),
@@ -144,21 +154,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       controller: _passwordCtrl,
                       obscureText: _obscure,
                       textInputAction: TextInputAction.next,
-                      style:  TextStyle(color: AppColors.textPrimary),
+                      style: TextStyle(color: AppColors.textPrimary),
                       decoration: InputDecoration(
                         hintText: '••••••••',
                         prefixIcon: const Icon(Icons.lock_outline, size: 18),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                            _obscure
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
                             size: 18,
                             color: AppColors.textSecondary,
                           ),
                           onPressed: () => setState(() => _obscure = !_obscure),
                         ),
                       ),
-                      validator: (v) =>
-                          (v == null || v.length < 6) ? 'Şifre en az 6 karakter olmalı' : null,
+                      validator: (v) => (v == null || v.length < 6)
+                          ? 'Şifre en az 6 karakter olmalı'
+                          : null,
                     ),
                     const SizedBox(height: AppConstants.spacingMd),
                     const _FieldLabel('Şifre Tekrar'),
@@ -168,36 +181,39 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       obscureText: true,
                       textInputAction: TextInputAction.done,
                       onFieldSubmitted: (_) => _submit(),
-                      style:  TextStyle(color: AppColors.textPrimary),
+                      style: TextStyle(color: AppColors.textPrimary),
                       decoration: const InputDecoration(
                         hintText: '••••••••',
                         prefixIcon: Icon(Icons.lock_outline, size: 18),
                       ),
                       validator: (v) {
-                        if (v == null || v.length < 6) return 'Şifre en az 6 karakter olmalı';
+                        if (v == null || v.length < 6)
+                          return 'Şifre en az 6 karakter olmalı';
                         return null;
                       },
                     ),
                     const SizedBox(height: AppConstants.spacingLg),
                     ElevatedButton(
                       onPressed: _loading ? null : _submit,
-                      style:
-                          ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+                      style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14)),
                       child: _loading
-                          ?  SizedBox(
+                          ? SizedBox(
                               width: 18,
                               height: 18,
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2, color: AppColors.background),
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: AppColors.background),
                             )
-                          : const Text('Kayıt Ol', style: TextStyle(fontSize: 15)),
+                          : const Text('Kayıt Ol',
+                              style: TextStyle(fontSize: 15)),
                     ),
                     const SizedBox(height: AppConstants.spacingMd),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                         Text('Zaten hesabın var mı?',
-                            style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                        Text('Zaten hesabın var mı?',
+                            style: TextStyle(
+                                color: AppColors.textSecondary, fontSize: 13)),
                         TextButton(
                           onPressed: () => context.push('/login'),
                           child: const Text('Giriş Yap',
@@ -262,7 +278,7 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style:  TextStyle(
+      style: TextStyle(
         color: AppColors.textSecondary,
         fontSize: 12,
         fontWeight: FontWeight.w500,

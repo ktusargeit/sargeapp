@@ -93,8 +93,10 @@ class AppTheme {
         secondary: AppColors.primaryBlueAccent,
         surface: surfaceColor,
         error: AppColors.error,
-        onPrimary: brightness == Brightness.dark ? AppColors.background : Colors.white,
-        onSecondary: brightness == Brightness.dark ? AppColors.background : Colors.white,
+        onPrimary:
+            brightness == Brightness.dark ? AppColors.background : Colors.white,
+        onSecondary:
+            brightness == Brightness.dark ? AppColors.background : Colors.white,
         onSurface: textPrimary,
         onError: Colors.white,
       ),

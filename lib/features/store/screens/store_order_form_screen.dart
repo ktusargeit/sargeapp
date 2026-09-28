@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -74,15 +75,20 @@ class _StoreOrderFormScreenState extends ConsumerState<StoreOrderFormScreen> {
           );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Siparişiniz alındı. Dekontunuz admin tarafından kontrol edilecek.'),
-            backgroundColor: AppColors.success));
+        TopSnackBar.showSnackBar(
+            context,
+            const SnackBar(
+                content: Text(
+                    'Siparişiniz alındı. Dekontunuz admin tarafından kontrol edilecek.'),
+                backgroundColor: AppColors.success));
         context.go('/store/orders');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Hata: $e'), backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content: Text('Hata: $e'), backgroundColor: AppColors.error));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -102,7 +108,8 @@ class _StoreOrderFormScreenState extends ConsumerState<StoreOrderFormScreen> {
       ),
       body: productsAsync.when(
         data: (products) {
-          final product = products.where((p) => p.id == widget.productId).firstOrNull;
+          final product =
+              products.where((p) => p.id == widget.productId).firstOrNull;
           if (product == null) {
             return Center(
               child: Text('Ürün bulunamadı.',
@@ -117,7 +124,8 @@ class _StoreOrderFormScreenState extends ConsumerState<StoreOrderFormScreen> {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
-          child: Text('Hata: $e', style: const TextStyle(color: AppColors.error)),
+          child:
+              Text('Hata: $e', style: const TextStyle(color: AppColors.error)),
         ),
       ),
     );
@@ -183,7 +191,8 @@ class _StoreOrderFormScreenState extends ConsumerState<StoreOrderFormScreen> {
             decoration: BoxDecoration(
               color: AppColors.warning.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+              border:
+                  Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
             ),
             child: const Text(
               'Henüz IBAN bilgisi eklenmemiş. Lütfen daha sonra tekrar deneyin.',
@@ -206,8 +215,8 @@ class _StoreOrderFormScreenState extends ConsumerState<StoreOrderFormScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: SelectableText(entry.displayText,
-                          style:
-                              TextStyle(color: AppColors.textPrimary, fontSize: 13)),
+                          style: TextStyle(
+                              color: AppColors.textPrimary, fontSize: 13)),
                     ),
                   ],
                 ),
@@ -224,7 +233,8 @@ class _StoreOrderFormScreenState extends ConsumerState<StoreOrderFormScreen> {
           ),
           child: Text(
             'Lütfen ürün tutarını yukarıdaki IBAN\'lardan birine gönderin ve dekontu aşağıya yükleyin.',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
+            style: TextStyle(
+                color: AppColors.textSecondary, fontSize: 13, height: 1.4),
           ),
         ),
         const SizedBox(height: 16),
@@ -320,8 +330,8 @@ class _StoreOrderFormScreenState extends ConsumerState<StoreOrderFormScreen> {
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Colors.black))
                 : const Text('Siparişi Gönder',
-                    style: TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w700)),
+                    style:
+                        TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
           ),
         ),
       ],

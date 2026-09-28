@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/app_user.dart';
 import '../../../core/providers/auth_providers.dart';
@@ -106,7 +107,8 @@ class _HonoraryAddSheetState extends ConsumerState<HonoraryAddSheet> {
                 const SizedBox(height: 12),
               ],
               TextField(
-                onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+                onChanged: (v) =>
+                    setState(() => _query = v.trim().toLowerCase()),
                 style: TextStyle(color: AppColors.textPrimary),
                 decoration: InputDecoration(
                   hintText: 'Kullanıcı ara...',
@@ -128,8 +130,7 @@ class _HonoraryAddSheetState extends ConsumerState<HonoraryAddSheet> {
                     if (available.isEmpty) {
                       return Center(
                         child: Text('Eklenebilecek kullanıcı yok.',
-                            style:
-                                TextStyle(color: AppColors.textSecondary)),
+                            style: TextStyle(color: AppColors.textSecondary)),
                       );
                     }
                     return ListView.builder(
@@ -146,8 +147,7 @@ class _HonoraryAddSheetState extends ConsumerState<HonoraryAddSheet> {
                               style: TextStyle(color: AppColors.textSecondary)),
                           trailing: const Icon(Icons.add_circle_outline,
                               size: 20, color: AppColors.primaryGreen),
-                          onTap: () =>
-                              _promptNoteAndAdd(user, allUsers),
+                          onTap: () => _promptNoteAndAdd(user, allUsers),
                         );
                       },
                     );
@@ -164,8 +164,7 @@ class _HonoraryAddSheetState extends ConsumerState<HonoraryAddSheet> {
     );
   }
 
-  Future<void> _promptNoteAndAdd(
-      AppUser user, List<AppUser> allUsers) async {
+  Future<void> _promptNoteAndAdd(AppUser user, List<AppUser> allUsers) async {
     final noteCtrl = TextEditingController();
     final note = await showDialog<String>(
       context: context,
@@ -190,8 +189,7 @@ class _HonoraryAddSheetState extends ConsumerState<HonoraryAddSheet> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
           ElevatedButton(
               onPressed: () => Navigator.pop(ctx, noteCtrl.text.trim()),
               child: const Text('Ekle')),
@@ -210,17 +208,21 @@ class _HonoraryAddSheetState extends ConsumerState<HonoraryAddSheet> {
         addedBy: addedBy ?? '',
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${user.displayName} onursal üye olarak eklendi.'),
-          backgroundColor: AppColors.success,
-        ));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+              content: Text('${user.displayName} onursal üye olarak eklendi.'),
+              backgroundColor: AppColors.success,
+            ));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Eklenemedi: $e'),
-          backgroundColor: AppColors.error,
-        ));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+              content: Text('Eklenemedi: $e'),
+              backgroundColor: AppColors.error,
+            ));
       }
     }
   }
@@ -277,8 +279,7 @@ class _ExistingMemberTile extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
           ElevatedButton(
               onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
               child: const Text('Kaydet')),
@@ -314,9 +315,8 @@ class _ExistingMemberTile extends ConsumerWidget {
     await runDeleteWithFeedback(
       context: context,
       successMessage: 'Onursal üye çıkarıldı.',
-      operation: () => ref
-          .read(clubInfoRepositoryProvider)
-          .removeHonoraryMember(member.id),
+      operation: () =>
+          ref.read(clubInfoRepositoryProvider).removeHonoraryMember(member.id),
     );
   }
 }

@@ -15,7 +15,8 @@ class StoreScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final productsAsync = ref.watch(storeProductsProvider);
-    final canManage = ref.watch(currentUserCanProvider(Permissions.manageStore));
+    final canManage =
+        ref.watch(currentUserCanProvider(Permissions.manageStore));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -24,15 +25,14 @@ class StoreScreen extends ConsumerWidget {
         backgroundColor: AppColors.surface,
         actions: [
           IconButton(
-            icon: Icon(Icons.receipt_long_outlined,
-                color: AppColors.textPrimary),
+            icon:
+                Icon(Icons.receipt_long_outlined, color: AppColors.textPrimary),
             tooltip: 'Tüm Siparişler',
             onPressed: () => context.push('/store/orders'),
           ),
           if (canManage) ...[
             IconButton(
-              icon: Icon(Icons.settings_outlined,
-                  color: AppColors.textPrimary),
+              icon: Icon(Icons.settings_outlined, color: AppColors.textPrimary),
               tooltip: 'Mağaza Ayarları',
               onPressed: () => context.push('/store/settings'),
             ),
@@ -61,10 +61,8 @@ class StoreScreen extends ConsumerWidget {
           Expanded(
             child: productsAsync.when(
               data: (products) {
-                final available =
-                    products.where((p) => p.inStock).toList();
-                final outOfStock =
-                    products.where((p) => !p.inStock).toList();
+                final available = products.where((p) => p.inStock).toList();
+                final outOfStock = products.where((p) => !p.inStock).toList();
                 final display = [...available, ...outOfStock];
 
                 if (display.isEmpty) {
@@ -108,8 +106,7 @@ class StoreScreen extends ConsumerWidget {
                   itemBuilder: (_, i) => _ProductCard(product: display[i]),
                 );
               },
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(
                 child: Text('Hata: $e',
                     style: const TextStyle(color: AppColors.error)),
@@ -181,8 +178,8 @@ class _ProductCard extends ConsumerWidget {
                           color: Colors.white,
                           icon: const Icon(Icons.edit_outlined),
                           tooltip: 'Düzenle',
-                          onPressed: () => context
-                              .push('/store/edit/${product.id}'),
+                          onPressed: () =>
+                              context.push('/store/edit/${product.id}'),
                         ),
                       ),
                     ),

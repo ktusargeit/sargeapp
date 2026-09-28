@@ -103,7 +103,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Container(
-        decoration:  BoxDecoration(
+        decoration: BoxDecoration(
           gradient: RadialGradient(
             center: Alignment.center,
             radius: 0.8,
@@ -122,24 +122,44 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image.asset('assets/images/sarge_logo.png', width: 120, height: 120, fit: BoxFit.contain,
+                Image.asset('assets/images/sarge_logo.png',
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) => Container(
-                          width: 120, height: 120,
+                          width: 120,
+                          height: 120,
                           decoration: BoxDecoration(
-                            color: AppColors.surface2, borderRadius: BorderRadius.circular(24),
-                            border: Border.all(color: AppColors.sargeGold.withValues(alpha: 0.4)),
+                            color: AppColors.surface2,
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                                color:
+                                    AppColors.sargeGold.withValues(alpha: 0.4)),
                           ),
-                          child: const Icon(Icons.hexagon_outlined, size: 60, color: AppColors.sargeGold),
+                          child: const Icon(Icons.hexagon_outlined,
+                              size: 60, color: AppColors.sargeGold),
                         )),
                 const SizedBox(height: 24),
-                 Text('SARGE',
-                    style: TextStyle(color: AppColors.textPrimary, fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: 6)),
+                Text('SARGE',
+                    style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 6)),
                 const SizedBox(height: 8),
                 Text('KULÜP YÖNETİM SİSTEMİ',
-                    style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.7), fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 3)),
+                    style: TextStyle(
+                        color: AppColors.textSecondary.withValues(alpha: 0.7),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 3)),
                 const SizedBox(height: 16),
                 Text('v${AppConstants.appVersion}',
-                    style: TextStyle(color: AppColors.sargeGold.withValues(alpha: 0.6), fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 2)),
+                    style: TextStyle(
+                        color: AppColors.sargeGold.withValues(alpha: 0.6),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 2)),
               ],
             ),
           ),

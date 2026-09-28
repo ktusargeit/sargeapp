@@ -63,8 +63,10 @@ class DefaultFirebaseOptions {
     messagingSenderId: '343221111506',
     projectId: 'sargeapp',
     storageBucket: 'sargeapp.firebasestorage.app',
-    androidClientId: '343221111506-jikb3i15kfm8gd62ddsbb23t4pjuqp3c.apps.googleusercontent.com',
-    iosClientId: '343221111506-ig7fi5pd7b9ho7pp2r3s7bpbahdcscsg.apps.googleusercontent.com',
+    androidClientId:
+        '343221111506-jikb3i15kfm8gd62ddsbb23t4pjuqp3c.apps.googleusercontent.com',
+    iosClientId:
+        '343221111506-ig7fi5pd7b9ho7pp2r3s7bpbahdcscsg.apps.googleusercontent.com',
     iosBundleId: 'com.example.sargeDepoApp',
   );
   static const FirebaseOptions macos = FirebaseOptions(
@@ -73,8 +75,10 @@ class DefaultFirebaseOptions {
     messagingSenderId: '343221111506',
     projectId: 'sargeapp',
     storageBucket: 'sargeapp.firebasestorage.app',
-    androidClientId: '343221111506-jikb3i15kfm8gd62ddsbb23t4pjuqp3c.apps.googleusercontent.com',
-    iosClientId: '343221111506-ig7fi5pd7b9ho7pp2r3s7bpbahdcscsg.apps.googleusercontent.com',
+    androidClientId:
+        '343221111506-jikb3i15kfm8gd62ddsbb23t4pjuqp3c.apps.googleusercontent.com',
+    iosClientId:
+        '343221111506-ig7fi5pd7b9ho7pp2r3s7bpbahdcscsg.apps.googleusercontent.com',
     iosBundleId: 'com.example.sargeDepoApp',
   );
 

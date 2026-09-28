@@ -62,10 +62,13 @@ void main() async {
 
   // --- Firebase Init (critical — must not fail silently) ---
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform);
   } catch (e, st) {
     debugPrint('FATAL: Firebase init failed: $e\n$st');
-    runApp(_ErrorApp(message: 'Firebase başlatılamadı.\n\nHata: ${e.toString()}\n\nİnternet bağlantınızı kontrol edin ve uygulamayı yeniden başlatın.'));
+    runApp(_ErrorApp(
+        message:
+            'Firebase başlatılamadı.\n\nHata: ${e.toString()}\n\nİnternet bağlantınızı kontrol edin ve uygulamayı yeniden başlatın.'));
     return;
   }
 
@@ -96,8 +99,8 @@ void main() async {
 
   // --- Firestore Settings (non-fatal) ---
   try {
-    FirebaseFirestore.instance.settings =
-        const Settings(persistenceEnabled: true, cacheSizeBytes: 50 * 1024 * 1024);
+    FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true, cacheSizeBytes: 50 * 1024 * 1024);
   } catch (e, st) {
     debugPrint('Firestore settings failed (non-fatal): $e\n$st');
   }

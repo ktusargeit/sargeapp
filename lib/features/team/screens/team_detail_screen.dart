@@ -1,4 +1,5 @@
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -234,9 +235,8 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
     try {
       final image = await PickedImage.pick(picked);
       if (image == null) return;
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('team_photos/${team.id}.jpg');
+      final storageRef =
+          FirebaseStorage.instance.ref().child('team_photos/${team.id}.jpg');
       if (kIsWeb && image.bytes != null) {
         await storageRef.putData(image.bytes!);
       } else if (image.dartFile != null) {
@@ -249,15 +249,19 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
           .doc(team.id)
           .update({'photoUrl': url});
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Takım fotoğrafı güncellendi.'),
-            backgroundColor: AppColors.success));
+        TopSnackBar.showSnackBar(
+            context,
+            const SnackBar(
+                content: Text('Takım fotoğrafı güncellendi.'),
+                backgroundColor: AppColors.success));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Fotoğraf yüklenemedi: $e'),
-            backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content: Text('Fotoğraf yüklenemedi: $e'),
+                backgroundColor: AppColors.error));
       }
     }
   }
@@ -314,16 +318,19 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
                           Navigator.pop(ctx);
                         }
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          TopSnackBar.showSnackBar(
+                              context,
                               const SnackBar(
                                   content: Text('Takım güncellendi.'),
                                   backgroundColor: AppColors.success));
                         }
                       } catch (e) {
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: Text('Güncellenemedi: $e'),
-                              backgroundColor: AppColors.error));
+                          TopSnackBar.showSnackBar(
+                              context,
+                              SnackBar(
+                                  content: Text('Güncellenemedi: $e'),
+                                  backgroundColor: AppColors.error));
                         }
                       }
                     },
@@ -395,8 +402,8 @@ class TeamCaptainRow extends ConsumerWidget {
             decoration: BoxDecoration(
               color: AppColors.warning.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(3),
-              border: Border.all(
-                  color: AppColors.warning.withValues(alpha: 0.4)),
+              border:
+                  Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
             ),
             child: const Text('KAPTAN',
                 style: TextStyle(

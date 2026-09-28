@@ -39,9 +39,7 @@ class AppIconButton extends StatelessWidget {
             child: Icon(
               icon,
               size: iconSize,
-              color: onTap == null
-                  ? color.withValues(alpha: 0.35)
-                  : color,
+              color: onTap == null ? color.withValues(alpha: 0.35) : color,
             ),
           ),
         ),

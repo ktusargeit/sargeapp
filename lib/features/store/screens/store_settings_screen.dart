@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -6,7 +7,7 @@ import '../models/store_models.dart';
 import '../providers/store_providers.dart';
 
 /// Mağaza Ayarları — IBAN listesi yönetimi.
-/// 
+///
 /// Sadece `manageStore` yetkisine sahip kullanıcılar bu ekrana erişebilir.
 class StoreSettingsScreen extends ConsumerStatefulWidget {
   const StoreSettingsScreen({super.key});
@@ -40,7 +41,8 @@ class _StoreSettingsScreenState extends ConsumerState<StoreSettingsScreen> {
       final current = await ref.read(storeRepositoryProvider).loadIbans();
       if (current.any((e) => e.iban == iban)) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          TopSnackBar.showSnackBar(
+              context,
               const SnackBar(
                   content: Text('Bu IBAN zaten listede.'),
                   backgroundColor: AppColors.warning));
@@ -62,14 +64,18 @@ class _StoreSettingsScreenState extends ConsumerState<StoreSettingsScreen> {
       _accountHolderCtrl.clear();
       _labelCtrl.clear();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('IBAN eklendi.'),
-            backgroundColor: AppColors.success));
+        TopSnackBar.showSnackBar(
+            context,
+            const SnackBar(
+                content: Text('IBAN eklendi.'),
+                backgroundColor: AppColors.success));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Hata: $e'), backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content: Text('Hata: $e'), backgroundColor: AppColors.error));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -103,14 +109,18 @@ class _StoreSettingsScreenState extends ConsumerState<StoreSettingsScreen> {
           .read(storeRepositoryProvider)
           .saveIbans(current.where((e) => e.iban != iban).toList());
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('IBAN silindi.'),
-            backgroundColor: AppColors.success));
+        TopSnackBar.showSnackBar(
+            context,
+            const SnackBar(
+                content: Text('IBAN silindi.'),
+                backgroundColor: AppColors.success));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Hata: $e'), backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content: Text('Hata: $e'), backgroundColor: AppColors.error));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -216,7 +226,8 @@ class _StoreSettingsScreenState extends ConsumerState<StoreSettingsScreen> {
                         icon: const Icon(Icons.delete_outline,
                             color: AppColors.error),
                         tooltip: 'Sil',
-                        onPressed: _loading ? null : () => _removeIban(entry.iban),
+                        onPressed:
+                            _loading ? null : () => _removeIban(entry.iban),
                       ),
                     ),
                   )),
@@ -224,7 +235,8 @@ class _StoreSettingsScreenState extends ConsumerState<StoreSettingsScreen> {
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
-            child: Text('Hata: $e', style: const TextStyle(color: AppColors.error))),
+            child: Text('Hata: $e',
+                style: const TextStyle(color: AppColors.error))),
       ),
     );
   }

@@ -7,28 +7,20 @@ import '../models/cleaning_models.dart';
 final cleaningRotationProvider =
     StreamProvider<List<CleaningRotationSlot>>((ref) {
   final firestore = ref.watch(firestoreProvider);
-  return firestore
-      .collection('cleaning_rotation')
-      .snapshots()
-      .map((snap) {
-        final slots = snap.docs
-            .map((d) => CleaningRotationSlot.fromDoc(d))
-            .toList();
-        slots.sort((a, b) => a.order.compareTo(b.order));
-        return slots;
-      });
+  return firestore.collection('cleaning_rotation').snapshots().map((snap) {
+    final slots =
+        snap.docs.map((d) => CleaningRotationSlot.fromDoc(d)).toList();
+    slots.sort((a, b) => a.order.compareTo(b.order));
+    return slots;
+  });
 });
 
 /// Stream of club-wide cleaning config (`cleaning_meta/config`).
 final cleaningConfigProvider = StreamProvider<CleaningConfig>((ref) {
   final firestore = ref.watch(firestoreProvider);
-  return firestore
-      .collection('cleaning_meta')
-      .doc('config')
-      .snapshots()
-      .map((doc) => doc.exists
-          ? CleaningConfig.fromDoc(doc)
-          : const CleaningConfig());
+  return firestore.collection('cleaning_meta').doc('config').snapshots().map(
+      (doc) =>
+          doc.exists ? CleaningConfig.fromDoc(doc) : const CleaningConfig());
 });
 
 /// Empty schedule used while none has been realized yet for a week.
@@ -45,15 +37,11 @@ final cleaningScheduleProvider =
     StreamProvider.family<CleaningSchedule, String>((ref, weekKey) {
   final firestore = ref.watch(firestoreProvider);
   if (weekKey.isEmpty) return _emptySchedule;
-  return firestore
-      .collection('cleaning_schedule')
-      .doc(weekKey)
-      .snapshots()
-      .map((doc) => doc.exists
+  return firestore.collection('cleaning_schedule').doc(weekKey).snapshots().map(
+      (doc) => doc.exists
           ? CleaningSchedule.fromDoc(weekKey, doc)
           : CleaningSchedule(
-              weekKey: weekKey,
-              weekStart: CleaningDates.parseKey(weekKey)));
+              weekKey: weekKey, weekStart: CleaningDates.parseKey(weekKey)));
 });
 
 /// Upcoming weeks (starting from the current ISO week) as schedule records,
@@ -64,25 +52,24 @@ final upcomingCleaningProvider =
   final now = DateTime.now();
   final startMonday = CleaningDates.mondayOf(now);
   // Next 12 weeks (including the current one).
-  final keys = List.generate(
-      12, (i) => CleaningDates.keyOfMonday(startMonday.add(Duration(days: 7 * i))));
+  final keys = List.generate(12,
+      (i) => CleaningDates.keyOfMonday(startMonday.add(Duration(days: 7 * i))));
   final stream = firestore
       .collection('cleaning_schedule')
       .where(FieldPath.documentId,
           whereIn: keys.length <= 10 ? keys : keys.sublist(0, 10))
       .snapshots()
       .map((snap) {
-        final byKey = <String, CleaningSchedule>{};
-        for (final d in snap.docs) {
-          byKey[d.id] = CleaningSchedule.fromDoc(d.id, d);
-        }
-        return keys.map((k) {
-          final s = byKey[k];
-          if (s != null) return s;
-          return CleaningSchedule(
-              weekKey: k, weekStart: CleaningDates.parseKey(k));
-        }).toList();
-      });
+    final byKey = <String, CleaningSchedule>{};
+    for (final d in snap.docs) {
+      byKey[d.id] = CleaningSchedule.fromDoc(d.id, d);
+    }
+    return keys.map((k) {
+      final s = byKey[k];
+      if (s != null) return s;
+      return CleaningSchedule(weekKey: k, weekStart: CleaningDates.parseKey(k));
+    }).toList();
+  });
   return stream;
 });
 
@@ -223,9 +210,8 @@ class CleaningRepository {
       'weekStart': Timestamp.fromDate(CleaningDates.parseKey(weekKey)),
       'overrideAssignmentType': assignmentType,
       'overrideTargetIds': targetIds,
-      'overrideLabel': (label == null || label.trim().isEmpty)
-          ? null
-          : label.trim(),
+      'overrideLabel':
+          (label == null || label.trim().isEmpty) ? null : label.trim(),
     }, SetOptions(merge: true));
   }
 

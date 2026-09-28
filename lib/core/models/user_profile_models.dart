@@ -248,8 +248,7 @@ class PastExperience {
       teamId: map['teamId'] as String?,
       teamName: map['teamName'] as String?,
       unitName: map['unitName'] as String?,
-      startYear: (map['startYear'] as num?)?.toInt() ??
-          DateTime.now().year,
+      startYear: (map['startYear'] as num?)?.toInt() ?? DateTime.now().year,
       endYear: (map['endYear'] as num?)?.toInt(),
     );
   }

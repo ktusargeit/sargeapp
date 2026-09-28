@@ -177,8 +177,8 @@ class _ResponsibleCard extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: const Text('Manuel',
-                        style: TextStyle(
-                            color: AppColors.warning, fontSize: 10)),
+                        style:
+                            TextStyle(color: AppColors.warning, fontSize: 10)),
                   ),
                 ],
               ],
@@ -311,8 +311,8 @@ class _ShoppingList extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: const Text('Tamamlandı',
-                        style: TextStyle(
-                            color: AppColors.success, fontSize: 11)),
+                        style:
+                            TextStyle(color: AppColors.success, fontSize: 11)),
                   ),
               ],
             ),
@@ -396,9 +396,7 @@ class _ShoppingList extends ConsumerWidget {
       context: context,
       loadingMessage: 'Güncelleniyor...',
       successMessage: completed ? 'Tamamlandı.' : 'Geri alındı.',
-      operation: () => ref
-          .read(cleaningRepositoryProvider)
-          .setWeekCompleted(
+      operation: () => ref.read(cleaningRepositoryProvider).setWeekCompleted(
             weekKey: weekKey,
             completed: completed,
             uid: user?.uid ?? '',
@@ -441,8 +439,7 @@ class _ItemTile extends ConsumerWidget {
                       ? AppColors.textSecondary
                       : AppColors.textPrimary,
                   fontSize: 14,
-                  decoration:
-                      item.done ? TextDecoration.lineThrough : null,
+                  decoration: item.done ? TextDecoration.lineThrough : null,
                 ),
               ),
             ),
@@ -461,10 +458,9 @@ class _ItemTile extends ConsumerWidget {
     await runOperationWithFeedback(
       context: context,
       loadingMessage: 'Güncelleniyor...',
-      successMessage: item.done ? 'İşaret kaldırıldı.' : 'Alındı olarak işaretlendi.',
-      operation: () => ref
-          .read(cleaningRepositoryProvider)
-          .setItemDone(
+      successMessage:
+          item.done ? 'İşaret kaldırıldı.' : 'Alındı olarak işaretlendi.',
+      operation: () => ref.read(cleaningRepositoryProvider).setItemDone(
             weekKey: weekKey,
             item: item,
             done: !item.done,

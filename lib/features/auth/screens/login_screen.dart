@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -51,8 +52,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_mapAuthError(e)), backgroundColor: AppColors.error),
+      TopSnackBar.showSnackBar(
+        context,
+        SnackBar(
+            content: Text(_mapAuthError(e)), backgroundColor: AppColors.error),
       );
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -108,7 +111,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     children: [
                       const _Logo(),
                       const SizedBox(height: AppConstants.spacingXl),
-                       Text(
+                      Text(
                         'Giriş Yap',
                         textAlign: TextAlign.center,
                         style: TextStyle(
@@ -118,13 +121,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 6),
-                       Text(
+                      Text(
                         'SARGE Kulüp Yönetim Sistemine hoş geldiniz',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                        style: TextStyle(
+                            color: AppColors.textSecondary, fontSize: 13),
                       ),
                       const SizedBox(height: 8),
-                       Text(
+                      Text(
                         'v${AppConstants.appVersion}',
                         textAlign: TextAlign.center,
                         style: TextStyle(
@@ -141,14 +145,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
                         enabled: true,
-                        style:  TextStyle(color: AppColors.textPrimary),
+                        style: TextStyle(color: AppColors.textPrimary),
                         decoration: const InputDecoration(
                           hintText: 'ornek@sarge.org',
                           prefixIcon: Icon(Icons.mail_outline, size: 18),
                         ),
                         validator: (v) {
-                          if (v == null || v.trim().isEmpty) return 'E-posta zorunlu';
-                          if (!v.contains('@')) return 'Geçerli bir e-posta girin';
+                          if (v == null || v.trim().isEmpty)
+                            return 'E-posta zorunlu';
+                          if (!v.contains('@'))
+                            return 'Geçerli bir e-posta girin';
                           return null;
                         },
                       ),
@@ -162,50 +168,61 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         textInputAction: TextInputAction.done,
                         enabled: true,
                         onFieldSubmitted: (_) => _submit(),
-                        style:  TextStyle(color: AppColors.textPrimary),
+                        style: TextStyle(color: AppColors.textPrimary),
                         decoration: InputDecoration(
                           hintText: '••••••••',
                           prefixIcon: const Icon(Icons.lock_outline, size: 18),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                              _obscure
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
                               size: 18,
                               color: AppColors.textSecondary,
                             ),
-                            onPressed: () => setState(() => _obscure = !_obscure),
+                            onPressed: () =>
+                                setState(() => _obscure = !_obscure),
                           ),
                         ),
-                        validator: (v) =>
-                            (v == null || v.length < 6) ? 'Şifre en az 6 karakter olmalı' : null,
+                        validator: (v) => (v == null || v.length < 6)
+                            ? 'Şifre en az 6 karakter olmalı'
+                            : null,
                       ),
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: () => _showForgotPasswordDialog(context),
                           child: const Text('Şifremi Unuttum',
-                              style: TextStyle(color: AppColors.primaryGreen, fontSize: 14, fontWeight: FontWeight.w600)),
+                              style: TextStyle(
+                                  color: AppColors.primaryGreen,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600)),
                         ),
                       ),
                       const SizedBox(height: AppConstants.spacingSm),
                       ElevatedButton(
                         onPressed: _loading ? null : _submit,
-                        style:
-                            ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+                        style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14)),
                         child: _loading
-                            ?  SizedBox(
+                            ? SizedBox(
                                 width: 18,
                                 height: 18,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2, color: AppColors.background),
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.background),
                               )
-                            : const Text('Giriş Yap', style: TextStyle(fontSize: 15)),
+                            : const Text('Giriş Yap',
+                                style: TextStyle(fontSize: 15)),
                       ),
                       const SizedBox(height: AppConstants.spacingMd),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                           Text('Hesabın yok mu?',
-                              style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                          Text('Hesabın yok mu?',
+                              style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 13)),
                           TextButton(
                             onPressed: () => context.push('/register'),
                             child: const Text('Kayıt Ol',
@@ -249,8 +266,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 TextField(
                   controller: ctrl,
                   keyboardType: TextInputType.emailAddress,
-                  style:  TextStyle(color: AppColors.textPrimary),
-                  decoration: const InputDecoration(hintText: 'E-posta adresiniz'),
+                  style: TextStyle(color: AppColors.textPrimary),
+                  decoration:
+                      const InputDecoration(hintText: 'E-posta adresiniz'),
                 ),
                 const SizedBox(height: 16),
                 // Spam warning
@@ -262,7 +280,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     border: Border.all(
                         color: AppColors.warning.withValues(alpha: 0.3)),
                   ),
-                  child:  Row(
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('⚠️', style: TextStyle(fontSize: 18)),
@@ -317,26 +335,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('İptal')),
             ElevatedButton(
               onPressed: sending
                   ? null
                   : () async {
                       setDialogState(() => sending = true);
                       try {
-                        await ref.read(authControllerProvider).sendPasswordReset(ctrl.text.trim());
+                        await ref
+                            .read(authControllerProvider)
+                            .sendPasswordReset(ctrl.text.trim());
                         if (ctx.mounted) Navigator.pop(ctx);
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          TopSnackBar.showSnackBar(
+                            context,
                             const SnackBar(
-                                content: Text('Şifre sıfırlama e-postası gönderildi. Lütfen gelen kutunuzu kontrol edin.'),
+                                content: Text(
+                                    'Şifre sıfırlama e-postası gönderildi. Lütfen gelen kutunuzu kontrol edin.'),
                                 backgroundColor: AppColors.success),
                           );
                         }
                       } on FirebaseAuthException catch (e) {
                         if (ctx.mounted) Navigator.pop(ctx);
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          TopSnackBar.showSnackBar(
+                            context,
                             SnackBar(
                                 content: Text(_mapResetPasswordError(e)),
                                 backgroundColor: AppColors.error),
@@ -345,7 +370,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       } catch (e) {
                         if (ctx.mounted) Navigator.pop(ctx);
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          TopSnackBar.showSnackBar(
+                            context,
                             SnackBar(
                                 content: Text('Hata: $e'),
                                 backgroundColor: AppColors.error),
@@ -423,7 +449,7 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style:  TextStyle(
+      style: TextStyle(
         color: AppColors.textSecondary,
         fontSize: 12,
         fontWeight: FontWeight.w500,

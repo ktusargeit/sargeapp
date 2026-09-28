@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -104,9 +105,11 @@ class _StoreProductFormScreenState
   Future<void> _submit() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Ürün adı zorunludur.'),
-          backgroundColor: AppColors.error));
+      TopSnackBar.showSnackBar(
+          context,
+          const SnackBar(
+              content: Text('Ürün adı zorunludur.'),
+              backgroundColor: AppColors.error));
       return;
     }
 
@@ -124,10 +127,12 @@ class _StoreProductFormScreenState
         : null;
 
     if (price == null || price <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text(
-              'Fiyatta sayısal bir değer bulunamadı. Lütfen bir fiyat girin.'),
-          backgroundColor: AppColors.error));
+      TopSnackBar.showSnackBar(
+          context,
+          const SnackBar(
+              content: Text(
+                  'Fiyatta sayısal bir değer bulunamadı. Lütfen bir fiyat girin.'),
+              backgroundColor: AppColors.error));
       return;
     }
     if (!_formKey.currentState!.validate()) return;
@@ -166,15 +171,20 @@ class _StoreProductFormScreenState
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(_isEditing ? 'Ürün güncellendi.' : 'Ürün eklendi.'),
-            backgroundColor: AppColors.success));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content:
+                    Text(_isEditing ? 'Ürün güncellendi.' : 'Ürün eklendi.'),
+                backgroundColor: AppColors.success));
         context.pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Hata: $e'), backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content: Text('Hata: $e'), backgroundColor: AppColors.error));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -323,8 +333,8 @@ class _StoreProductFormScreenState
                             height: 50,
                             decoration: BoxDecoration(
                               color: AppColors.surface2,
-                              borderRadius: BorderRadius.circular(
-                                  AppConstants.radiusMd),
+                              borderRadius:
+                                  BorderRadius.circular(AppConstants.radiusMd),
                               border: Border.all(color: AppColors.border),
                             ),
                             child: Row(
@@ -350,8 +360,8 @@ class _StoreProductFormScreenState
                             height: 50,
                             decoration: BoxDecoration(
                               color: AppColors.surface2,
-                              borderRadius: BorderRadius.circular(
-                                  AppConstants.radiusMd),
+                              borderRadius:
+                                  BorderRadius.circular(AppConstants.radiusMd),
                               border: Border.all(color: AppColors.border),
                             ),
                             child: Row(
@@ -400,8 +410,7 @@ class _StoreProductFormScreenState
                     style: TextStyle(color: AppColors.textPrimary),
                     decoration: const InputDecoration(
                       labelText: 'Açıklama',
-                      hintText:
-                          'Ürün detayları, beden/renk seçenekleri vb.',
+                      hintText: 'Ürün detayları, beden/renk seçenekleri vb.',
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -410,7 +419,8 @@ class _StoreProductFormScreenState
                     contentPadding: EdgeInsets.zero,
                     title: Text('Stokta Var',
                         style: TextStyle(color: AppColors.textPrimary)),
-                    subtitle: Text('Kapatılırsa "Stokta Yok" olarak işaretlenir.',
+                    subtitle: Text(
+                        'Kapatılırsa "Stokta Yok" olarak işaretlenir.',
                         style: TextStyle(color: AppColors.textSecondary)),
                     value: _inStock,
                     activeThumbColor: AppColors.success,

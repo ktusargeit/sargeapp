@@ -47,8 +47,7 @@ class LocationMigrationService {
     }
 
     final locSnap = await _firestore.collection('depo_lokasyonlar').get();
-    final locations =
-        locSnap.docs.map((d) => DepoLocation.fromDoc(d)).toList();
+    final locations = locSnap.docs.map((d) => DepoLocation.fromDoc(d)).toList();
 
     final categorized = <String, List<DepoLocation>>{};
     for (final c in categories) {
@@ -83,9 +82,7 @@ class LocationMigrationService {
     final batch = _firestore.batch();
     for (final doc in locSnap.docs) {
       batch.set(
-        _firestore
-            .collection('locations_backup_pre_migration')
-            .doc(doc.id),
+        _firestore.collection('locations_backup_pre_migration').doc(doc.id),
         doc.data(),
       );
     }
@@ -94,7 +91,8 @@ class LocationMigrationService {
     // 2. Seed categories if missing (by name).
     final cats = _firestore.collection('location_categories');
     final existingSnap = await cats.get();
-    final existing = existingSnap.docs.map((d) => LocationCategory.fromDoc(d)).toList();
+    final existing =
+        existingSnap.docs.map((d) => LocationCategory.fromDoc(d)).toList();
 
     final catById = <String, LocationCategory>{};
     for (final c in existing) {
@@ -108,7 +106,8 @@ class LocationMigrationService {
           'order': order++,
           'createdAt': FieldValue.serverTimestamp(),
         });
-        catById[def.name] = LocationCategory(id: ref.id, name: def.name, order: order);
+        catById[def.name] =
+            LocationCategory(id: ref.id, name: def.name, order: order);
       }
     }
 
@@ -179,7 +178,9 @@ class LocationMigrationService {
         return c;
       }
       if (cn.contains('toplanti') &&
-          (n.contains('toplanti') || n.contains('toplant') || n.contains('top'))) {
+          (n.contains('toplanti') ||
+              n.contains('toplant') ||
+              n.contains('top'))) {
         return c;
       }
     }

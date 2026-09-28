@@ -74,8 +74,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           Expanded(
             child: RefreshIndicator(
               color: AppColors.panelBlue,
-              onRefresh: () async =>
-                  ref.refresh(announcementsProvider.future),
+              onRefresh: () async => ref.refresh(announcementsProvider.future),
               child: ListView(
                 padding: const EdgeInsets.all(AppConstants.spacingMd),
                 children: [
@@ -138,8 +137,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         children: items
                             .take(5)
                             .map((a) => Padding(
-                                  padding:
-                                      const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.only(bottom: 12),
                                   child: AnnouncementCard(
                                     announcement: a,
                                     isAdmin: isAdmin,
@@ -158,10 +156,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     error: (e, _) => Center(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
-                        child: Text(
-                            'Duyurular yüklenemedi: $e',
-                            style:
-                                const TextStyle(color: AppColors.error)),
+                        child: Text('Duyurular yüklenemedi: $e',
+                            style: const TextStyle(color: AppColors.error)),
                       ),
                     ),
                   ),
@@ -182,8 +178,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               elevation: 0,
               icon: const Icon(Icons.campaign_outlined, size: 18),
               label: const Text('Duyuru',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 14)),
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
             )
           : null,
     );

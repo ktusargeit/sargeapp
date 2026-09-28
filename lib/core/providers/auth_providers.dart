@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/app_user.dart';
 
 /// Raw Firebase Auth instance
-final firebaseAuthProvider = Provider<FirebaseAuth>((ref) => FirebaseAuth.instance);
+final firebaseAuthProvider =
+    Provider<FirebaseAuth>((ref) => FirebaseAuth.instance);
 
 /// Raw Firestore instance
-final firestoreProvider = Provider<FirebaseFirestore>((ref) => FirebaseFirestore.instance);
+final firestoreProvider =
+    Provider<FirebaseFirestore>((ref) => FirebaseFirestore.instance);
 
 /// Stream of the raw Firebase auth user (null when signed out)
 final authStateProvider = StreamProvider<User?>((ref) {
@@ -70,9 +72,8 @@ final pendingApprovalsProvider = StreamProvider<List<AppUser>>((ref) {
       .snapshots()
       .map((snap) {
     final users = snap.docs.map((d) => AppUser.fromDoc(d)).toList();
-    users.sort((a, b) => a.displayName
-        .toLowerCase()
-        .compareTo(b.displayName.toLowerCase()));
+    users.sort((a, b) =>
+        a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()));
     return users;
   });
 });
@@ -108,7 +109,8 @@ class AuthController {
   AuthController(this._auth, this._firestore);
 
   Future<void> signIn({required String email, required String password}) async {
-    await _auth.signInWithEmailAndPassword(email: email.trim(), password: password);
+    await _auth.signInWithEmailAndPassword(
+        email: email.trim(), password: password);
   }
 
   Future<void> signUp({
@@ -237,5 +239,6 @@ class AuthController {
 }
 
 final authControllerProvider = Provider<AuthController>((ref) {
-  return AuthController(ref.watch(firebaseAuthProvider), ref.watch(firestoreProvider));
+  return AuthController(
+      ref.watch(firebaseAuthProvider), ref.watch(firestoreProvider));
 });

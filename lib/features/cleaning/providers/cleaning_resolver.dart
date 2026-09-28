@@ -94,8 +94,8 @@ Future<List<AppUser>> _resolveUsers(
   if (unique.isEmpty) return const [];
   final users = <AppUser>[];
   for (var i = 0; i < unique.length; i += 10) {
-    final chunk = unique.sublist(
-        i, i + 10 > unique.length ? unique.length : i + 10);
+    final chunk =
+        unique.sublist(i, i + 10 > unique.length ? unique.length : i + 10);
     final snap = await firestore
         .collection('users')
         .where(FieldPath.documentId, whereIn: chunk)
@@ -107,4 +107,3 @@ Future<List<AppUser>> _resolveUsers(
   users.sort((a, b) => a.displayName.compareTo(b.displayName));
   return users;
 }
-

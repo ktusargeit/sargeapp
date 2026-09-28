@@ -23,7 +23,8 @@ class TeamScoreboardTab extends ConsumerWidget {
               child: Text('Bu takımda henüz üye yok.',
                   style: TextStyle(color: AppColors.textSecondary)));
         }
-        members.sort((a, b) => b.teamPointsFor(team.id).compareTo(a.teamPointsFor(team.id)));
+        members.sort((a, b) =>
+            b.teamPointsFor(team.id).compareTo(a.teamPointsFor(team.id)));
         return ListView.separated(
           padding: const EdgeInsets.all(AppConstants.spacingMd),
           itemCount: members.length,
@@ -69,8 +70,7 @@ class TeamScoreboardTab extends ConsumerWidget {
                         Row(
                           children: [
                             Flexible(
-                              child: Text(
-                                  user.displayName,
+                              child: Text(user.displayName,
                                   style: TextStyle(
                                       color: AppColors.textPrimary,
                                       fontSize: 14,
@@ -82,7 +82,8 @@ class TeamScoreboardTab extends ConsumerWidget {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 6, vertical: 1),
                                 decoration: BoxDecoration(
-                                  color: AppColors.warning.withValues(alpha: 0.15),
+                                  color:
+                                      AppColors.warning.withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(3),
                                   border: Border.all(
                                       color: AppColors.warning
@@ -101,14 +102,13 @@ class TeamScoreboardTab extends ConsumerWidget {
                         ),
                         Text(user.roleLabel,
                             style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 11)),
+                                color: AppColors.textSecondary, fontSize: 11)),
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: AppColors.teamAccent.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
@@ -127,8 +127,7 @@ class TeamScoreboardTab extends ConsumerWidget {
           },
         );
       },
-      loading: () =>
-          const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Hata: $e')),
     );
   }

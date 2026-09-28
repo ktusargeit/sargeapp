@@ -56,8 +56,8 @@ class DashboardHeader extends ConsumerWidget {
                 const SizedBox(height: 2),
                 Text(
                   formatted,
-                  style: TextStyle(
-                      color: AppColors.textSecondary, fontSize: 12),
+                  style:
+                      TextStyle(color: AppColors.textSecondary, fontSize: 12),
                 ),
               ],
             ),
@@ -109,16 +109,15 @@ class DashboardMyTasksCard extends ConsumerWidget {
             ),
             child: Row(
               children: [
-                Icon(Icons.task_alt,
-                    color: AppColors.textSecondary, size: 20),
+                Icon(Icons.task_alt, color: AppColors.textSecondary, size: 20),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     'Aktif göreviniz yok. Görevleriniz burada görünecek.',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        color: AppColors.textSecondary, fontSize: 13),
+                    style:
+                        TextStyle(color: AppColors.textSecondary, fontSize: 13),
                   ),
                 ),
                 Flexible(
@@ -131,8 +130,8 @@ class DashboardMyTasksCard extends ConsumerWidget {
                     onPressed: () => context.push('/tasks'),
                     child: const Text(
                       'Git →',
-                      style: TextStyle(
-                          color: AppColors.tasksGreen, fontSize: 12),
+                      style:
+                          TextStyle(color: AppColors.tasksGreen, fontSize: 12),
                     ),
                   ),
                 ),
@@ -247,8 +246,8 @@ class DashboardGuestBanner extends StatelessWidget {
             ],
           ),
           border: Border(
-            bottom: BorderSide(
-                color: AppColors.panelBlue.withValues(alpha: 0.4)),
+            bottom:
+                BorderSide(color: AppColors.panelBlue.withValues(alpha: 0.4)),
           ),
         ),
         child: Row(
@@ -266,8 +265,7 @@ class DashboardGuestBanner extends StatelessWidget {
                 ),
               ),
             ),
-            Icon(Icons.chevron_right,
-                size: 16, color: AppColors.textSecondary),
+            Icon(Icons.chevron_right, size: 16, color: AppColors.textSecondary),
           ],
         ),
       ),
@@ -285,8 +283,7 @@ class DashboardJoinCtaCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-        border: Border.all(
-            color: AppColors.panelBlue.withValues(alpha: 0.4)),
+        border: Border.all(color: AppColors.panelBlue.withValues(alpha: 0.4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -372,10 +369,12 @@ class _DashboardLeaderboardCardState
     final teams = currentUid == null
         ? const <ClubTeam>[]
         : allTeams.where((t) => t.memberIds.contains(currentUid)).toList();
-    final selectedTeamId = _teamId ?? (teams.isNotEmpty ? teams.first.id : null);
-    final validTeamId = (selectedTeamId != null && teams.any((t) => t.id == selectedTeamId))
-        ? selectedTeamId
-        : (teams.isNotEmpty ? teams.first.id : null);
+    final selectedTeamId =
+        _teamId ?? (teams.isNotEmpty ? teams.first.id : null);
+    final validTeamId =
+        (selectedTeamId != null && teams.any((t) => t.id == selectedTeamId))
+            ? selectedTeamId
+            : (teams.isNotEmpty ? teams.first.id : null);
     final archiveWeeks = archiveWeeksAsync.valueOrNull ?? const <String>[];
     final meta = metaAsync.valueOrNull ?? const <String, dynamic>{};
 
@@ -526,7 +525,7 @@ class _DashboardLeaderboardCardState
                           entry: e.value,
                           pointsLabel: _weekKey == null
                               ? 'Bu Hafta: ${e.value.weeklyPoints} puan'
-                              : '${e.value.points} puan',
+                              : '${e.value.weeklyPoints} puan',
                         ),
                         if (!isLast)
                           Divider(height: 1, color: AppColors.border),
@@ -581,10 +580,7 @@ class DashboardLeaderboardRow extends ConsumerWidget {
   final String? pointsLabel;
 
   const DashboardLeaderboardRow(
-      {super.key,
-      required this.rank,
-      required this.entry,
-      this.pointsLabel});
+      {super.key, required this.rank, required this.entry, this.pointsLabel});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -615,10 +611,10 @@ class DashboardLeaderboardRow extends ConsumerWidget {
             CircleAvatar(
               radius: 14,
               backgroundColor: AppColors.surface2,
-              backgroundImage: entry.photoUrl != null &&
-                      entry.photoUrl!.isNotEmpty
-                  ? NetworkImage(entry.photoUrl!)
-                  : null,
+              backgroundImage:
+                  entry.photoUrl != null && entry.photoUrl!.isNotEmpty
+                      ? NetworkImage(entry.photoUrl!)
+                      : null,
               child: entry.photoUrl == null || entry.photoUrl!.isEmpty
                   ? Icon(Icons.person_outline,
                       size: 12, color: AppColors.textSecondary)

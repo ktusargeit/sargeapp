@@ -6,6 +6,7 @@ class AppColors {
 
   // ── Brand & accent colors (theme-independent) ──────────────────────────────
   static const Color sargeGold = Color(0xFFD4AF37);
+
   /// Yönetim Kurulu (board) accent — şaşaalı altın tonları.
   static const Color gold = sargeGold;
   static const Color goldLight = Color(0xFFF6E27A);
@@ -33,8 +34,9 @@ class AppColors {
   static const Color darkGreen = Color(0xFF0E3A25);
 
   // WhatsApp-style chat bubble colors (theme-aware).
-  static const Color _darkOwnBubble = Color(0xFF123F2C);   // dark green tint
-  static const Color _lightOwnBubble = Color(0xFFDCF8C6);  // WhatsApp light green
+  static const Color _darkOwnBubble = Color(0xFF123F2C); // dark green tint
+  static const Color _lightOwnBubble =
+      Color(0xFFDCF8C6); // WhatsApp light green
 
   static Color statusAvailable = success;
   static Color statusInUse = info;
@@ -73,20 +75,17 @@ class AppColors {
   static bool get isLight => _brightness == Brightness.light;
 
   // ── Theme-aware neutral tokens ─────────────────────────────────────────────
-  static Color get background =>
-      isLight ? lightBg : _darkBackground;
+  static Color get background => isLight ? lightBg : _darkBackground;
   static Color get surface => isLight ? lightSurface : _darkSurface;
   static Color get surface2 => isLight ? lightSurface2 : _darkSurface2;
   static Color get surface3 => isLight ? lightSurface3 : _darkSurface3;
   static Color get border => isLight ? lightBorder : _darkBorder;
-  static Color get textPrimary =>
-      isLight ? lightTextPrimary : _darkTextPrimary;
+  static Color get textPrimary => isLight ? lightTextPrimary : _darkTextPrimary;
   static Color get textSecondary =>
       isLight ? lightTextSecondary : _darkTextSecondary;
 
   /// WhatsApp-style chat bubble color for the current user's own messages.
-  static Color get ownBubble =>
-      isLight ? _lightOwnBubble : _darkOwnBubble;
+  static Color get ownBubble => isLight ? _lightOwnBubble : _darkOwnBubble;
 
   // Page scaffolds follow the same theme-aware background color.
   static Color get panelBg => background;

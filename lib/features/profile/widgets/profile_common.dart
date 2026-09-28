@@ -26,8 +26,8 @@ UserTitle? highestProfileTitle(AppUser user) {
   final active = user.activeTitles;
   if (active.isEmpty) return null;
   final list = [...active];
-  list.sort(
-      (a, b) => profileTitleRank(a.titleType).compareTo(profileTitleRank(b.titleType)));
+  list.sort((a, b) =>
+      profileTitleRank(a.titleType).compareTo(profileTitleRank(b.titleType)));
   return list.first;
 }
 
@@ -155,9 +155,8 @@ class ProfileInfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        border: isLast
-            ? null
-            : Border(bottom: BorderSide(color: AppColors.border)),
+        border:
+            isLast ? null : Border(bottom: BorderSide(color: AppColors.border)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
@@ -172,12 +171,10 @@ class ProfileInfoRow extends StatelessWidget {
             child: Icon(icon, size: 17, color: color),
           ),
           const SizedBox(width: 12),
-          Expanded(
-              child: Text(label,
-                  style: TextStyle(
-                      color: AppColors.textSecondary, fontSize: 13))),
+          Text(label,
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
           const SizedBox(width: 12),
-          Flexible(
+          Expanded(
               child: Text(value,
                   textAlign: TextAlign.right,
                   style: TextStyle(

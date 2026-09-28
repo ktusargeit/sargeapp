@@ -23,7 +23,7 @@ class NotificationsScreen extends ConsumerWidget {
       body: notificationsAsync.when(
         data: (notifications) {
           if (notifications.isEmpty) {
-            return  Center(
+            return Center(
               child: Text('Henüz bildirim yok.',
                   style: TextStyle(color: AppColors.textSecondary)),
             );
@@ -39,87 +39,100 @@ class NotificationsScreen extends ConsumerWidget {
               final count = (n['count'] as num?)?.toInt() ?? 0;
               final hasCounter = !isRead && count > 0;
 
-              return ListTile(
-                leading: Icon(
-                  isRead
-                      ? Icons.notifications_outlined
-                      : Icons.notifications_active,
-                  color: isRead
-                      ? AppColors.textSecondary
-                      : AppColors.primaryBlue,
+              return Dismissible(
+                key: Key(n['id'] as String),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  color: Colors.red,
+                  child: const Icon(Icons.delete, color: Colors.white),
                 ),
-                title: Text(
-                  n['title'] as String? ?? '',
-                  style: TextStyle(
+                onDismissed: (_) {
+                  final notificationId = n['id'] as String;
+                  ref
+                      .read(notificationServiceProvider)
+                      .deleteNotification(notificationId);
+                },
+                child: ListTile(
+                  leading: Icon(
+                    isRead
+                        ? Icons.notifications_outlined
+                        : Icons.notifications_active,
                     color: isRead
                         ? AppColors.textSecondary
-                        : AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
+                        : AppColors.primaryBlue,
                   ),
-                ),
-                subtitle: Text(
-                  hasCounter
-                      ? '${n['body']} ($count yeni mesaj)'
-                      : (n['body'] as String? ?? ''),
-                  style:  TextStyle(
-                      color: AppColors.textSecondary, fontSize: 12),
-                ),
-                trailing: isRead
-                    ? null
-                    : Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 9, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryBlue,
-                          borderRadius: BorderRadius.circular(12),
+                  title: Text(
+                    n['title'] as String? ?? '',
+                    style: TextStyle(
+                      color: isRead
+                          ? AppColors.textSecondary
+                          : AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    hasCounter
+                        ? '${n['body']} ($count yeni mesaj)'
+                        : (n['body'] as String? ?? ''),
+                    style:
+                        TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                  ),
+                  trailing: isRead
+                      ? null
+                      : Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 9, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryBlue,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            hasCounter ? '$count' : '•',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700),
+                          ),
                         ),
-                        child: Text(
-                          hasCounter ? '$count' : '•',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                onTap: () async {
-                  final notificationId = n['id'] as String;
-                  if (!isRead && uid != null) {
-                    await ref
-                        .read(notificationServiceProvider)
-                        .markRead(notificationId);
-                  }
-                  if (context.mounted) {
-                    final location =
-                        locationForNotificationType(type, relatedId: relatedId);
-                    context.go(location,
-                        extra: relatedId != null && relatedId.isNotEmpty
-                            ? relatedId
-                            : null);
-                  }
-                },
+                  onTap: () async {
+                    final notificationId = n['id'] as String;
+                    if (!isRead && uid != null) {
+                      await ref
+                          .read(notificationServiceProvider)
+                          .markRead(notificationId);
+                    }
+                    if (context.mounted) {
+                      final location = locationForNotificationType(type,
+                          relatedId: relatedId);
+                      context.go(location,
+                          extra: relatedId != null && relatedId.isNotEmpty
+                              ? relatedId
+                              : null);
+                    }
+                  },
+                ),
               );
             },
           );
         },
-        loading: () =>
-            const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-               Icon(Icons.error_outline,
+              Icon(Icons.error_outline,
                   size: 48, color: AppColors.textSecondary),
               const SizedBox(height: 12),
-               Text(
+              Text(
                 'Bildirimler yüklenirken bir sorun oluştu.\nLütfen tekrar deneyin.',
-                style: TextStyle(
-                    color: AppColors.textSecondary, fontSize: 14),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
               OutlinedButton(
-                onPressed: () =>
-                    ref.invalidate(userNotificationsProvider),
+                onPressed: () => ref.invalidate(userNotificationsProvider),
                 child: const Text('Tekrar Dene'),
               ),
             ],

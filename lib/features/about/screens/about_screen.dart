@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -96,7 +97,6 @@ class AboutScreen extends ConsumerWidget {
                 style: const TextStyle(color: AppColors.error)),
           ),
           const SizedBox(height: 28),
-
           const _SectionHeader(
               title: 'TAKIMLARIMIZ', icon: Icons.groups_outlined),
           const SizedBox(height: 10),
@@ -120,7 +120,6 @@ class AboutScreen extends ConsumerWidget {
                 style: const TextStyle(color: AppColors.error)),
           ),
           const SizedBox(height: 28),
-
           _SectionHeader(
             title: 'GEÇMİŞ TAKIMLAR',
             icon: Icons.history_outlined,
@@ -153,18 +152,17 @@ class AboutScreen extends ConsumerWidget {
                 style: const TextStyle(color: AppColors.error)),
           ),
           const SizedBox(height: 28),
-
           _SectionHeader(
             title: 'ONURSAL ÜYELERİMİZ',
             icon: Icons.workspace_premium_outlined,
-            trailing: ref.watch(
-                    currentUserCanProvider(Permissions.addHonoraryMember))
-                ? TextButton.icon(
-                    onPressed: () => showHonoraryAddSheet(context),
-                    icon: const Icon(Icons.person_add_alt, size: 16),
-                    label: const Text('Ekle'),
-                  )
-                : null,
+            trailing:
+                ref.watch(currentUserCanProvider(Permissions.addHonoraryMember))
+                    ? TextButton.icon(
+                        onPressed: () => showHonoraryAddSheet(context),
+                        icon: const Icon(Icons.person_add_alt, size: 16),
+                        label: const Text('Ekle'),
+                      )
+                    : null,
           ),
           const SizedBox(height: 10),
           membersAsync.when(
@@ -182,7 +180,6 @@ class AboutScreen extends ConsumerWidget {
                 style: const TextStyle(color: AppColors.error)),
           ),
           const SizedBox(height: 28),
-
           const _SectionHeader(title: 'İLETİŞİM', icon: Icons.mail_outline),
           const SizedBox(height: 10),
           clubInfoAsync.when(
@@ -206,7 +203,8 @@ class _SectionHeader extends StatelessWidget {
   final String title;
   final IconData icon;
   final Widget? trailing;
-  const _SectionHeader({required this.title, required this.icon, this.trailing});
+  const _SectionHeader(
+      {required this.title, required this.icon, this.trailing});
 
   @override
   Widget build(BuildContext context) {
@@ -253,8 +251,7 @@ class _EmptyCard extends StatelessWidget {
           Text(
             text,
             textAlign: TextAlign.center,
-            style: TextStyle(
-                color: AppColors.textSecondary, fontSize: 13),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
         ],
       ),
@@ -337,83 +334,83 @@ class _TeamCard extends ConsumerWidget {
     return GestureDetector(
       onTap: () => _showTeamDetailSheet(context, team, canEditTeamStory),
       child: Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isPast
-              ? AppColors.textSecondary.withValues(alpha: 0.4)
-              : AppColors.teamAccent.withValues(alpha: 0.35),
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _TeamCardHeader(
-              team: team, isPast: isPast, canEdit: canEditTeamStory),
-          Divider(height: 1, color: AppColors.border),
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (team.period != null && team.period!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: _PeriodBadge(period: team.period!, isPast: isPast),
-                  ),
-                if (team.description.isNotEmpty)
-                  Text(
-                    team.description,
-                    style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 13,
-                        height: 1.5),
-                  ),
-                if (team.story != null && team.story!.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    team.story!,
-                    style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 13.5,
-                        height: 1.6),
-                  ),
-                ],
-                if (team.photos.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  _TeamGallery(photos: team.photos),
-                ],
-                const SizedBox(height: 12),
-                Text(
-                  isPast ? 'O DÖNEMKİ ÜYELER' : 'ÜYELER',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                if (members.isEmpty)
-                  Text('Üye listesi boş.',
-                      style: TextStyle(
-                          color: AppColors.textSecondary, fontSize: 12))
-                else
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: members
-                        .map((m) => _MemberChip(team: team, user: m))
-                        .toList(),
-                  ),
-              ],
-            ),
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isPast
+                ? AppColors.textSecondary.withValues(alpha: 0.4)
+                : AppColors.teamAccent.withValues(alpha: 0.35),
           ),
-        ],
-      ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _TeamCardHeader(
+                team: team, isPast: isPast, canEdit: canEditTeamStory),
+            Divider(height: 1, color: AppColors.border),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (team.period != null && team.period!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: _PeriodBadge(period: team.period!, isPast: isPast),
+                    ),
+                  if (team.description.isNotEmpty)
+                    Text(
+                      team.description,
+                      style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                          height: 1.5),
+                    ),
+                  if (team.story != null && team.story!.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      team.story!,
+                      style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 13.5,
+                          height: 1.6),
+                    ),
+                  ],
+                  if (team.photos.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    _TeamGallery(photos: team.photos),
+                  ],
+                  const SizedBox(height: 12),
+                  Text(
+                    isPast ? 'O DÖNEMKİ ÜYELER' : 'ÜYELER',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  if (members.isEmpty)
+                    Text('Üye listesi boş.',
+                        style: TextStyle(
+                            color: AppColors.textSecondary, fontSize: 12))
+                  else
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: members
+                          .map((m) => _MemberChip(team: team, user: m))
+                          .toList(),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -588,8 +585,7 @@ class _MemberChip extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               '${user.displayName} ($roleText)',
-              style: TextStyle(
-                  color: AppColors.textPrimary, fontSize: 12),
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 12),
             ),
           ],
         ),
@@ -674,9 +670,7 @@ class _HonoraryCard extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 11,
-                  height: 1.3),
+                  color: AppColors.textSecondary, fontSize: 11, height: 1.3),
             ),
           ],
         ],
@@ -758,8 +752,8 @@ class _ContactSection extends StatelessWidget {
                         color: AppColors.textSecondary, fontSize: 11)),
                 const SizedBox(height: 2),
                 Text(value,
-                    style: TextStyle(
-                        color: AppColors.textPrimary, fontSize: 14)),
+                    style:
+                        TextStyle(color: AppColors.textPrimary, fontSize: 14)),
               ],
             ),
           ),
@@ -822,8 +816,8 @@ Future<void> _editTeamStory(BuildContext context, ClubTeam team) async {
               TextField(
                 controller: periodCtrl,
                 style: TextStyle(color: AppColors.textPrimary),
-                decoration: const InputDecoration(
-                    labelText: 'Dönem (örn: 2024-2025)'),
+                decoration:
+                    const InputDecoration(labelText: 'Dönem (örn: 2024-2025)'),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -867,8 +861,8 @@ Future<void> _editTeamStory(BuildContext context, ClubTeam team) async {
                             top: 0,
                             right: 0,
                             child: GestureDetector(
-                              onTap: () =>
-                                  setDialogState(() => existingPhotos.remove(url)),
+                              onTap: () => setDialogState(
+                                  () => existingPhotos.remove(url)),
                               child: Container(
                                 decoration: const BoxDecoration(
                                   color: Colors.black54,
@@ -891,12 +885,13 @@ Future<void> _editTeamStory(BuildContext context, ClubTeam team) async {
                     return ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: provider != null
-                          ? Image(image: provider,
-                              width: 72, height: 72, fit: BoxFit.cover)
-                          : Container(
+                          ? Image(
+                              image: provider,
                               width: 72,
                               height: 72,
-                              color: AppColors.surface2),
+                              fit: BoxFit.cover)
+                          : Container(
+                              width: 72, height: 72, color: AppColors.surface2),
                     );
                   }),
                 ],
@@ -953,10 +948,12 @@ Future<void> _editTeamStory(BuildContext context, ClubTeam team) async {
                     } catch (e) {
                       setDialogState(() => saving = false);
                       if (ctx.mounted) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                          content: Text('Kaydedilemedi: $e'),
-                          backgroundColor: AppColors.error,
-                        ));
+                        TopSnackBar.showSnackBar(
+                            ctx,
+                            SnackBar(
+                              content: Text('Kaydedilemedi: $e'),
+                              backgroundColor: AppColors.error,
+                            ));
                       }
                     }
                   },
@@ -1025,7 +1022,8 @@ class _TeamDetailSheet extends ConsumerWidget {
             if (team.period != null && team.period!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: _PeriodBadge(period: team.period!, isPast: team.isArchived),
+                child:
+                    _PeriodBadge(period: team.period!, isPast: team.isArchived),
               ),
             if (team.description.isNotEmpty)
               Text(team.description,
@@ -1037,9 +1035,7 @@ class _TeamDetailSheet extends ConsumerWidget {
               const SizedBox(height: 12),
               Text(team.story!,
                   style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 14,
-                      height: 1.6)),
+                      color: AppColors.textPrimary, fontSize: 14, height: 1.6)),
             ],
             if (team.photos.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -1154,9 +1150,7 @@ class _HonoraryDetailSheet extends ConsumerWidget {
               const SizedBox(height: 12),
               Text(member.story,
                   style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 14,
-                      height: 1.6)),
+                      color: AppColors.textPrimary, fontSize: 14, height: 1.6)),
             ],
             if (member.photos.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -1336,12 +1330,13 @@ Future<void> _editHonoraryStory(
                     return ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: provider != null
-                          ? Image(image: provider,
-                              width: 72, height: 72, fit: BoxFit.cover)
-                          : Container(
+                          ? Image(
+                              image: provider,
                               width: 72,
                               height: 72,
-                              color: AppColors.surface2),
+                              fit: BoxFit.cover)
+                          : Container(
+                              width: 72, height: 72, color: AppColors.surface2),
                     );
                   }),
                 ],
@@ -1378,7 +1373,8 @@ Future<void> _editHonoraryStory(
                 ? null
                 : () async {
                     setDialogState(() => saving = true);
-                    final container = ProviderScope.containerOf(ctx, listen: false);
+                    final container =
+                        ProviderScope.containerOf(ctx, listen: false);
                     try {
                       final uploaded = await uploadNewPhotos();
                       final repo = container.read(clubInfoRepositoryProvider);
@@ -1391,10 +1387,12 @@ Future<void> _editHonoraryStory(
                     } catch (e) {
                       setDialogState(() => saving = false);
                       if (ctx.mounted) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                          content: Text('Kaydedilemedi: $e'),
-                          backgroundColor: AppColors.error,
-                        ));
+                        TopSnackBar.showSnackBar(
+                            ctx,
+                            SnackBar(
+                              content: Text('Kaydedilemedi: $e'),
+                              backgroundColor: AppColors.error,
+                            ));
                       }
                     }
                   },
@@ -1459,18 +1457,22 @@ class _AddArchivedTeamSheetState extends ConsumerState<_AddArchivedTeamSheet> {
       );
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Geçmiş takım eklendi.'),
-          backgroundColor: AppColors.success,
-        ));
+        TopSnackBar.showSnackBar(
+            context,
+            const SnackBar(
+              content: Text('Geçmiş takım eklendi.'),
+              backgroundColor: AppColors.success,
+            ));
       }
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Eklenemedi: $e'),
-          backgroundColor: AppColors.error,
-        ));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+              content: Text('Eklenemedi: $e'),
+              backgroundColor: AppColors.error,
+            ));
       }
     }
   }
@@ -1606,7 +1608,8 @@ class _AddArchivedTeamSheetState extends ConsumerState<_AddArchivedTeamSheet> {
                       .map((n) => Chip(
                             label: Text(n,
                                 style: TextStyle(
-                                    color: AppColors.textPrimary, fontSize: 12)),
+                                    color: AppColors.textPrimary,
+                                    fontSize: 12)),
                             onDeleted: () =>
                                 setState(() => _freeTextNames.remove(n)),
                           ))

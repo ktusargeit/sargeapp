@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -113,9 +114,10 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
   Future<void> _updateStatus(BugReport report, String newStatus) async {
     final firestore = ref.read(firestoreProvider);
     final currentUser = ref.read(authStateProvider).valueOrNull;
-    final currentName = ref.read(currentAppUserProvider).valueOrNull?.displayName ??
-        currentUser?.displayName ??
-        '';
+    final currentName =
+        ref.read(currentAppUserProvider).valueOrNull?.displayName ??
+            currentUser?.displayName ??
+            '';
     final uid = currentUser?.uid;
 
     final updates = <String, dynamic>{'status': newStatus};
@@ -142,7 +144,8 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
           .doc(widget.reportId)
           .update(updates);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.showSnackBar(
+          context,
           SnackBar(
             content: Text(newStatus == 'done'
                 ? 'Çözüldü olarak işaretlendi.'
@@ -155,7 +158,8 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.showSnackBar(
+          context,
           SnackBar(content: Text('Hata: $e'), backgroundColor: AppColors.error),
         );
       }
@@ -205,9 +209,8 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
       if (pending.images.isNotEmpty) {
         final img = pending.images.first.image;
         final tempId = 'msg_${DateTime.now().microsecondsSinceEpoch}';
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('report_messages/$tempId.jpg');
+        final storageRef =
+            FirebaseStorage.instance.ref().child('report_messages/$tempId.jpg');
         final compressed = await img.compressedUploadBytes();
         if (compressed.isNotEmpty) {
           await storageRef.putData(compressed);
@@ -281,8 +284,7 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
         final msgCount = messages.length + _pendingMessages.length;
         if (msgCount > _lastMsgCount) {
           final isMine = _pendingMessages.isNotEmpty ||
-              (messages.isNotEmpty &&
-                  messages.last['senderUid'] == currentUid);
+              (messages.isNotEmpty && messages.last['senderUid'] == currentUid);
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) _scroller.onNewMessage(isMine: isMine);
           });
@@ -318,222 +320,184 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
                         controller: scrollController,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         children: [
-                      Row(
-                        children: [
-                          Icon(reportStatusIcon(report),
-                              size: 20, color: reportStatusColor(report)),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              report.title.isEmpty
-                                  ? report.message
-                                  : report.title,
-                              style: TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
+                          Row(
+                            children: [
+                              Icon(reportStatusIcon(report),
+                                  size: 20, color: reportStatusColor(report)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  report.title.isEmpty
+                                      ? report.message
+                                      : report.title,
+                                  style: TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          if (report.isSuggestion)
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              if (report.isSuggestion)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.panelBlue
+                                        .withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                        color: AppColors.panelBlue
+                                            .withValues(alpha: 0.4)),
+                                  ),
+                                  child: const Text(
+                                    'Öneri',
+                                    style: TextStyle(
+                                      color: AppColors.panelBlue,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                )
+                              else
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: reportStatusColor(report)
+                                        .withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                        color: reportStatusColor(report)
+                                            .withValues(alpha: 0.4)),
+                                  ),
+                                  child: Text(
+                                    report.statusLabel,
+                                    style: TextStyle(
+                                      color: reportStatusColor(report),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Bildiren: ${report.submittedByName}',
+                                style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 12),
+                              ),
+                              if (report.createdAt != null) ...[
+                                const SizedBox(width: 8),
+                                Icon(Icons.schedule,
+                                    size: 12,
+                                    color: AppColors.textSecondary
+                                        .withValues(alpha: 0.7)),
+                                const SizedBox(width: 2),
+                                Text(
+                                  SafeDate.dayShortMonthYearTime(
+                                      report.createdAt!),
+                                  style: TextStyle(
+                                      color: AppColors.textSecondary
+                                          .withValues(alpha: 0.7),
+                                      fontSize: 11),
+                                ),
+                              ],
+                            ],
+                          ),
+                          if (report.message.isNotEmpty) ...[
+                            const SizedBox(height: 10),
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color:
-                                    AppColors.panelBlue.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                    color: AppColors.panelBlue
-                                        .withValues(alpha: 0.4)),
+                                    AppColors.surface2.withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Text(
-                                'Öneri',
-                                style: TextStyle(
-                                  color: AppColors.panelBlue,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            )
-                          else
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: reportStatusColor(report)
-                                    .withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                    color: reportStatusColor(report)
-                                        .withValues(alpha: 0.4)),
-                              ),
-                              child: Text(
-                                report.statusLabel,
-                                style: TextStyle(
-                                  color: reportStatusColor(report),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
+                              child: Text(report.message,
+                                  style: TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 14,
+                                      height: 1.5)),
+                            ),
+                          ],
+                          if (report.imageUrl != null &&
+                              report.imageUrl!.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            GestureDetector(
+                              onTap: () => showReportImageFullScreen(
+                                  context, report.imageUrl!),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.network(
+                                  report.imageUrl!,
+                                  height: 160,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                  cacheWidth: 800,
+                                  errorBuilder: (_, __, ___) =>
+                                      const SizedBox.shrink(),
                                 ),
                               ),
                             ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Bildiren: ${report.submittedByName}',
-                            style: TextStyle(
-                                color: AppColors.textSecondary, fontSize: 12),
-                          ),
-                          if (report.createdAt != null) ...[
-                            const SizedBox(width: 8),
-                            Icon(Icons.schedule,
-                                size: 12,
-                                color: AppColors.textSecondary
-                                    .withValues(alpha: 0.7)),
-                            const SizedBox(width: 2),
-                            Text(
-                              SafeDate.dayShortMonthYearTime(report.createdAt!),
-                              style: TextStyle(
-                                  color: AppColors.textSecondary
-                                      .withValues(alpha: 0.7),
-                                  fontSize: 11),
+                          ],
+                          if (report.reviewedBy.isNotEmpty &&
+                              report.status != 'done') ...[
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: report.reviewedBy.map((r) {
+                                final name = r['name'] as String? ?? '';
+                                return Chip(
+                                  label: Text('İnceleyen: $name',
+                                      style: const TextStyle(fontSize: 10)),
+                                  backgroundColor:
+                                      AppColors.warning.withValues(alpha: 0.1),
+                                  side: BorderSide.none,
+                                  avatar: const Icon(Icons.person_outline,
+                                      size: 12, color: AppColors.warning),
+                                );
+                              }).toList(),
                             ),
                           ],
-                        ],
-                      ),
-                      if (report.message.isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.surface2.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(report.message,
-                              style: TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontSize: 14,
-                                  height: 1.5)),
-                        ),
-                      ],
-                      if (report.imageUrl != null &&
-                          report.imageUrl!.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        GestureDetector(
-                          onTap: () => showReportImageFullScreen(
-                              context, report.imageUrl!),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: Image.network(
-                              report.imageUrl!,
-                              height: 160,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              cacheWidth: 800,
-                              errorBuilder: (_, __, ___) =>
-                                  const SizedBox.shrink(),
+                          if (report.resolvedByName != null &&
+                              report.resolvedByName!.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                const Icon(Icons.check_circle_outline,
+                                    size: 14, color: AppColors.success),
+                                const SizedBox(width: 4),
+                                Text(
+                                    '${report.resolvedByName} tarafından çözüldü',
+                                    style: const TextStyle(
+                                        color: AppColors.success,
+                                        fontSize: 12)),
+                              ],
                             ),
-                          ),
-                        ),
-                      ],
-                      if (report.reviewedBy.isNotEmpty &&
-                          report.status != 'done') ...[
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 4,
-                          children: report.reviewedBy.map((r) {
-                            final name = r['name'] as String? ?? '';
-                            return Chip(
-                              label: Text('İnceleyen: $name',
-                                  style: const TextStyle(fontSize: 10)),
-                              backgroundColor:
-                                  AppColors.warning.withValues(alpha: 0.1),
-                              side: BorderSide.none,
-                              avatar: const Icon(Icons.person_outline,
-                                  size: 12, color: AppColors.warning),
-                            );
-                          }).toList(),
-                        ),
-                      ],
-                      if (report.resolvedByName != null &&
-                          report.resolvedByName!.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            const Icon(Icons.check_circle_outline,
-                                size: 14, color: AppColors.success),
-                            const SizedBox(width: 4),
-                            Text('${report.resolvedByName} tarafından çözüldü',
-                                style: const TextStyle(
-                                    color: AppColors.success, fontSize: 12)),
-                          ],
-                        ),
-                        if (report.resolvedAt != null) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            'Çözüm: ${SafeDate.dayMonthYearTime(report.resolvedAt!)}',
-                            style: TextStyle(
-                                color: AppColors.textSecondary
-                                    .withValues(alpha: 0.7),
-                                fontSize: 11),
-                          ),
-                        ],
-                      ],
-                      if (widget.isAdmin) ...[
-                        const SizedBox(height: 12),
-                        Divider(color: AppColors.border),
-                        const SizedBox(height: 8),
-                        Text(
-                          'DURUM DEĞİŞTİR',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            if (report.status != 'done')
-                              ReportStatusActionButton(
-                                label: 'Çözüldü',
-                                color: AppColors.success,
-                                icon: Icons.check_circle_outline,
-                                isFilled: true,
-                                onTap: () => _updateStatus(report, 'done'),
+                            if (report.resolvedAt != null) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                'Çözüm: ${SafeDate.dayMonthYearTime(report.resolvedAt!)}',
+                                style: TextStyle(
+                                    color: AppColors.textSecondary
+                                        .withValues(alpha: 0.7),
+                                    fontSize: 11),
                               ),
-                            if (report.status == 'open')
-                              ReportStatusActionButton(
-                                label: 'İncele',
-                                color: AppColors.warning,
-                                icon: Icons.search,
-                                isFilled: true,
-                                onTap: () =>
-                                    _updateStatus(report, 'investigating'),
-                              ),
+                            ],
                           ],
-                        ),
-                      ],
-                      const SizedBox(height: 12),
-                      Divider(color: AppColors.border),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Row(
-                          children: [
-                            Icon(Icons.chat_bubble_outline,
-                                size: 14, color: AppColors.textSecondary),
-                            const SizedBox(width: 6),
+                          if (widget.isAdmin) ...[
+                            const SizedBox(height: 12),
+                            Divider(color: AppColors.border),
+                            const SizedBox(height: 8),
                             Text(
-                              'Mesajlar (${messages.length})',
+                              'DURUM DEĞİŞTİR',
                               style: TextStyle(
                                 color: AppColors.textSecondary,
                                 fontSize: 11,
@@ -541,54 +505,107 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
                                 letterSpacing: 1.2,
                               ),
                             ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                if (report.status != 'done')
+                                  ReportStatusActionButton(
+                                    label: 'Çözüldü',
+                                    color: AppColors.success,
+                                    icon: Icons.check_circle_outline,
+                                    isFilled: true,
+                                    onTap: () => _updateStatus(report, 'done'),
+                                  ),
+                                if (report.status == 'open')
+                                  ReportStatusActionButton(
+                                    label: 'İncele',
+                                    color: AppColors.warning,
+                                    icon: Icons.search,
+                                    isFilled: true,
+                                    onTap: () =>
+                                        _updateStatus(report, 'investigating'),
+                                  ),
+                              ],
+                            ),
                           ],
+                          const SizedBox(height: 12),
+                          Divider(color: AppColors.border),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Row(
+                              children: [
+                                Icon(Icons.chat_bubble_outline,
+                                    size: 14, color: AppColors.textSecondary),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Mesajlar (${messages.length})',
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (messages.isEmpty && _pendingMessages.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              child: Center(
+                                child: Text('Henüz mesaj yok.',
+                                    style: TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 13)),
+                              ),
+                            )
+                          else ...[
+                            ...messages.map((msg) {
+                              final data = Map<String, dynamic>.from(msg);
+                              return ChatBubble(
+                                data: data,
+                                isMine: msg['senderUid'] == currentUid,
+                                onReply: () => setState(() => _replyTo = {
+                                      'id': msg['id'] as String? ?? '',
+                                      'text': msg['text'] as String? ?? '',
+                                      'senderName':
+                                          msg['senderName'] as String? ?? '',
+                                      'senderUid':
+                                          msg['senderUid'] as String? ?? '',
+                                    }),
+                                onDelete: () {
+                                  ref
+                                      .read(firestoreProvider)
+                                      .collection('reports')
+                                      .doc(widget.reportId)
+                                      .update({
+                                    'messages': FieldValue.arrayRemove([msg])
+                                  });
+                                },
+                              );
+                            }),
+                            ..._pendingMessages.map((pending) {
+                              return PendingMessageBubble(
+                                message: pending,
+                                uploading: !pending.failed,
+                                onRetry: () => _persistPending(pending),
+                              );
+                            }),
+                          ],
+                        ],
+                      ),
+                      Positioned.fill(
+                        child: ChatScrollOverlay(
+                          scroller: _scroller,
+                          accentColor: AppColors.panelBlue,
                         ),
                       ),
-                      if (messages.isEmpty && _pendingMessages.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 20),
-                          child: Center(
-                            child: Text('Henüz mesaj yok.',
-                                style: TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 13)),
-                          ),
-                        )
-                      else ...[
-                        ...messages.map((msg) {
-                          final data = Map<String, dynamic>.from(msg);
-                          return ChatBubble(
-                            data: data,
-                            isMine: msg['senderUid'] == currentUid,
-                            onReply: () => setState(() => _replyTo = {
-                              'id': msg['id'] as String? ?? '',
-                              'text': msg['text'] as String? ?? '',
-                              'senderName':
-                                  msg['senderName'] as String? ?? '',
-                              'senderUid': msg['senderUid'] as String? ?? '',
-                            }),
-                          );
-                        }),
-                        ..._pendingMessages.map((pending) {
-                          return PendingMessageBubble(
-                            message: pending,
-                            uploading: !pending.failed,
-                            onRetry: () => _persistPending(pending),
-                          );
-                        }),
-                      ],
                     ],
                   ),
-                    Positioned.fill(
-                      child: ChatScrollOverlay(
-                        scroller: _scroller,
-                        accentColor: AppColors.panelBlue,
-                      ),
-                    ),
-                  ],
                 ),
-              ),
-              Container(
+                Container(
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     border: Border(top: BorderSide(color: AppColors.border)),
@@ -607,8 +624,9 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
                               children: [
                                 Expanded(
                                   child: ReplyPreviewBar(
-                                    author: _replyTo!['senderName'] as String? ??
-                                        'Bilinmeyen',
+                                    author:
+                                        _replyTo!['senderName'] as String? ??
+                                            'Bilinmeyen',
                                     text: _replyTo!['text'] as String? ?? '',
                                     onClear: () =>
                                         setState(() => _replyTo = null),
@@ -657,8 +675,7 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
                                 ),
                               ),
                             IconButton(
-                              icon:
-                                  const Icon(Icons.image_outlined, size: 22),
+                              icon: const Icon(Icons.image_outlined, size: 22),
                               color: AppColors.textSecondary,
                               constraints: const BoxConstraints(
                                   minWidth: 36, minHeight: 36),
@@ -680,8 +697,7 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
                                 keyboardType: TextInputType.multiline,
                                 textInputAction: TextInputAction.newline,
                                 style: TextStyle(
-                                    color: AppColors.textPrimary,
-                                    fontSize: 13),
+                                    color: AppColors.textPrimary, fontSize: 13),
                                 decoration: InputDecoration(
                                   hintText: 'Mesaj yazın...',
                                   hintStyle: TextStyle(
@@ -693,9 +709,8 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
                                     borderSide:
                                         BorderSide(color: AppColors.border),
                                   ),
-                                  contentPadding:
-                                      const EdgeInsets.symmetric(
-                                          horizontal: 14, vertical: 9),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 9),
                                   isDense: true,
                                 ),
                               ),
@@ -747,8 +762,7 @@ class ReportStatusActionButton extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: color,
               foregroundColor: Colors.white,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -761,8 +775,7 @@ class ReportStatusActionButton extends StatelessWidget {
             style: OutlinedButton.styleFrom(
               foregroundColor: color,
               side: BorderSide(color: color.withValues(alpha: 0.5)),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),

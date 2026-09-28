@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -90,8 +91,7 @@ class AnnouncementCard extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      AnnouncementCommentBadge(
-                          announcementId: announcement.id),
+                      AnnouncementCommentBadge(announcementId: announcement.id),
                       if (status.isNotEmpty && statusColor != null) ...[
                         const SizedBox(width: 6),
                         Container(
@@ -134,7 +134,9 @@ class AnnouncementCard extends ConsumerWidget {
                   Text(
                     announcement.description,
                     style: TextStyle(
-                        color: AppColors.textPrimary, fontSize: 13, height: 1.4),
+                        color: AppColors.textPrimary,
+                        fontSize: 13,
+                        height: 1.4),
                   ),
                   const SizedBox(height: 10),
                   Row(
@@ -165,8 +167,8 @@ class AnnouncementCard extends ConsumerWidget {
                           onTap: () => editAnnouncement(context, announcement),
                         ),
                         CustomDeleteButton(
-                          onPressed: () => deleteAnnouncement(
-                              context, ref, announcement),
+                          onPressed: () =>
+                              deleteAnnouncement(context, ref, announcement),
                         ),
                       ],
                     ],
@@ -272,8 +274,8 @@ class AnnouncementDialog extends ConsumerStatefulWidget {
 class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
   late final TextEditingController _titleCtrl =
       TextEditingController(text: widget.existing?.title ?? '');
-  late final TextEditingController _descCtrl = TextEditingController(
-      text: widget.existing?.description ?? '');
+  late final TextEditingController _descCtrl =
+      TextEditingController(text: widget.existing?.description ?? '');
   PickedImage? _pickedImage;
   DateTime? _eventDate;
   bool _notifyAll = false;
@@ -317,7 +319,8 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
 
   Future<void> _submit() async {
     if (_titleCtrl.text.trim().isEmpty || _descCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.showSnackBar(
+        context,
         const SnackBar(
             content: Text('Başlık ve açıklama zorunludur'),
             backgroundColor: AppColors.error),
@@ -363,7 +366,8 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.showSnackBar(
+          context,
           SnackBar(content: Text('Hata: $e'), backgroundColor: AppColors.error),
         );
       }
@@ -556,8 +560,7 @@ class AnnouncementTargetAudienceSelector extends ConsumerWidget {
                               AppColors.panelBlue.withValues(alpha: 0.15),
                           checkmarkColor: AppColors.panelBlue,
                           onSelected: (selected) {
-                            final newList =
-                                List<String>.from(targetTeamIds);
+                            final newList = List<String>.from(targetTeamIds);
                             if (selected) {
                               newList.add(t.id);
                             } else {
@@ -571,7 +574,8 @@ class AnnouncementTargetAudienceSelector extends ConsumerWidget {
             ),
             loading: () => const SizedBox(
                 height: 20,
-                child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
+                child:
+                    Center(child: CircularProgressIndicator(strokeWidth: 2))),
             error: (_, __) => const SizedBox.shrink(),
           ),
         ],
@@ -601,7 +605,8 @@ class AnnouncementCommentBadge extends ConsumerWidget {
           decoration: BoxDecoration(
             color: AppColors.panelBlue.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.panelBlue.withValues(alpha: 0.4)),
+            border:
+                Border.all(color: AppColors.panelBlue.withValues(alpha: 0.4)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -803,126 +808,131 @@ class _AnnouncementDetailSheetState
                       controller: scrollController,
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          announcement.title,
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                announcement.title,
+                                style: TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            if (status.isNotEmpty && statusColor != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                      color:
+                                          statusColor.withValues(alpha: 0.4)),
+                                ),
+                                child: Text(
+                                  status,
+                                  style: TextStyle(
+                                    color: statusColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                      ),
-                      if (status.isNotEmpty && statusColor != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                                color: statusColor.withValues(alpha: 0.4)),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Icon(Icons.person_outline,
+                                size: 13, color: AppColors.textSecondary),
+                            const SizedBox(width: 4),
+                            Text(announcement.createdByName,
+                                style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 12)),
+                            const SizedBox(width: 12),
+                            Icon(Icons.access_time,
+                                size: 13, color: AppColors.textSecondary),
+                            const SizedBox(width: 4),
+                            Text(
+                              SafeDate.dayShortMonthYearTime(
+                                  announcement.createdAt),
+                              style: TextStyle(
+                                  color: AppColors.textSecondary
+                                      .withValues(alpha: 0.7),
+                                  fontSize: 12),
+                            ),
+                          ],
+                        ),
+                        if (announcement.eventDate != null) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(Icons.event_outlined,
+                                  size: 13, color: AppColors.panelBlue),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Etkinlik: ${SafeDate.dayShortMonthYear(announcement.eventDate!)}',
+                                style: const TextStyle(
+                                    color: AppColors.panelBlue, fontSize: 12),
+                              ),
+                            ],
                           ),
-                          child: Text(
-                            status,
-                            style: TextStyle(
-                              color: statusColor,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
+                        ],
+                        const SizedBox(height: 12),
+                        Text(
+                          announcement.description,
+                          style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 14,
+                              height: 1.5),
+                        ),
+                        if (announcement.imageUrl != null &&
+                            announcement.imageUrl!.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(
+                              announcement.imageUrl!,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  const SizedBox.shrink(),
                             ),
                           ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.person_outline,
-                          size: 13, color: AppColors.textSecondary),
-                      const SizedBox(width: 4),
-                      Text(announcement.createdByName,
-                          style: TextStyle(
-                              color: AppColors.textSecondary, fontSize: 12)),
-                      const SizedBox(width: 12),
-                      Icon(Icons.access_time,
-                          size: 13, color: AppColors.textSecondary),
-                      const SizedBox(width: 4),
-                      Text(
-                        SafeDate.dayShortMonthYearTime(announcement.createdAt),
-                        style: TextStyle(
-                            color:
-                                AppColors.textSecondary.withValues(alpha: 0.7),
-                            fontSize: 12),
-                      ),
-                    ],
-                  ),
-                  if (announcement.eventDate != null) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(Icons.event_outlined,
-                            size: 13, color: AppColors.panelBlue),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Etkinlik: ${SafeDate.dayShortMonthYear(announcement.eventDate!)}',
-                          style: const TextStyle(
-                              color: AppColors.panelBlue, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  Text(
-                    announcement.description,
-                    style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 14,
-                        height: 1.5),
-                  ),
-                  if (announcement.imageUrl != null &&
-                      announcement.imageUrl!.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Image.network(
-                        announcement.imageUrl!,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 20),
-                  Divider(color: AppColors.border),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Row(
-                      children: [
-                        const Text('💬', style: TextStyle(fontSize: 14)),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Yorumlar',
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                        ],
+                        const SizedBox(height: 20),
+                        Divider(color: AppColors.border),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Row(
+                            children: [
+                              const Text('💬', style: TextStyle(fontSize: 14)),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Yorumlar',
+                                style: TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  AnnouncementCommentsList(
-                    announcementId: announcement.id,
-                    currentUid: ref.read(authStateProvider).valueOrNull?.uid,
-                    pendingComments: _pendingComments,
-                    onRetryPending: (pending) =>
-                        _persistPendingComment(pending),
-                    onReply: (data) => setState(() => _replyTo = data),
-                    onNewMessage: (isMine) =>
-                        _scroller.onNewMessage(isMine: isMine),
-                  ),
+                        AnnouncementCommentsList(
+                          announcementId: announcement.id,
+                          currentUid:
+                              ref.read(authStateProvider).valueOrNull?.uid,
+                          pendingComments: _pendingComments,
+                          onRetryPending: (pending) =>
+                              _persistPendingComment(pending),
+                          onReply: (data) => setState(() => _replyTo = data),
+                          onNewMessage: (isMine) =>
+                              _scroller.onNewMessage(isMine: isMine),
+                        ),
                         const SizedBox(height: 20),
                       ],
                     ),
@@ -936,124 +946,125 @@ class _AnnouncementDetailSheetState
                 ),
               ),
               if (widget.canComment)
-              Container(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  border: Border(top: BorderSide(color: AppColors.border)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (_replyTo != null) ...[
-                      ReplyPreviewBar(
-                        author:
-                            _replyTo!['senderName'] as String? ?? 'Bilinmeyen',
-                        text: _replyTo!['text'] as String? ?? '',
-                        onClear: () => setState(() => _replyTo = null),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                    if (_commentImages.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          children: _commentImages.asMap().entries.map((e) {
-                            return Stack(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: PlatformImageFile(
-                                    bytes: e.value.bytes,
-                                    file: e.value.dartFile,
-                                    width: 60,
-                                    height: 60,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                                Positioned(
-                                  top: -4,
-                                  right: -4,
-                                  child: GestureDetector(
-                                    onTap: () => setState(
-                                        () => _commentImages.removeAt(e.key)),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(2),
-                                      decoration: const BoxDecoration(
-                                          color: AppColors.error,
-                                          shape: BoxShape.circle),
-                                      child: const Icon(Icons.close,
-                                          size: 12, color: Colors.white),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    border: Border(top: BorderSide(color: AppColors.border)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (_replyTo != null) ...[
+                        ReplyPreviewBar(
+                          author: _replyTo!['senderName'] as String? ??
+                              'Bilinmeyen',
+                          text: _replyTo!['text'] as String? ?? '',
+                          onClear: () => setState(() => _replyTo = null),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      if (_commentImages.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: _commentImages.asMap().entries.map((e) {
+                              return Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: PlatformImageFile(
+                                      bytes: e.value.bytes,
+                                      file: e.value.dartFile,
+                                      width: 60,
+                                      height: 60,
+                                      fit: BoxFit.cover,
                                     ),
                                   ),
+                                  Positioned(
+                                    top: -4,
+                                    right: -4,
+                                    child: GestureDetector(
+                                      onTap: () => setState(
+                                          () => _commentImages.removeAt(e.key)),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(2),
+                                        decoration: const BoxDecoration(
+                                            color: AppColors.error,
+                                            shape: BoxShape.circle),
+                                        child: const Icon(Icons.close,
+                                            size: 12, color: Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.image_outlined, size: 20),
+                            color: AppColors.textSecondary,
+                            constraints: const BoxConstraints(
+                                minWidth: 36, minHeight: 36),
+                            padding: EdgeInsets.zero,
+                            onPressed: () async {
+                              final imgs = await PickedImage.pickMultiple();
+                              if (imgs.isNotEmpty && mounted) {
+                                setState(() => _commentImages = [
+                                      ..._commentImages,
+                                      ...imgs
+                                    ]);
+                              }
+                            },
+                          ),
+                          Expanded(
+                            child: TextField(
+                              controller: _commentCtrl,
+                              minLines: 1,
+                              maxLines: 5,
+                              keyboardType: TextInputType.multiline,
+                              style: TextStyle(
+                                  color: AppColors.textPrimary, fontSize: 14),
+                              decoration: InputDecoration(
+                                hintText: 'Yorum yaz...',
+                                hintStyle: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 13),
+                                filled: true,
+                                fillColor: AppColors.surface2,
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 10),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                  borderSide: BorderSide.none,
                                 ),
-                              ],
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.image_outlined, size: 20),
-                          color: AppColors.textSecondary,
-                          constraints: const BoxConstraints(
-                              minWidth: 36, minHeight: 36),
-                          padding: EdgeInsets.zero,
-                          onPressed: () async {
-                            final imgs = await PickedImage.pickMultiple();
-                            if (imgs.isNotEmpty && mounted) {
-                              setState(() => _commentImages = [
-                                    ..._commentImages,
-                                    ...imgs
-                                  ]);
-                            }
-                          },
-                        ),
-                        Expanded(
-                          child: TextField(
-                            controller: _commentCtrl,
-                            minLines: 1,
-                            maxLines: 5,
-                            keyboardType: TextInputType.multiline,
-                            style: TextStyle(
-                                color: AppColors.textPrimary, fontSize: 14),
-                            decoration: InputDecoration(
-                              hintText: 'Yorum yaz...',
-                              hintStyle: TextStyle(
-                                  color: AppColors.textSecondary, fontSize: 13),
-                              filled: true,
-                              fillColor: AppColors.surface2,
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 10),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(20),
-                                borderSide: BorderSide.none,
                               ),
+                              textInputAction: TextInputAction.newline,
                             ),
-                            textInputAction: TextInputAction.newline,
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: _sendComment,
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: const BoxDecoration(
-                              color: AppColors.panelBlue,
-                              shape: BoxShape.circle,
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: _sendComment,
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: const BoxDecoration(
+                                color: AppColors.panelBlue,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.send_rounded,
+                                  size: 18, color: Colors.white),
                             ),
-                            child: const Icon(Icons.send_rounded,
-                                size: 18, color: Colors.white),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
             ],
           ),
         );
@@ -1120,8 +1131,8 @@ class _AnnouncementCommentsListState
             padding: const EdgeInsets.symmetric(vertical: 20),
             child: Center(
               child: Text('Henüz yorum yapılmadı.',
-                  style: TextStyle(
-                      color: AppColors.textSecondary, fontSize: 13)),
+                  style:
+                      TextStyle(color: AppColors.textSecondary, fontSize: 13)),
             ),
           );
         }
@@ -1167,6 +1178,15 @@ class _AnnouncementCommentsListState
                 'senderName': data['senderName'] as String? ?? '',
                 'senderUid': data['senderUid'] as String? ?? '',
               }),
+              onDelete: () {
+                ref
+                    .read(firestoreProvider)
+                    .collection('announcements')
+                    .doc(widget.announcementId)
+                    .collection('comments')
+                    .doc(doc.id)
+                    .delete();
+              },
             );
           },
         );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
@@ -34,7 +35,8 @@ class _ReportBugScreenState extends ConsumerState<ReportBugScreen>
     _tabCtrl = TabController(length: 2, vsync: this);
     final targetId = widget.initialReportId;
     if (targetId != null && targetId.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _openReport(targetId));
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _openReport(targetId));
     }
   }
 
@@ -67,9 +69,11 @@ class _ReportBugScreenState extends ConsumerState<ReportBugScreen>
 
   Future<void> _submit() async {
     if (_titleCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Başlık zorunludur.'),
-          backgroundColor: AppColors.error));
+      TopSnackBar.showSnackBar(
+          context,
+          const SnackBar(
+              content: Text('Başlık zorunludur.'),
+              backgroundColor: AppColors.error));
       return;
     }
     setState(() => _sending = true);
@@ -103,9 +107,11 @@ class _ReportBugScreenState extends ConsumerState<ReportBugScreen>
           );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Bildiriminiz alındı, teşekkürler!'),
-            backgroundColor: AppColors.success));
+        TopSnackBar.showSnackBar(
+            context,
+            const SnackBar(
+                content: Text('Bildiriminiz alındı, teşekkürler!'),
+                backgroundColor: AppColors.success));
         _titleCtrl.clear();
         _descCtrl.clear();
         setState(() {
@@ -118,8 +124,10 @@ class _ReportBugScreenState extends ConsumerState<ReportBugScreen>
     } catch (e) {
       if (mounted) {
         setState(() => _sending = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Hata: $e'), backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content: Text('Hata: $e'), backgroundColor: AppColors.error));
       }
     }
   }
@@ -285,7 +293,8 @@ class _ReportBugScreenState extends ConsumerState<ReportBugScreen>
                       color: AppColors.error,
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: const Icon(Icons.close, size: 16, color: Colors.white),
+                    child:
+                        const Icon(Icons.close, size: 16, color: Colors.white),
                   ),
                 ),
               ),

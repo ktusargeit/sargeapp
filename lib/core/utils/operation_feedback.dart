@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import 'snackbar_utils.dart';
 
 /// Runs an async operation with standardized UX used app-wide:
 ///
@@ -28,7 +29,7 @@ Future<bool> runOperationWithFeedback({
   Duration timeout = const Duration(seconds: 15),
 }) async {
   final navigator = Navigator.of(context, rootNavigator: true);
-  final messenger = ScaffoldMessenger.maybeOf(context);
+  final overlay = Overlay.maybeOf(context);
 
   final dialogCompleter = Completer<void>();
   showDialog<void>(
@@ -57,7 +58,6 @@ Future<bool> runOperationWithFeedback({
   await dialogCompleter.future;
 
   void closeOverlay() {
-    // `canPop` guards against popping an unrelated route in edge cases.
     if (navigator.canPop()) {
       navigator.pop();
     }
@@ -66,24 +66,36 @@ Future<bool> runOperationWithFeedback({
   try {
     await operation().timeout(timeout);
     closeOverlay();
-    messenger?.showSnackBar(SnackBar(
-      content: Text(successMessage),
-      backgroundColor: AppColors.success,
-    ));
+    if (overlay != null) {
+      TopSnackBar.showSnackBarWithOverlay(
+          overlay,
+          SnackBar(
+            content: Text(successMessage),
+            backgroundColor: AppColors.success,
+          ));
+    }
     return true;
   } on TimeoutException {
     closeOverlay();
-    messenger?.showSnackBar(const SnackBar(
-      content: Text('İşlem uzun sürüyor, lütfen tekrar deneyin.'),
-      backgroundColor: AppColors.warning,
-    ));
+    if (overlay != null) {
+      TopSnackBar.showSnackBarWithOverlay(
+          overlay,
+          const SnackBar(
+            content: Text('İşlem uzun sürüyor, lütfen tekrar deneyin.'),
+            backgroundColor: AppColors.warning,
+          ));
+    }
     return false;
   } catch (e) {
     closeOverlay();
-    messenger?.showSnackBar(SnackBar(
-      content: Text('İşlem başarısız: $e'),
-      backgroundColor: AppColors.error,
-    ));
+    if (overlay != null) {
+      TopSnackBar.showSnackBarWithOverlay(
+          overlay,
+          SnackBar(
+            content: Text('İşlem başarısız: $e'),
+            backgroundColor: AppColors.error,
+          ));
+    }
     return false;
   }
 }

@@ -69,8 +69,7 @@ class CleaningWeekScreen extends ConsumerWidget {
   }
 
   Future<void> _override(BuildContext context, WidgetRef ref) async {
-    final schedule =
-        ref.read(cleaningScheduleProvider(weekKey)).valueOrNull;
+    final schedule = ref.read(cleaningScheduleProvider(weekKey)).valueOrNull;
     final draft = await showAssignmentEditorSheet(
       context,
       ref,
@@ -86,9 +85,7 @@ class CleaningWeekScreen extends ConsumerWidget {
       context: context,
       loadingMessage: 'Kaydediliyor...',
       successMessage: 'Atama güncellendi.',
-      operation: () => ref
-          .read(cleaningRepositoryProvider)
-          .overrideWeek(
+      operation: () => ref.read(cleaningRepositoryProvider).overrideWeek(
             weekKey: weekKey,
             assignmentType: draft.assignmentType,
             targetIds: draft.targetIds,
@@ -136,8 +133,7 @@ class _ResponsibleBlock extends ConsumerWidget {
                 if (schedule.isOverridden) ...[
                   const SizedBox(width: 8),
                   const Text('Manuel',
-                      style: TextStyle(
-                          color: AppColors.warning, fontSize: 11)),
+                      style: TextStyle(color: AppColors.warning, fontSize: 11)),
                 ],
                 const Spacer(),
                 if (isManager && schedule.isOverridden)
@@ -250,9 +246,8 @@ class _ShoppingBlock extends ConsumerWidget {
                             color: item.done
                                 ? AppColors.textSecondary
                                 : AppColors.textPrimary,
-                            decoration: item.done
-                                ? TextDecoration.lineThrough
-                                : null)),
+                            decoration:
+                                item.done ? TextDecoration.lineThrough : null)),
                     subtitle: item.done && item.doneByName != null
                         ? Text(item.doneByName!,
                             style: TextStyle(
@@ -272,9 +267,7 @@ class _ShoppingBlock extends ConsumerWidget {
       context: context,
       loadingMessage: 'Güncelleniyor...',
       successMessage: done ? 'İşaretlendi.' : 'İşaret kaldırıldı.',
-      operation: () => ref
-          .read(cleaningRepositoryProvider)
-          .setItemDone(
+      operation: () => ref.read(cleaningRepositoryProvider).setItemDone(
             weekKey: weekKey,
             item: item,
             done: done,

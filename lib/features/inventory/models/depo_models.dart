@@ -16,7 +16,8 @@ class InventoryCategory {
     this.createdAt,
   });
 
-  factory InventoryCategory.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+  factory InventoryCategory.fromDoc(
+      DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
     return InventoryCategory(
       id: doc.id,
@@ -47,8 +48,7 @@ class LocationCategory {
     this.createdAt,
   });
 
-  factory LocationCategory.fromDoc(
-      DocumentSnapshot<Map<String, dynamic>> doc) {
+  factory LocationCategory.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
     return LocationCategory(
       id: doc.id,

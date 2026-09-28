@@ -172,8 +172,8 @@ class _InfoCard extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: AppColors.surface3,
-              border:
-                  Border.all(color: AppColors.sargeGold.withValues(alpha: 0.35)),
+              border: Border.all(
+                  color: AppColors.sargeGold.withValues(alpha: 0.35)),
             ),
             alignment: Alignment.center,
             child: Text(
@@ -281,8 +281,8 @@ class _WaitingList extends StatelessWidget {
               itemCount: waiting.length,
               separatorBuilder: (_, __) =>
                   Divider(height: 1, color: AppColors.border),
-              itemBuilder: (context, index) =>
-                  _WaitingRow(user: waiting[index], isMe: waiting[index].uid == currentUid),
+              itemBuilder: (context, index) => _WaitingRow(
+                  user: waiting[index], isMe: waiting[index].uid == currentUid),
             ),
           ),
       ],
@@ -318,8 +318,7 @@ class _WaitingRow extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.warning.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(20),
-          border:
-              Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+          border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
         ),
         child: const Text(
           'Onay bekliyor',
@@ -371,8 +370,7 @@ class _Logo extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface2,
           borderRadius: BorderRadius.circular(20),
-          border:
-              Border.all(color: AppColors.sargeGold.withValues(alpha: 0.4)),
+          border: Border.all(color: AppColors.sargeGold.withValues(alpha: 0.4)),
           boxShadow: [
             BoxShadow(
               color: AppColors.sargeGold.withValues(alpha: 0.15),

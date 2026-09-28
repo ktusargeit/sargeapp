@@ -106,8 +106,7 @@ class _AssignmentEditorSheetState
                 decoration: const InputDecoration(labelText: 'Atama Türü'),
                 items: CleaningAssignmentType.all
                     .map((t) => DropdownMenuItem(
-                        value: t,
-                        child: Text(CleaningAssignmentType.label(t))))
+                        value: t, child: Text(CleaningAssignmentType.label(t))))
                     .toList(),
                 onChanged: (v) => setState(() {
                   _type = v ?? CleaningAssignmentType.individual;
@@ -382,10 +381,9 @@ class _UserList extends StatelessWidget {
           secondary: CircleAvatar(
             radius: 16,
             backgroundColor: AppColors.surface2,
-            backgroundImage:
-                u.photoUrl != null && u.photoUrl!.isNotEmpty
-                    ? NetworkImage(u.photoUrl!)
-                    : null,
+            backgroundImage: u.photoUrl != null && u.photoUrl!.isNotEmpty
+                ? NetworkImage(u.photoUrl!)
+                : null,
             child: u.photoUrl == null || u.photoUrl!.isEmpty
                 ? Icon(Icons.person_outline,
                     size: 16, color: AppColors.textSecondary)

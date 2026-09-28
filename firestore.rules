@@ -52,12 +52,10 @@ service cloud.firestore {
 
     function defaultHas(role, perm) {
       return (role == 'admin' || role == 'board_president') ||
-        (role == 'board_member' &&
-          perm in ['viewAdminPanel','manageTitles','manageAnnouncements','reviewApplications','editClubStory','editTeamStory','addHonoraryMember','manageStore']) ||
-        (role == 'board_vice_president' &&
-          perm in ['viewAdminPanel','manageTitles','manageAnnouncements','reviewApplications','editClubStory','editTeamStory','addHonoraryMember','manageStore']) ||
+        (role in ['board_member', 'board_vice_president'] &&
+          perm in ['viewAdminPanel','manageTitles','manageAnnouncements','reviewApplications','editClubStory','editTeamStory','addHonoraryMember','manageStore','createTasks','approveTasks','deleteTasks','manageUnits','manageReports','awardPoints']) ||
         (role == 'captain' &&
-          perm in ['createTasks','approveTasks','deleteTasks','manageUnits','manageAnnouncements','reviewApplications','editTeamStory','manageStore']) ||
+          perm in ['createTasks','approveTasks','deleteTasks','manageUnits','manageAnnouncements','reviewApplications','editTeamStory','manageStore','manageReports','awardPoints']) ||
         (role == 'unit_lead' &&
           perm in ['manageAnnouncements','createTasks','approveTasks','manageReports','awardPoints','reviewApplications','manageStore']);
     }
@@ -518,13 +516,13 @@ service cloud.firestore {
       allow update: if isAdmin() || (
         isSignedIn() &&
         request.auth.uid == resource.data.assignedTo &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
-        request.resource.data.status in ['in_progress', 'pendingApproval']
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'completedAt', 'updatedAt']) &&
+        request.resource.data.status in ['assigned', 'inProgress', 'in_progress', 'pendingApproval', 'completed', 'rejected', 'cancelled']
       ) || (
         // Team lead, Unit lead, Board, veya admin onayı: durum + onay alanları.
         canApproveTask() &&
         request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['status', 'approvedBy', 'pointsAwarded'])
+          .hasOnly(['status', 'approvedBy', 'pointsAwarded', 'completedAt', 'updatedAt'])
       );
 
       allow delete: if isAdmin() || (

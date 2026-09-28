@@ -29,8 +29,7 @@ class StoreProduct {
     this.priceDisplay,
   });
 
-  String get coverImageUrl =>
-      imageUrls.isNotEmpty ? imageUrls.first : '';
+  String get coverImageUrl => imageUrls.isNotEmpty ? imageUrls.first : '';
 
   /// The text to show for the price. Prefers the manager-provided
   /// [priceDisplay]; falls back to a numeric "₺50" so old rows still render.
@@ -42,9 +41,8 @@ class StoreProduct {
   factory StoreProduct.fromDoc(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
     final rawImages = data['imageUrls'];
-    final images = rawImages is List
-        ? rawImages.whereType<String>().toList()
-        : <String>[];
+    final images =
+        rawImages is List ? rawImages.whereType<String>().toList() : <String>[];
     return StoreProduct(
       id: doc.id,
       name: data['name'] as String? ?? '',
@@ -205,9 +203,8 @@ class IbanEntry {
     if (raw is String) {
       return IbanEntry(iban: raw);
     }
-    final map = raw is Map
-        ? Map<String, dynamic>.from(raw)
-        : const <String, dynamic>{};
+    final map =
+        raw is Map ? Map<String, dynamic>.from(raw) : const <String, dynamic>{};
     return IbanEntry(
       iban: (map['iban'] as String?)?.trim().replaceAll(' ', '') ?? '',
       accountHolderName: map['accountHolderName'] as String? ?? '',

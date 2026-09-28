@@ -19,8 +19,8 @@ import 'profile_common.dart';
 
 /// Stream of teams the given [uid] is an ACTIVE member of, queried directly
 /// from `teams` using `array-contains` (source of truth).
-final userActiveTeamsProvider = StreamProvider.family<List<ClubTeam>, String>(
-    (ref, uid) {
+final userActiveTeamsProvider =
+    StreamProvider.family<List<ClubTeam>, String>((ref, uid) {
   final firestore = ref.watch(firestoreProvider);
   return firestore
       .collection('teams')
@@ -42,7 +42,8 @@ class ProfileTeamsRolesSection extends ConsumerWidget {
 
     // Global roller: role alanı + aktif titles birleşimi. Aynı anda birden
     // fazla global rol taşınabilir (örn. Admin + Yönetim Kurulu Üyesi).
-    final globalRoles = <({String type, String label, IconData icon, Color color})>[
+    final globalRoles =
+        <({String type, String label, IconData icon, Color color})>[
       if (user.role == 'admin' ||
           user.activeTitles.any((t) => t.titleType == TitleType.admin))
         (
@@ -79,8 +80,7 @@ class ProfileTeamsRolesSection extends ConsumerWidget {
     ];
 
     // Birim sorumlulukları: units koleksiyonunda unitLeadUid == user.uid.
-    final ledUnits =
-        units.where((u) => u['unitLeadUid'] == user.uid).toList();
+    final ledUnits = units.where((u) => u['unitLeadUid'] == user.uid).toList();
 
     return ProfileSectionTitleWithCard(
       header: const ProfileSectionHeader(title: 'GÜNCEL TAKIMLAR & ROLLER'),
@@ -146,9 +146,8 @@ class ProfileTeamCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        border: isLast
-            ? null
-            : Border(bottom: BorderSide(color: AppColors.border)),
+        border:
+            isLast ? null : Border(bottom: BorderSide(color: AppColors.border)),
       ),
       child: Row(
         children: [
@@ -159,8 +158,7 @@ class ProfileTeamCard extends StatelessWidget {
                 ? NetworkImage(photoUrl)
                 : null,
             child: photoUrl == null || photoUrl.isEmpty
-                ? Icon(Icons.groups_outlined,
-                    color: AppColors.textSecondary)
+                ? Icon(Icons.groups_outlined, color: AppColors.textSecondary)
                 : null,
           ),
           const SizedBox(width: 12),
@@ -189,13 +187,12 @@ class ProfileTeamCard extends StatelessWidget {
           ),
           if (isCaptain)
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 color: AppColors.warning.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                    color: AppColors.warning.withValues(alpha: 0.5)),
+                border:
+                    Border.all(color: AppColors.warning.withValues(alpha: 0.5)),
               ),
               child: const Text('KAPTAN',
                   style: TextStyle(
@@ -203,12 +200,10 @@ class ProfileTeamCard extends StatelessWidget {
                       fontSize: 9,
                       fontWeight: FontWeight.w800)),
             ),
-          if (ledUnitNames.isNotEmpty)
-            const SizedBox(width: 6),
+          if (ledUnitNames.isNotEmpty) const SizedBox(width: 6),
           if (ledUnitNames.isNotEmpty)
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 color: AppColors.teamAccent.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(8),
@@ -282,9 +277,7 @@ class ProfileGlobalRoleRow extends StatelessWidget {
             child: Text(
               label == 'Admin' ? 'SİSTEM YÖNETİCİSİ' : 'KURUL',
               style: TextStyle(
-                  color: color,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800),
+                  color: color, fontSize: 9, fontWeight: FontWeight.w800),
             ),
           ),
         ],

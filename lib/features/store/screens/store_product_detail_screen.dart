@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -18,7 +19,8 @@ class StoreProductDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final productsAsync = ref.watch(storeProductsProvider);
-    final canManage = ref.watch(currentUserCanProvider(Permissions.manageStore));
+    final canManage =
+        ref.watch(currentUserCanProvider(Permissions.manageStore));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -62,7 +64,8 @@ class StoreProductDetailScreen extends ConsumerWidget {
                       .read(storeRepositoryProvider)
                       .deleteProduct(productId);
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    TopSnackBar.showSnackBar(
+                        context,
                         const SnackBar(
                             content: Text('Ürün silindi.'),
                             backgroundColor: AppColors.success));
@@ -70,7 +73,8 @@ class StoreProductDetailScreen extends ConsumerWidget {
                   }
                 } catch (e) {
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    TopSnackBar.showSnackBar(
+                        context,
                         SnackBar(
                             content: Text('Hata: $e'),
                             backgroundColor: AppColors.error));
@@ -95,8 +99,8 @@ class StoreProductDetailScreen extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
-          child: Text('Hata: $e',
-              style: const TextStyle(color: AppColors.error)),
+          child:
+              Text('Hata: $e', style: const TextStyle(color: AppColors.error)),
         ),
       ),
     );
@@ -198,10 +202,9 @@ class _ProductDetailBodyState extends State<_ProductDetailBody> {
                       .withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: (product.inStock
-                            ? AppColors.success
-                            : AppColors.error)
-                        .withValues(alpha: 0.35),
+                    color:
+                        (product.inStock ? AppColors.success : AppColors.error)
+                            .withValues(alpha: 0.35),
                   ),
                 ),
                 child: Text(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
@@ -90,8 +91,7 @@ class TeamUnitsTab extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
           ElevatedButton(
             onPressed: () async {
               if (nameCtrl.text.trim().isEmpty) return;
@@ -104,9 +104,11 @@ class TeamUnitsTab extends ConsumerWidget {
                 if (ctx.mounted) Navigator.pop(ctx);
               } catch (e) {
                 if (ctx.mounted) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                      content: Text('Oluşturulamadı: $e'),
-                      backgroundColor: AppColors.error));
+                  TopSnackBar.showSnackBar(
+                      ctx,
+                      SnackBar(
+                          content: Text('Oluşturulamadı: $e'),
+                          backgroundColor: AppColors.error));
                 }
               }
             },

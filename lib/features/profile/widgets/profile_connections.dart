@@ -74,7 +74,10 @@ class ProfileContactCard extends StatelessWidget {
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [AppColors.primaryBlueAccent, AppColors.primaryBlue],
+                    colors: [
+                      AppColors.primaryBlueAccent,
+                      AppColors.primaryBlue
+                    ],
                   ),
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -220,19 +223,26 @@ String profileHostFromUrl(String url) {
   if (t.contains('youtube') || l.contains('youtube')) {
     return (const Color(0xFFFF0000), Icons.play_circle_outline);
   }
-  if (t.contains('web') || t.contains('site') || t == 'url' ||
-      l.contains('web') || l.contains('site')) {
+  if (t.contains('web') ||
+      t.contains('site') ||
+      t == 'url' ||
+      l.contains('web') ||
+      l.contains('site')) {
     return (AppColors.teamAccent, Icons.language);
   }
-  if (t.contains('mail') || t.contains('email') ||
-      l.contains('mail') || l.contains('email')) {
+  if (t.contains('mail') ||
+      t.contains('email') ||
+      l.contains('mail') ||
+      l.contains('email')) {
     return (AppColors.info, Icons.mail_outline);
   }
   if (t.contains('discord') || l.contains('discord')) {
     return (const Color(0xFF5865F2), Icons.forum);
   }
-  if (t.contains('phone') || t.contains('tel') ||
-      l.contains('phone') || l.contains('tel')) {
+  if (t.contains('phone') ||
+      t.contains('tel') ||
+      l.contains('phone') ||
+      l.contains('tel')) {
     return (AppColors.primaryGreen, Icons.phone_outlined);
   }
   return (AppColors.depoAccent, Icons.link);

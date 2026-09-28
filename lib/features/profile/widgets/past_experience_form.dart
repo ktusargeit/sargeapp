@@ -202,7 +202,8 @@ class _PastExperienceFormSheetState
   /// "Birim Seç" alanı GÖRÜNÜR ve ZORUNLUDUR.
   Widget _buildTeamFields(
       List<ClubTeam> teams, List<Map<String, dynamic>> units) {
-    final roleRequiresUnit = _teamRole != null && _teamRole != TitleType.captain;
+    final roleRequiresUnit =
+        _teamRole != null && _teamRole != TitleType.captain;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

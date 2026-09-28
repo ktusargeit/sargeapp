@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/auth_providers.dart';
@@ -49,8 +50,7 @@ class AdminTeamUnitTab extends ConsumerWidget {
               child: teams.isEmpty
                   ? Center(
                       child: Text('Henüz takım yok.',
-                          style:
-                              TextStyle(color: AppColors.textSecondary)))
+                          style: TextStyle(color: AppColors.textSecondary)))
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                       itemCount: teams.length,
@@ -62,8 +62,8 @@ class AdminTeamUnitTab extends ConsumerWidget {
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(
-          child: Text('Hata: $e',
-              style: const TextStyle(color: AppColors.error))),
+          child:
+              Text('Hata: $e', style: const TextStyle(color: AppColors.error))),
     );
   }
 }
@@ -115,8 +115,8 @@ class AdminTeamCard extends ConsumerWidget {
                   const SizedBox(height: 2),
                   Text(
                     '${team.memberIds.length} üye',
-                    style: TextStyle(
-                        color: AppColors.textSecondary, fontSize: 12),
+                    style:
+                        TextStyle(color: AppColors.textSecondary, fontSize: 12),
                   ),
                 ],
               ),
@@ -140,9 +140,8 @@ class AdminTeamCard extends ConsumerWidget {
                 const PopupMenuItem(value: 'edit', child: Text('Düzenle')),
                 PopupMenuItem(
                   value: 'archive',
-                  child: Text(team.isArchived
-                      ? 'Aktifleştir'
-                      : 'Arşivle (Geçmiş Yap)'),
+                  child: Text(
+                      team.isArchived ? 'Aktifleştir' : 'Arşivle (Geçmiş Yap)'),
                 ),
                 const PopupMenuItem(
                   value: 'delete',
@@ -272,9 +271,11 @@ Future<void> showAdminTeamDialog(BuildContext context, WidgetRef ref,
                     } catch (e) {
                       setDialogState(() => saving = false);
                       if (ctx.mounted) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                            content: Text('Hata: $e'),
-                            backgroundColor: AppColors.error));
+                        TopSnackBar.showSnackBar(
+                            ctx,
+                            SnackBar(
+                                content: Text('Hata: $e'),
+                                backgroundColor: AppColors.error));
                       }
                     }
                   },
@@ -356,11 +357,8 @@ Future<void> confirmTeamDelete(
   await runDeleteWithFeedback(
     context: context,
     successMessage: 'Takım başarıyla silindi.',
-    operation: () => ref
-        .read(firestoreProvider)
-        .collection('teams')
-        .doc(team.id)
-        .delete(),
+    operation: () =>
+        ref.read(firestoreProvider).collection('teams').doc(team.id).delete(),
   );
 }
 
@@ -453,8 +451,7 @@ class _AdminUnitManagementDialogState
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
             child: const Text('Ekle'),
@@ -480,8 +477,7 @@ class _AdminUnitManagementDialogState
         content: TextField(controller: ctrl),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
             child: const Text('Kaydet'),

@@ -67,8 +67,7 @@ class _WeekRow extends ConsumerWidget {
           children: [
             if (isCurrent)
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppColors.depoAccent.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),

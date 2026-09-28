@@ -51,7 +51,8 @@ class _StoreOrdersScreenState extends ConsumerState<StoreOrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canManage = ref.watch(currentUserCanProvider(Permissions.manageStore));
+    final canManage =
+        ref.watch(currentUserCanProvider(Permissions.manageStore));
     final allOrdersAsync = ref.watch(allOrdersProvider);
     final myOrdersAsync = ref.watch(myOrdersProvider);
 
@@ -87,7 +88,8 @@ class _StoreOrdersScreenState extends ConsumerState<StoreOrdersScreen> {
                 selected: {effectiveShowAll},
                 onSelectionChanged: (s) => setState(() => _showAll = s.first),
                 style: ButtonStyle(
-                  foregroundColor: WidgetStatePropertyAll(AppColors.textPrimary),
+                  foregroundColor:
+                      WidgetStatePropertyAll(AppColors.textPrimary),
                   backgroundColor: WidgetStatePropertyAll(AppColors.surface),
                   side: WidgetStatePropertyAll(
                       BorderSide(color: AppColors.border)),
@@ -225,8 +227,8 @@ class _OrderList extends ConsumerWidget {
                           decoration: BoxDecoration(
                             color: visual.$2.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(20),
-                            border:
-                                Border.all(color: visual.$2.withValues(alpha: 0.35)),
+                            border: Border.all(
+                                color: visual.$2.withValues(alpha: 0.35)),
                           ),
                           child: Text(
                             visual.$1,

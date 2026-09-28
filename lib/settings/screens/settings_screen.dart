@@ -25,45 +25,77 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: ListView(
           padding: const EdgeInsets.all(AppConstants.spacingMd),
           children: [
-             Padding(
+            Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: Text('Ayarlar', style: TextStyle(color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.w700)),
+              child: Text('Ayarlar',
+                  style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700)),
             ),
             _SettingsSection(title: 'Hesap', children: [
-              _SettingsTile(icon: Icons.person_outline, title: appUser?.displayName ?? 'Kullanıcı', subtitle: appUser?.email ?? '', onTap: () {}),
-              _SettingsTile(icon: Icons.badge_outlined, title: 'Rol', subtitle: appUser?.isAdmin == true ? 'Admin' : 'Üye', onTap: () {}),
-              _SettingsTile(icon: Icons.logout, title: 'Çıkış Yap', subtitle: null, isDestructive: true, onTap: () async {
-                await ref.read(authControllerProvider).signOut();
-                if (context.mounted) context.go('/login');
-              }),
+              _SettingsTile(
+                  icon: Icons.person_outline,
+                  title: appUser?.displayName ?? 'Kullanıcı',
+                  subtitle: appUser?.email ?? '',
+                  onTap: () {}),
+              _SettingsTile(
+                  icon: Icons.badge_outlined,
+                  title: 'Rol',
+                  subtitle: appUser?.isAdmin == true ? 'Admin' : 'Üye',
+                  onTap: () {}),
+              _SettingsTile(
+                  icon: Icons.logout,
+                  title: 'Çıkış Yap',
+                  subtitle: null,
+                  isDestructive: true,
+                  onTap: () async {
+                    await ref.read(authControllerProvider).signOut();
+                    if (context.mounted) context.go('/login');
+                  }),
             ]),
             const SizedBox(height: AppConstants.spacingLg),
             _SettingsSection(title: 'Görünüm', children: [
               _SettingsTile(
                 icon: Icons.brightness_6_outlined,
                 title: 'Tema',
-                subtitle: ref.watch(themeModeProvider) == ThemeMode.dark ? 'Koyu (Siyah)' : 'Açık (Beyaz)',
+                subtitle: ref.watch(themeModeProvider) == ThemeMode.dark
+                    ? 'Koyu (Siyah)'
+                    : 'Açık (Beyaz)',
                 onTap: () {
                   showDialog(
                     context: context,
                     builder: (ctx) => AlertDialog(
                       title: const Text('Tema Seçimi'),
-                      content: Column(mainAxisSize: MainAxisSize.min, children: [
+                      content:
+                          Column(mainAxisSize: MainAxisSize.min, children: [
                         RadioGroup<ThemeMode>(
                           groupValue: ref.watch(themeModeProvider),
                           onChanged: (v) {
                             if (v != null) {
-                              ref.read(themeModeProvider.notifier).setThemeMode(v);
+                              ref
+                                  .read(themeModeProvider.notifier)
+                                  .setThemeMode(v);
                               Navigator.pop(ctx);
                             }
                           },
-                          child: const Column(mainAxisSize: MainAxisSize.min, children: [
-                            RadioListTile<ThemeMode>(title: Text('Koyu (Siyah)'), value: ThemeMode.dark),
-                            RadioListTile<ThemeMode>(title: Text('Açık (Beyaz)'), value: ThemeMode.light),
-                          ]),
+                          child: const Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                RadioListTile<ThemeMode>(
+                                    title: Text('Koyu (Siyah)'),
+                                    value: ThemeMode.dark),
+                                RadioListTile<ThemeMode>(
+                                    title: Text('Açık (Beyaz)'),
+                                    value: ThemeMode.light),
+                              ]),
                         ),
                       ]),
-                      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal'))],
+                      actions: [
+                        TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('İptal'))
+                      ],
                     ),
                   );
                 },
@@ -71,11 +103,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ]),
             const SizedBox(height: AppConstants.spacingLg),
             _SettingsSection(title: 'Uygulama', children: [
-              _SettingsTile(icon: Icons.info_outline, title: 'Hakkında', subtitle: 'SARGE Kulüp Yönetim v${AppConstants.appVersion}', onTap: () {}),
-              _SettingsTile(icon: Icons.bug_report_outlined, title: 'Hata Bildir', subtitle: 'Sorun bildirmek için tıklayın', onTap: () => context.push('/report-bug')),
+              _SettingsTile(
+                  icon: Icons.info_outline,
+                  title: 'Hakkında',
+                  subtitle: 'SARGE Kulüp Yönetim v${AppConstants.appVersion}',
+                  onTap: () {}),
+              _SettingsTile(
+                  icon: Icons.bug_report_outlined,
+                  title: 'Hata Bildir',
+                  subtitle: 'Sorun bildirmek için tıklayın',
+                  onTap: () => context.push('/report-bug')),
             ]),
             const SizedBox(height: AppConstants.spacingLg),
-            _SettingsSection(title: 'Tehlike Bölgesi', children: [
+            _SettingsSection(title: 'Hesap Yönetimi', children: [
               _SettingsTile(
                 icon: Icons.delete_forever_outlined,
                 title: 'Hesabımı Sil',
@@ -163,9 +203,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       context: context,
       loadingMessage: 'Hesabınız siliniyor...',
       successMessage: 'Hesabınız başarıyla silindi.',
-      operation: () => ref
-          .read(authControllerProvider)
-          .deleteAccount(password: password),
+      operation: () =>
+          ref.read(authControllerProvider).deleteAccount(password: password),
     );
     if (ok && mounted) {
       context.go('/login');
@@ -180,11 +219,27 @@ class _SettingsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Padding(padding: const EdgeInsets.only(left: 4, bottom: 8), child: Text(title.toUpperCase(), style:  TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1.2))),
-      Container(decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppConstants.radiusMd), border: Border.all(color: AppColors.border)),
-        child: Column(children: children.asMap().entries.map((entry) {
-          return Column(children: [entry.value, if (entry.key != children.length - 1)  Divider(height: 1, color: AppColors.border)]);
-        }).toList())),
+      Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(title.toUpperCase(),
+              style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.2))),
+      Container(
+          decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+              border: Border.all(color: AppColors.border)),
+          child: Column(
+              children: children.asMap().entries.map((entry) {
+            return Column(children: [
+              entry.value,
+              if (entry.key != children.length - 1)
+                Divider(height: 1, color: AppColors.border)
+            ]);
+          }).toList())),
     ]);
   }
 }
@@ -195,18 +250,56 @@ class _SettingsTile extends StatelessWidget {
   final String? subtitle;
   final VoidCallback onTap;
   final bool isDestructive;
-  const _SettingsTile({required this.icon, required this.title, required this.subtitle, required this.onTap, this.isDestructive = false});
+  const _SettingsTile(
+      {required this.icon,
+      required this.title,
+      required this.subtitle,
+      required this.onTap,
+      this.isDestructive = false});
   @override
   Widget build(BuildContext context) {
     final color = isDestructive ? AppColors.error : AppColors.textPrimary;
-    return InkWell(onTap: onTap, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), child: Row(children: [
-      Container(width: 34, height: 34, decoration: BoxDecoration(color: isDestructive ? AppColors.error.withValues(alpha: 0.12) : AppColors.surface2, borderRadius: BorderRadius.circular(8), border: Border.all(color: isDestructive ? AppColors.error.withValues(alpha: 0.3) : AppColors.border)), child: Icon(icon, size: 16, color: isDestructive ? AppColors.error : AppColors.textSecondary)),
-      const SizedBox(width: 12),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w500)),
-        if (subtitle != null && subtitle!.isNotEmpty) ...[const SizedBox(height: 2), Text(subtitle!, style:  TextStyle(color: AppColors.textSecondary, fontSize: 12))],
-      ])),
-      if (!isDestructive)  Icon(Icons.chevron_right, size: 18, color: AppColors.border),
-    ])));
+    return InkWell(
+        onTap: onTap,
+        child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(children: [
+              Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                      color: isDestructive
+                          ? AppColors.error.withValues(alpha: 0.12)
+                          : AppColors.surface2,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                          color: isDestructive
+                              ? AppColors.error.withValues(alpha: 0.3)
+                              : AppColors.border)),
+                  child: Icon(icon,
+                      size: 16,
+                      color: isDestructive
+                          ? AppColors.error
+                          : AppColors.textSecondary)),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text(title,
+                        style: TextStyle(
+                            color: color,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500)),
+                    if (subtitle != null && subtitle!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(subtitle!,
+                          style: TextStyle(
+                              color: AppColors.textSecondary, fontSize: 12))
+                    ],
+                  ])),
+              if (!isDestructive)
+                Icon(Icons.chevron_right, size: 18, color: AppColors.border),
+            ])));
   }
 }

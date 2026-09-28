@@ -162,7 +162,8 @@ void main() {
     // ...and it must be anchored to the bottom edge of the viewport, not
     // floating in a side column.
     final panelCenter = tester.getCenter(find.text('Panel'));
-    final viewportBottom = tester.view.physicalSize.height / tester.view.devicePixelRatio;
+    final viewportBottom =
+        tester.view.physicalSize.height / tester.view.devicePixelRatio;
     expect(panelCenter.dy, greaterThan(viewportBottom * 0.9),
         reason: 'the nav tabs must be pinned near the bottom edge');
 
@@ -227,7 +228,8 @@ void main() {
         reason: 'must not be parked on the login screen');
   });
 
-  testWidgets('TRACE F: splash routes an errored (offline) session to the shell',
+  testWidgets(
+      'TRACE F: splash routes an errored (offline) session to the shell',
       (tester) async {
     await _pumpSplash(
       tester,

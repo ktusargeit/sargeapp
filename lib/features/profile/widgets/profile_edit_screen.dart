@@ -1,4 +1,5 @@
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -121,8 +122,7 @@ class ProfileEditScreen extends ConsumerStatefulWidget {
   final AppUser user;
   const ProfileEditScreen({super.key, required this.user});
   @override
-  ConsumerState<ProfileEditScreen> createState() =>
-      _ProfileEditScreenState();
+  ConsumerState<ProfileEditScreen> createState() => _ProfileEditScreenState();
 }
 
 class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
@@ -149,7 +149,8 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   @override
   void initState() {
     super.initState();
-    _links = widget.user.links.map((e) => Map<String, dynamic>.from(e)).toList();
+    _links =
+        widget.user.links.map((e) => Map<String, dynamic>.from(e)).toList();
     _pastExperiences = List<PastExperience>.from(widget.user.pastExperiences);
     _awards =
         widget.user.awards.map((e) => Map<String, dynamic>.from(e)).toList();
@@ -226,8 +227,8 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                   disabledBackgroundColor:
                       AppColors.sargeGold.withValues(alpha: 0.5),
                   foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 18, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                   minimumSize: const Size(0, 40),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -401,8 +402,8 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
         TextFormField(
           controller: _displayNameCtrl,
           style: TextStyle(color: AppColors.textPrimary),
-          decoration:
-              _editInputDecoration(label: 'Ad Soyad *', icon: Icons.person_outline),
+          decoration: _editInputDecoration(
+              label: 'Ad Soyad *', icon: Icons.person_outline),
         ),
         const SizedBox(height: 12),
         TextFormField(
@@ -466,8 +467,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                             .map((p) => DropdownMenuItem<String>(
                                 value: p.$2, child: Text(p.$1)))
                             .toList(),
-                        onChanged: (v) =>
-                            setState(() => _links[i]['type'] = v),
+                        onChanged: (v) => setState(() => _links[i]['type'] = v),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -490,8 +490,8 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                   initialValue: link['url'] as String? ?? '',
                   keyboardType: TextInputType.url,
                   style: TextStyle(color: AppColors.textPrimary),
-                  decoration: _editInputDecoration(
-                      label: 'URL', icon: Icons.link),
+                  decoration:
+                      _editInputDecoration(label: 'URL', icon: Icons.link),
                   onChanged: (v) => _links[i]['url'] = v,
                 ),
               ],
@@ -505,8 +505,8 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                 () => _links.add({'label': '', 'url': '', 'type': 'other'})),
             icon: const Icon(Icons.add, size: 18),
             label: const Text('Yeni Bağlantı Ekle'),
-            style: TextButton.styleFrom(
-                foregroundColor: AppColors.primaryGreen),
+            style:
+                TextButton.styleFrom(foregroundColor: AppColors.primaryGreen),
           ),
         ),
       ],
@@ -608,8 +608,8 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
           IconButton(
             icon: const Icon(Icons.remove_circle_outline,
                 color: AppColors.error, size: 20),
-            onPressed: () =>
-                setState(() => _pastExperiences.removeWhere((x) => x.id == e.id)),
+            onPressed: () => setState(
+                () => _pastExperiences.removeWhere((x) => x.id == e.id)),
           ),
         ],
       ),
@@ -668,8 +668,8 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                   style: TextStyle(color: AppColors.textPrimary),
                   decoration:
                       _editInputDecoration(label: 'Açıklama (opsiyonel)'),
-                  onChanged: (v) => _awards[i]['description'] =
-                      v.trim().isEmpty ? null : v,
+                  onChanged: (v) =>
+                      _awards[i]['description'] = v.trim().isEmpty ? null : v,
                 ),
               ],
             ),
@@ -682,8 +682,8 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                 setState(() => _awards.add({'title': '', 'description': null})),
             icon: const Icon(Icons.add, size: 18),
             label: const Text('Ödül Ekle'),
-            style: TextButton.styleFrom(
-                foregroundColor: AppColors.primaryGreen),
+            style:
+                TextButton.styleFrom(foregroundColor: AppColors.primaryGreen),
           ),
         ),
       ],
@@ -703,9 +703,11 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
 
   Future<void> _save() async {
     if (_displayNameCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Ad Soyad boş bırakılamaz.'),
-          backgroundColor: AppColors.warning));
+      TopSnackBar.showSnackBar(
+          context,
+          const SnackBar(
+              content: Text('Ad Soyad boş bırakılamaz.'),
+              backgroundColor: AppColors.warning));
       return;
     }
     setState(() => _saving = true);
@@ -771,16 +773,20 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Profil güncellendi.'),
-            backgroundColor: AppColors.success));
+        TopSnackBar.showSnackBar(
+            context,
+            const SnackBar(
+                content: Text('Profil güncellendi.'),
+                backgroundColor: AppColors.success));
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Kaydedilemedi: $e'),
-            backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content: Text('Kaydedilemedi: $e'),
+                backgroundColor: AppColors.error));
       }
     } finally {
       if (mounted) setState(() => _saving = false);

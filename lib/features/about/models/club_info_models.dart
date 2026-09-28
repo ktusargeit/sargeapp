@@ -91,9 +91,8 @@ class HonoraryMember {
       userId: data['userId'] as String? ?? '',
       note: data['note'] as String? ?? '',
       story: data['story'] as String? ?? '',
-      photos:
-          (data['photos'] as List?)?.map((e) => e.toString()).toList() ??
-              const [],
+      photos: (data['photos'] as List?)?.map((e) => e.toString()).toList() ??
+          const [],
       addedDate: (data['addedDate'] as Timestamp?)?.toDate(),
       addedBy: data['addedBy'] as String?,
     );

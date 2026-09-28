@@ -25,7 +25,7 @@ class AppShell extends ConsumerWidget {
         elevation: 0,
         leading: Builder(
           builder: (context) => IconButton(
-            icon:  Icon(Icons.menu, color: AppColors.textPrimary),
+            icon: Icon(Icons.menu, color: AppColors.textPrimary),
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
@@ -60,48 +60,57 @@ class AppDrawer extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                      if (isLoggedIn && appUser != null) {
-                        context.push('/profile/${appUser.uid}');
-                      }
-                    },
-                    child: CircleAvatar(
+            InkWell(
+              onTap: () {
+                Navigator.pop(context);
+                if (isLoggedIn && appUser != null) {
+                  context.push('/profile/${appUser.uid}');
+                }
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    CircleAvatar(
                       radius: 18,
                       backgroundColor: AppColors.surface2,
-                      backgroundImage: appUser != null && appUser.photoUrl != null && appUser.photoUrl!.isNotEmpty
+                      backgroundImage: appUser != null &&
+                              appUser.photoUrl != null &&
+                              appUser.photoUrl!.isNotEmpty
                           ? NetworkImage(appUser.photoUrl!)
                           : null,
-                      child: appUser == null || appUser.photoUrl == null || appUser.photoUrl!.isEmpty
-                          ?  Icon(Icons.person_outline, size: 18, color: AppColors.textSecondary)
+                      child: appUser == null ||
+                              appUser.photoUrl == null ||
+                              appUser.photoUrl!.isEmpty
+                          ? Icon(Icons.person_outline,
+                              size: 18, color: AppColors.textSecondary)
                           : null,
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                       Text('SARGE',
-                          style: TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.5)),
-                      if (appUser != null)
-                        Text(appUser.displayName,
-                            style:
-                                 TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                    ],
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (appUser != null)
+                            Text(appUser.displayName,
+                                style: TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700)),
+                          if (appUser == null)
+                            Text('Kullanıcı',
+                                style: TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-             Divider(color: AppColors.border, height: 1),
+            Divider(color: AppColors.border, height: 1),
             const SizedBox(height: 8),
             if (isLoggedIn)
               _DrawerItem(
@@ -142,6 +151,14 @@ class AppDrawer extends ConsumerWidget {
               ),
             const Spacer(),
             _DrawerItem(
+              icon: Icons.people_outline,
+              label: 'Tüm Üyeler',
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/all-members');
+              },
+            ),
+            _DrawerItem(
               icon: Icons.info_outline,
               label: 'Hakkımızda',
               onTap: () {
@@ -150,7 +167,7 @@ class AppDrawer extends ConsumerWidget {
               },
             ),
             if (isLoggedIn && isAdmin) ...[
-               Divider(color: AppColors.border, height: 1),
+              Divider(color: AppColors.border, height: 1),
               const SizedBox(height: 4),
               _AdminPanelDrawerItem(
                 onTap: () {
@@ -160,7 +177,7 @@ class AppDrawer extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
             ],
-             Divider(color: AppColors.border, height: 1),
+            Divider(color: AppColors.border, height: 1),
             if (isLoggedIn)
               _DrawerItem(
                 icon: Icons.logout,
@@ -205,7 +222,7 @@ class _NotificationBell extends ConsumerWidget {
       icon: Stack(
         clipBehavior: Clip.none,
         children: [
-           Icon(Icons.notifications_outlined, color: AppColors.textPrimary),
+          Icon(Icons.notifications_outlined, color: AppColors.textPrimary),
           if (unread > 0)
             Positioned(
               right: -6,
@@ -220,7 +237,9 @@ class _NotificationBell extends ConsumerWidget {
                 child: Text(
                   '$unread',
                   style: const TextStyle(
-                      color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700),
                 ),
               ),
             ),
@@ -248,9 +267,12 @@ class _DrawerItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = isDestructive ? AppColors.error : AppColors.textPrimary;
     return ListTile(
-      leading:
-          Icon(icon, size: 20, color: isDestructive ? AppColors.error : AppColors.textSecondary),
-      title: Text(label, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w500)),
+      leading: Icon(icon,
+          size: 20,
+          color: isDestructive ? AppColors.error : AppColors.textSecondary),
+      title: Text(label,
+          style: TextStyle(
+              color: color, fontSize: 14, fontWeight: FontWeight.w500)),
       onTap: onTap,
     );
   }
@@ -291,8 +313,7 @@ class _AdminPanelDrawerItem extends StatelessWidget {
                   ),
                 ),
                 Icon(Icons.chevron_right,
-                    size: 18,
-                    color: Colors.black.withValues(alpha: 0.6)),
+                    size: 18, color: Colors.black.withValues(alpha: 0.6)),
               ],
             ),
           ),
@@ -310,7 +331,7 @@ class _BottomNav extends ConsumerWidget {
     final location = GoRouterState.of(context).matchedLocation;
 
     return Container(
-      decoration:  BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
@@ -392,7 +413,9 @@ class _BottomNavItem extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 22, color: isActive ? accentColor : AppColors.textSecondary),
+            Icon(icon,
+                size: 22,
+                color: isActive ? accentColor : AppColors.textSecondary),
             const SizedBox(height: 3),
             Text(
               label,

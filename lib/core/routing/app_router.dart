@@ -14,6 +14,7 @@ import '../../features/cleaning/screens/cleaning_manage_screen.dart';
 import '../../features/cleaning/screens/cleaning_week_screen.dart';
 import '../../features/team/screens/team_screen.dart';
 import '../../features/about/screens/about_screen.dart';
+import '../../features/about/screens/all_members_screen.dart';
 import '../../features/contact/screens/contact_screen.dart';
 import '../../features/reports/screens/report_bug_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
@@ -38,7 +39,8 @@ import '../models/app_user.dart';
 import '../providers/auth_providers.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
-final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> _shellNavigatorKey =
+    GlobalKey<NavigatorState>();
 
 /// Exposes the root navigator key so the FCM handlers in `main.dart` can
 /// deep-link into the running router from a tapped push notification.
@@ -67,6 +69,7 @@ const _shellAllowedRoutes = {
   '/team',
   '/tasks',
   '/about',
+  '/all-members',
   '/contact',
   '/report-bug',
   '/settings',
@@ -123,7 +126,9 @@ class AppRouter {
         }
 
         // An approved user has no business on the waiting screen.
-        if (hasProfile && !appUser.needsApproval && path == kPendingApprovalRoute) {
+        if (hasProfile &&
+            !appUser.needsApproval &&
+            path == kPendingApprovalRoute) {
           return '/dashboard';
         }
 
@@ -251,7 +256,8 @@ class AppRouter {
           pageBuilder: (context, state, child) => CustomTransitionPage<void>(
             key: state.pageKey,
             child: AppShell(child: child),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               // NOTE: this transition is purely decorative. It must never gate
               // the shell from being *painted*: if the animation is interrupted
               // or the incoming page is rebuilt mid-flight, the outgoing
@@ -274,8 +280,7 @@ class AppRouter {
               builder: (context, state) {
                 final extra = state.extra;
                 return DashboardScreen(
-                  initialAnnouncementId:
-                      extra is String ? extra : null,
+                  initialAnnouncementId: extra is String ? extra : null,
                 );
               },
             ),
@@ -284,8 +289,7 @@ class AppRouter {
               name: 'club',
               builder: (context, state) {
                 final extra = state.extra;
-                return ClubScreen(
-                    initialIndex: extra is int ? extra : 0);
+                return ClubScreen(initialIndex: extra is int ? extra : 0);
               },
             ),
             GoRoute(
@@ -366,6 +370,11 @@ class AppRouter {
                   initialTaskId: extra is String ? extra : null,
                 );
               },
+            ),
+            GoRoute(
+              path: '/all-members',
+              name: 'all-members',
+              builder: (context, state) => const AllMembersScreen(),
             ),
             GoRoute(
               path: '/about',

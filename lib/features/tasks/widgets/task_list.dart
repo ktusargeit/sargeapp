@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_constants.dart';
@@ -64,7 +65,8 @@ class TasksBody extends ConsumerWidget {
             : tasks.where((t) {
                 return t.title.toLowerCase().contains(searchQuery) ||
                     t.assignedByName.toLowerCase().contains(searchQuery) ||
-                    (t.unitName?.toLowerCase().contains(searchQuery) ?? false) ||
+                    (t.unitName?.toLowerCase().contains(searchQuery) ??
+                        false) ||
                     (t.teamName?.toLowerCase().contains(searchQuery) ?? false);
               }).toList();
 
@@ -191,9 +193,8 @@ class TaskCard extends ConsumerWidget {
         }
 
         for (var i = 0; i < refsToDelete.length; i += 500) {
-          final end = (i + 500 > refsToDelete.length)
-              ? refsToDelete.length
-              : i + 500;
+          final end =
+              (i + 500 > refsToDelete.length) ? refsToDelete.length : i + 500;
           final batch = firestore.batch();
           for (final ref in refsToDelete.sublist(i, end)) {
             batch.delete(ref);
@@ -258,27 +259,35 @@ class TaskCard extends ConsumerWidget {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: statusColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: statusColor.withValues(alpha: 0.4)),
+                      border:
+                          Border.all(color: statusColor.withValues(alpha: 0.4)),
                     ),
                     child: Text(task.statusLabel,
                         style: TextStyle(
-                            color: statusColor, fontSize: 11, fontWeight: FontWeight.w700)),
+                            color: statusColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700)),
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: pointsColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: pointsColor.withValues(alpha: 0.4)),
+                      border:
+                          Border.all(color: pointsColor.withValues(alpha: 0.4)),
                     ),
                     child: Text('${task.points} puan',
                         style: TextStyle(
-                            color: pointsColor, fontSize: 12, fontWeight: FontWeight.w700)),
+                            color: pointsColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700)),
                   ),
                 ],
               ),
@@ -287,7 +296,8 @@ class TaskCard extends ConsumerWidget {
                 Text(task.description,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                    style: TextStyle(
+                        color: AppColors.textSecondary, fontSize: 13)),
               ],
               const SizedBox(height: 8),
               Column(
@@ -295,11 +305,15 @@ class TaskCard extends ConsumerWidget {
                 children: [
                   TaskMetaRow(
                     label: 'Atanan',
-                    value: task.assignedToName.isNotEmpty ? task.assignedToName : '—',
+                    value: task.assignedToName.isNotEmpty
+                        ? task.assignedToName
+                        : '—',
                   ),
                   TaskMetaRow(
                     label: 'Atayan',
-                    value: task.assignedByName.isNotEmpty ? task.assignedByName : '—',
+                    value: task.assignedByName.isNotEmpty
+                        ? task.assignedByName
+                        : '—',
                   ),
                   if (task.teamName != null)
                     TaskMetaRow(label: 'Takım', value: task.teamName!),
@@ -346,7 +360,8 @@ class TaskCard extends ConsumerWidget {
             .collection('tasks')
             .doc(task.id)
             .get();
-        final alreadyAwarded = (taskDoc.data()?['pointsAwarded'] as bool?) ?? false;
+        final alreadyAwarded =
+            (taskDoc.data()?['pointsAwarded'] as bool?) ?? false;
 
         final batch = ref.read(firestoreProvider).batch();
         batch.update(
@@ -356,12 +371,17 @@ class TaskCard extends ConsumerWidget {
         });
         if (!alreadyAwarded && !task.pointsAwarded) {
           batch.update(
-              ref.read(firestoreProvider).collection('users').doc(task.assignedTo), {
-            'points': FieldValue.increment(task.points),
-            'weeklyPoints': FieldValue.increment(task.points),
-            if (task.teamId != null && task.teamId!.isNotEmpty)
-              'teamPoints.${task.teamId}': FieldValue.increment(task.points),
-          });
+              ref
+                  .read(firestoreProvider)
+                  .collection('users')
+                  .doc(task.assignedTo),
+              {
+                'points': FieldValue.increment(task.points),
+                'weeklyPoints': FieldValue.increment(task.points),
+                if (task.teamId != null && task.teamId!.isNotEmpty)
+                  'teamPoints.${task.teamId}':
+                      FieldValue.increment(task.points),
+              });
           batch.update(
               ref.read(firestoreProvider).collection('tasks').doc(task.id), {
             'pointsAwarded': true,
@@ -373,10 +393,7 @@ class TaskCard extends ConsumerWidget {
         // contribution is auditable too. Non-admin approvers simply skip this.
         if (!alreadyAwarded && !task.pointsAwarded) {
           try {
-            await ref
-                .read(firestoreProvider)
-                .collection('points_history')
-                .add({
+            await ref.read(firestoreProvider).collection('points_history').add({
               'targetUid': task.assignedTo,
               'targetName': task.assignedToName,
               'delta': task.points,
@@ -389,9 +406,11 @@ class TaskCard extends ConsumerWidget {
         }
 
         if (ctx.mounted) {
-          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-              content: Text('Görev onaylandı, puan verildi.'),
-              backgroundColor: AppColors.success));
+          TopSnackBar.showSnackBar(
+              ctx,
+              const SnackBar(
+                  content: Text('Görev onaylandı, puan verildi.'),
+                  backgroundColor: AppColors.success));
         }
       } else {
         await ref
@@ -403,15 +422,19 @@ class TaskCard extends ConsumerWidget {
           'approvedBy': uid,
         });
         if (ctx.mounted) {
-          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-              content: Text('Görev reddedildi.'),
-              backgroundColor: AppColors.warning));
+          TopSnackBar.showSnackBar(
+              ctx,
+              const SnackBar(
+                  content: Text('Görev reddedildi.'),
+                  backgroundColor: AppColors.warning));
         }
       }
     } catch (e) {
       if (ctx.mounted) {
-        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-            content: Text('Hata: $e'), backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            ctx,
+            SnackBar(
+                content: Text('Hata: $e'), backgroundColor: AppColors.error));
       }
     }
   }
@@ -448,8 +471,7 @@ class TaskMetaRow extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  color: AppColors.textSecondary, fontSize: 12),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
             ),
           ),
           Expanded(
@@ -488,7 +510,8 @@ class TaskCommentCountBadge extends ConsumerWidget {
           decoration: BoxDecoration(
             color: AppColors.tasksGreen.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.tasksGreen.withValues(alpha: 0.4)),
+            border:
+                Border.all(color: AppColors.tasksGreen.withValues(alpha: 0.4)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -514,7 +537,10 @@ class TaskActionButton extends StatelessWidget {
   final Color color;
   final VoidCallback onTap;
   const TaskActionButton(
-      {super.key, required this.label, required this.color, required this.onTap});
+      {super.key,
+      required this.label,
+      required this.color,
+      required this.onTap});
 
   @override
   Widget build(BuildContext context) {

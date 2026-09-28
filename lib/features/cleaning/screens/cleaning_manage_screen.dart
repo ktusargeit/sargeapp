@@ -82,8 +82,7 @@ class CleaningManageScreen extends ConsumerWidget {
               const _SectionTitle(
                 icon: Icons.list_alt,
                 title: 'Alışveriş Listesi Şablonu',
-                subtitle:
-                    'Her yeni haftaya bu listedeki ürünler eklenir.',
+                subtitle: 'Her yeni haftaya bu listedeki ürünler eklenir.',
               ),
               const SizedBox(height: 8),
               _TemplateEditor(initial: config?.shoppingTemplate ?? const []),
@@ -94,8 +93,7 @@ class CleaningManageScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _addSlot(
-      BuildContext context, WidgetRef ref, int order) async {
+  Future<void> _addSlot(BuildContext context, WidgetRef ref, int order) async {
     final draft = await showAssignmentEditorSheet(context, ref);
     if (draft == null) return;
     await runOperationWithFeedback(
@@ -269,8 +267,7 @@ class _SlotTile extends ConsumerWidget {
     await runDeleteWithFeedback(
       context: context,
       successMessage: 'Sıra silindi.',
-      operation: () =>
-          ref.read(cleaningRepositoryProvider).deleteSlot(slot.id),
+      operation: () => ref.read(cleaningRepositoryProvider).deleteSlot(slot.id),
     );
   }
 }
@@ -304,8 +301,8 @@ class _RealizePanelState extends ConsumerState<_RealizePanel> {
                 Expanded(
                   child: Text(
                     'Başlangıç: ${CleaningDates.humanRange(startMonday)}',
-                    style: TextStyle(
-                        color: AppColors.textSecondary, fontSize: 12),
+                    style:
+                        TextStyle(color: AppColors.textSecondary, fontSize: 12),
                   ),
                 ),
               ],
@@ -314,8 +311,8 @@ class _RealizePanelState extends ConsumerState<_RealizePanel> {
             Row(
               children: [
                 Text('Hafta sayısı',
-                    style: TextStyle(
-                        color: AppColors.textPrimary, fontSize: 13)),
+                    style:
+                        TextStyle(color: AppColors.textPrimary, fontSize: 13)),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Slider(
@@ -340,7 +337,8 @@ class _RealizePanelState extends ConsumerState<_RealizePanel> {
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.depoAccent),
-                onPressed: widget.slots.isEmpty ? null : () => _generate(context),
+                onPressed:
+                    widget.slots.isEmpty ? null : () => _generate(context),
                 icon: const Icon(Icons.auto_awesome),
                 label: const Text('Haftaları Oluştur'),
               ),
@@ -407,8 +405,7 @@ class _TemplateEditorState extends ConsumerState<_TemplateEditor> {
                         style: TextStyle(color: AppColors.textPrimary)),
                     trailing: IconButton(
                       icon: const Icon(Icons.close, size: 18),
-                      onPressed: () =>
-                          setState(() => _items.remove(item)),
+                      onPressed: () => setState(() => _items.remove(item)),
                     ),
                   )),
             const SizedBox(height: 4),
@@ -460,9 +457,8 @@ class _TemplateEditorState extends ConsumerState<_TemplateEditor> {
       context: context,
       loadingMessage: 'Kaydediliyor...',
       successMessage: 'Şablon kaydedildi.',
-      operation: () => ref
-          .read(cleaningRepositoryProvider)
-          .saveShoppingTemplate(_items),
+      operation: () =>
+          ref.read(cleaningRepositoryProvider).saveShoppingTemplate(_items),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,8 +24,7 @@ void showClubStoryEditSheet(BuildContext context) {
 class ClubStoryEditSheet extends ConsumerStatefulWidget {
   const ClubStoryEditSheet({super.key});
   @override
-  ConsumerState<ClubStoryEditSheet> createState() =>
-      _ClubStoryEditSheetState();
+  ConsumerState<ClubStoryEditSheet> createState() => _ClubStoryEditSheetState();
 }
 
 class _ClubStoryEditSheetState extends ConsumerState<ClubStoryEditSheet> {
@@ -84,10 +84,12 @@ class _ClubStoryEditSheetState extends ConsumerState<ClubStoryEditSheet> {
     if (_storyCtrl.text.trim().isEmpty &&
         _gallery.isEmpty &&
         _newPhotos.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Hikaye veya en az bir görsel ekleyin.'),
-        backgroundColor: AppColors.warning,
-      ));
+      TopSnackBar.showSnackBar(
+          context,
+          const SnackBar(
+            content: Text('Hikaye veya en az bir görsel ekleyin.'),
+            backgroundColor: AppColors.warning,
+          ));
       return;
     }
 
@@ -121,26 +123,29 @@ class _ClubStoryEditSheetState extends ConsumerState<ClubStoryEditSheet> {
             : _instagramCtrl.text.trim(),
         website:
             _websiteCtrl.text.trim().isEmpty ? null : _websiteCtrl.text.trim(),
-        socialLinks: _socialCtrl.text.trim().isEmpty
-            ? null
-            : _socialCtrl.text.trim(),
+        socialLinks:
+            _socialCtrl.text.trim().isEmpty ? null : _socialCtrl.text.trim(),
       );
 
       await ref.read(clubInfoRepositoryProvider).saveClubInfo(info);
 
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Kulüp hikayesi güncellendi.'),
-          backgroundColor: AppColors.success,
-        ));
+        TopSnackBar.showSnackBar(
+            context,
+            const SnackBar(
+              content: Text('Kulüp hikayesi güncellendi.'),
+              backgroundColor: AppColors.success,
+            ));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Kaydedilemedi: $e'),
-          backgroundColor: AppColors.error,
-        ));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+              content: Text('Kaydedilemedi: $e'),
+              backgroundColor: AppColors.error,
+            ));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -281,8 +286,11 @@ class _ClubStoryEditSheetState extends ConsumerState<ClubStoryEditSheet> {
                         return ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: provider != null
-                              ? Image(image: provider,
-                                  width: 72, height: 72, fit: BoxFit.cover)
+                              ? Image(
+                                  image: provider,
+                                  width: 72,
+                                  height: 72,
+                                  fit: BoxFit.cover)
                               : Container(
                                   width: 72,
                                   height: 72,

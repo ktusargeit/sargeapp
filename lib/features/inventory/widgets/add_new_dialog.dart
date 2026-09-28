@@ -36,7 +36,7 @@ class _AddNewDialogState extends ConsumerState<AddNewDialog> {
       content: TextField(
         controller: _ctrl,
         autofocus: true,
-        style:  TextStyle(color: AppColors.textPrimary),
+        style: TextStyle(color: AppColors.textPrimary),
         decoration: InputDecoration(hintText: widget.hintText),
       ),
       actions: [
@@ -59,7 +59,10 @@ class _AddNewDialogState extends ConsumerState<AddNewDialog> {
                   }
                 },
           child: _loading
-              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2))
               : const Text('Ekle'),
         ),
       ],

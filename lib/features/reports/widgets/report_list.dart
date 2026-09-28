@@ -38,9 +38,7 @@ class ReportTypeOption extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: selected
-                ? color.withValues(alpha: 0.12)
-                : AppColors.surface,
+            color: selected ? color.withValues(alpha: 0.12) : AppColors.surface,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: selected ? color : AppColors.border,
@@ -51,8 +49,7 @@ class ReportTypeOption extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon,
-                  size: 18,
-                  color: selected ? color : AppColors.textSecondary),
+                  size: 18, color: selected ? color : AppColors.textSecondary),
               const SizedBox(width: 6),
               Text(
                 label,
@@ -107,8 +104,8 @@ class _ReportListTabState extends ConsumerState<ReportListTab> {
                   style: TextStyle(color: AppColors.textPrimary, fontSize: 13),
                   decoration: InputDecoration(
                     hintText: 'Ara...',
-                    hintStyle: TextStyle(
-                        color: AppColors.textSecondary, fontSize: 13),
+                    hintStyle:
+                        TextStyle(color: AppColors.textSecondary, fontSize: 13),
                     prefixIcon: Icon(Icons.search,
                         size: 18, color: AppColors.textSecondary),
                     isDense: true,
@@ -137,10 +134,11 @@ class _ReportListTabState extends ConsumerState<ReportListTab> {
                     value: _personFilter,
                     isDense: true,
                     dropdownColor: AppColors.surface2,
-                    style: TextStyle(color: AppColors.textPrimary, fontSize: 12),
+                    style:
+                        TextStyle(color: AppColors.textPrimary, fontSize: 12),
                     hint: Text('Kişi',
-                        style:
-                            TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                        style: TextStyle(
+                            color: AppColors.textSecondary, fontSize: 12)),
                     items: [
                       if (_personFilter != null)
                         const DropdownMenuItem<String?>(
@@ -183,11 +181,10 @@ class _ReportListTabState extends ConsumerState<ReportListTab> {
                       style: TextStyle(color: AppColors.textSecondary)),
                 );
               }
-              final sorted = [...filtered]
-                ..sort((a, b) => (b.createdAt ??
-                        DateTime.fromMillisecondsSinceEpoch(0))
-                    .compareTo(a.createdAt ??
-                        DateTime.fromMillisecondsSinceEpoch(0)));
+              final sorted = [...filtered]..sort((a, b) => (b.createdAt ??
+                      DateTime.fromMillisecondsSinceEpoch(0))
+                  .compareTo(
+                      a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
               return ListView.builder(
                 padding: const EdgeInsets.all(AppConstants.spacingMd),
                 itemCount: sorted.length,
@@ -284,8 +281,9 @@ class ReportCard extends ConsumerWidget {
                         color: AppColors.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        decoration:
-                            report.isResolved ? TextDecoration.lineThrough : null,
+                        decoration: report.isResolved
+                            ? TextDecoration.lineThrough
+                            : null,
                       ),
                     ),
                   ),
@@ -307,11 +305,13 @@ class ReportCard extends ConsumerWidget {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: _typeColor().withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: _typeColor().withValues(alpha: 0.4)),
+                      border: Border.all(
+                          color: _typeColor().withValues(alpha: 0.4)),
                     ),
                     child: Text(
                       report.isSuggestion ? 'Öneri' : 'Hata',
@@ -325,12 +325,13 @@ class ReportCard extends ConsumerWidget {
                   if (!report.isSuggestion) ...[
                     const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: _statusColor().withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(4),
-                        border:
-                            Border.all(color: _statusColor().withValues(alpha: 0.4)),
+                        border: Border.all(
+                            color: _statusColor().withValues(alpha: 0.4)),
                       ),
                       child: Text(
                         statusLabel,
@@ -345,12 +346,13 @@ class ReportCard extends ConsumerWidget {
                   if (hasReplyBadge) ...[
                     const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
                         color: AppColors.panelBlue.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
-                        border:
-                            Border.all(color: AppColors.panelBlue.withValues(alpha: 0.4)),
+                        border: Border.all(
+                            color: AppColors.panelBlue.withValues(alpha: 0.4)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -466,8 +468,7 @@ class ReportCard extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
           ElevatedButton(
             onPressed: () async {
               if (titleCtrl.text.trim().isEmpty) return;

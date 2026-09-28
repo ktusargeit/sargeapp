@@ -38,7 +38,8 @@ class LocationScreen extends ConsumerWidget {
             child: Text('Hata: $e',
                 style: const TextStyle(color: AppColors.error))),
         data: (categories) {
-          final locations = locationsAsync.valueOrNull ?? const <DepoLocation>[];
+          final locations =
+              locationsAsync.valueOrNull ?? const <DepoLocation>[];
           if (categories.isEmpty && locations.isEmpty) {
             return Center(
                 child: Text('Henüz kategori/lokasyon yok.',
@@ -52,8 +53,8 @@ class LocationScreen extends ConsumerWidget {
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
                     'Kategoriler sabittir; alt-lokasyon/raf tanımlayabilirsiniz.',
-                    style: TextStyle(
-                        color: AppColors.textSecondary, fontSize: 12),
+                    style:
+                        TextStyle(color: AppColors.textSecondary, fontSize: 12),
                   ),
                 ),
               ..._categorySections(
@@ -76,9 +77,7 @@ class LocationScreen extends ConsumerWidget {
     final assigned = <String>{};
 
     for (final cat in categories) {
-      final owned = locations
-          .where((l) => l.categoryId == cat.id)
-          .toList();
+      final owned = locations.where((l) => l.categoryId == cat.id).toList();
       // group by parent
       final top = owned.where((l) => l.parentId == null).toList();
       final children = owned.where((l) => l.parentId != null).toList();
@@ -94,7 +93,8 @@ class LocationScreen extends ConsumerWidget {
     }
 
     // Unassigned locations (legacy) shown under a special bucket.
-    final unassigned = locations.where((l) => !assigned.contains(l.id)).toList();
+    final unassigned =
+        locations.where((l) => !assigned.contains(l.id)).toList();
     if (unassigned.isNotEmpty) {
       sections.add(Card(
         color: AppColors.surface2,
@@ -105,12 +105,11 @@ class LocationScreen extends ConsumerWidget {
             children: [
               const Text('Kategorisiz (eski)',
                   style: TextStyle(
-                      color: AppColors.warning,
-                      fontWeight: FontWeight.w700)),
+                      color: AppColors.warning, fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
               Text('Migrasyon ile bu lokasyonlar bir kategoriye atanır.',
-                  style: TextStyle(
-                      color: AppColors.textSecondary, fontSize: 12)),
+                  style:
+                      TextStyle(color: AppColors.textSecondary, fontSize: 12)),
               const SizedBox(height: 8),
               ...unassigned.map((l) => ListTile(
                     dense: true,
@@ -155,8 +154,7 @@ class LocationScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                  'Özet (eşleşmeyenler Depo altına taşınır):'),
+              const Text('Özet (eşleşmeyenler Depo altına taşınır):'),
               const SizedBox(height: 8),
               Text(categorySummary(plan),
                   style: const TextStyle(fontFamily: 'monospace')),
@@ -270,8 +268,7 @@ class _CategorySection extends ConsumerWidget {
       {bool indented = false}) {
     return ListTile(
       dense: true,
-      contentPadding:
-          EdgeInsets.only(left: indented ? 32 : 16, right: 8),
+      contentPadding: EdgeInsets.only(left: indented ? 32 : 16, right: 8),
       leading: Icon(indented ? Icons.subdirectory_arrow_right : Icons.place,
           color: AppColors.textSecondary, size: 18),
       title: Text(l.name, style: TextStyle(color: AppColors.textPrimary)),
@@ -291,8 +288,7 @@ class _CategorySection extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
           ElevatedButton(
               onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
               child: const Text('Ekle')),
@@ -328,8 +324,7 @@ class _CategorySection extends ConsumerWidget {
         content: TextField(controller: ctrl, autofocus: true),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
           ElevatedButton(
               onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
               child: const Text('Kaydet')),
@@ -342,8 +337,9 @@ class _CategorySection extends ConsumerWidget {
       context: context,
       loadingMessage: 'Güncelleniyor...',
       successMessage: 'Kategori güncellendi.',
-      operation: () =>
-          ref.read(depoRepositoryProvider).updateCategoryName(category.id, name),
+      operation: () => ref
+          .read(depoRepositoryProvider)
+          .updateCategoryName(category.id, name),
     );
   }
 
@@ -368,9 +364,9 @@ class _CategorySection extends ConsumerWidget {
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('İptal')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Sil')),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Sil')),
         ],
       ),
     );

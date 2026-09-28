@@ -35,7 +35,8 @@ class PlatformImageFile extends StatelessWidget {
         width: width ?? double.infinity,
         height: height ?? 100,
         color: Colors.grey[800],
-        child: const Center(child: Icon(Icons.image_outlined, color: Colors.grey)),
+        child:
+            const Center(child: Icon(Icons.image_outlined, color: Colors.grey)),
       );
     }
     return ClipRRect(

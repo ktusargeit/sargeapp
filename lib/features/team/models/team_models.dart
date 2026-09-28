@@ -29,7 +29,8 @@ class LeaderboardEntry {
       weeklyPoints: (data['weeklyPoints'] as num?)?.toInt() ?? 0,
       photoUrl: data['photoUrl'] as String?,
       inWorkshop: data['inWorkshop'] as bool? ?? false,
-      teamIds: (data['teamIds'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      teamIds: (data['teamIds'] as List?)?.map((e) => e.toString()).toList() ??
+          const [],
     );
   }
 
@@ -59,10 +60,11 @@ class BugReport {
   final String type; // 'bug' | 'suggestion'
   final String? imageUrl;
   final List<Map<String, dynamic>> reviewedBy; // [{uid, name, startedAt}]
-  final String? resolvedBy;       // uid of admin who resolved
-  final String? resolvedByName;   // display name of resolver
-  final DateTime? resolvedAt;     // when resolved
-  final List<Map<String, dynamic>> messages; // [{senderUid, senderName, text, imageUrl, createdAt, isAdmin}]
+  final String? resolvedBy; // uid of admin who resolved
+  final String? resolvedByName; // display name of resolver
+  final DateTime? resolvedAt; // when resolved
+  final List<Map<String, dynamic>>
+      messages; // [{senderUid, senderName, text, imageUrl, createdAt, isAdmin}]
 
   const BugReport({
     required this.id,
@@ -98,12 +100,17 @@ class BugReport {
   /// Human-readable status with reviewer names.
   String statusLabelWithReviewers() {
     if (status == 'investigating' && reviewedBy.isNotEmpty) {
-      final names = reviewedBy.map((r) => r['name'] as String? ?? '').where((n) => n.isNotEmpty).toList();
+      final names = reviewedBy
+          .map((r) => r['name'] as String? ?? '')
+          .where((n) => n.isNotEmpty)
+          .toList();
       if (names.isNotEmpty) {
         return '${names.join(', ')} tarafından inceleniyor';
       }
     }
-    if (status == 'done' && resolvedByName != null && resolvedByName!.isNotEmpty) {
+    if (status == 'done' &&
+        resolvedByName != null &&
+        resolvedByName!.isNotEmpty) {
       return '$resolvedByName tarafından çözüldü';
     }
     return statusLabel;
@@ -171,7 +178,7 @@ class ClubTeam {
 
   final DateTime? createdAt;
   final String? createdBy;
-  final String? leadUid;         // team captain uid
+  final String? leadUid; // team captain uid
 
   const ClubTeam({
     required this.id,
@@ -210,10 +217,18 @@ class ClubTeam {
       status: status,
       period: data['period'] as String?,
       story: data['story'] as String?,
-      photos: (data['photos'] as List?)?.map((e) => e.toString()).toList() ?? const [],
-      memberIds: (data['memberIds'] as List?)?.map((e) => e.toString()).toList() ?? const [],
-      pastMemberIds: (data['pastMemberIds'] as List?)?.map((e) => e.toString()).toList() ?? const [],
-      pastMemberNames: (data['pastMemberNames'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      photos: (data['photos'] as List?)?.map((e) => e.toString()).toList() ??
+          const [],
+      memberIds:
+          (data['memberIds'] as List?)?.map((e) => e.toString()).toList() ??
+              const [],
+      pastMemberIds:
+          (data['pastMemberIds'] as List?)?.map((e) => e.toString()).toList() ??
+              const [],
+      pastMemberNames: (data['pastMemberNames'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       createdBy: data['createdBy'] as String?,
       leadUid: data['leadUid'] as String?,

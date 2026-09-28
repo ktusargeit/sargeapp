@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/app_user.dart';
@@ -228,11 +229,9 @@ class _AdminMemberPointsEditorState
 
     // Teams the target user actually belongs to (for the team selector).
     final allTeams = ref.read(clubTeamsProvider).valueOrNull ?? <ClubTeam>[];
-    final userTeams = allTeams
-        .where((t) => widget.user.teamIds.contains(t.id))
-        .toList();
-    String? selectedTeamId =
-        userTeams.isNotEmpty ? userTeams.first.id : null;
+    final userTeams =
+        allTeams.where((t) => widget.user.teamIds.contains(t.id)).toList();
+    String? selectedTeamId = userTeams.isNotEmpty ? userTeams.first.id : null;
 
     final result = await showDialog<Map<String, String?>>(
       context: context,
@@ -245,7 +244,8 @@ class _AdminMemberPointsEditorState
               children: [
                 Text(
                   '${widget.user.displayName} — mevcut puan: ${widget.user.points}.',
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                  style:
+                      TextStyle(color: AppColors.textSecondary, fontSize: 13),
                 ),
                 const SizedBox(height: 12),
                 if (userTeams.isNotEmpty) ...[
@@ -262,8 +262,8 @@ class _AdminMemberPointsEditorState
                     items: userTeams
                         .map((t) => DropdownMenuItem<String>(
                               value: t.id,
-                              child: Text(t.name,
-                                  overflow: TextOverflow.ellipsis),
+                              child:
+                                  Text(t.name, overflow: TextOverflow.ellipsis),
                             ))
                         .toList(),
                     onChanged: (v) => setDialogState(() => selectedTeamId = v),
@@ -313,10 +313,12 @@ class _AdminMemberPointsEditorState
     final parsed = int.tryParse(amount) ?? 0;
     if (parsed <= 0) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Geçerli bir puan miktarı girin.'),
-          backgroundColor: AppColors.error,
-        ));
+        TopSnackBar.showSnackBar(
+            context,
+            const SnackBar(
+              content: Text('Geçerli bir puan miktarı girin.'),
+              backgroundColor: AppColors.error,
+            ));
       }
       return;
     }
@@ -354,25 +356,28 @@ class _AdminMemberPointsEditorState
           .update({
         'points': FieldValue.increment(delta),
         'weeklyPoints': FieldValue.increment(delta),
-        if (team != null)
-          'teamPoints.${team.id}': FieldValue.increment(delta),
+        if (team != null) 'teamPoints.${team.id}': FieldValue.increment(delta),
       });
 
       if (mounted) {
         final teamLabel = team != null ? ' (${team.name})' : '';
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(isAdd
-              ? '$delta puan eklendi$teamLabel.'
-              : '${delta.abs()} puan düşüldü$teamLabel.'),
-          backgroundColor: AppColors.success,
-        ));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+              content: Text(isAdd
+                  ? '$delta puan eklendi$teamLabel.'
+                  : '${delta.abs()} puan düşüldü$teamLabel.'),
+              backgroundColor: AppColors.success,
+            ));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Puan güncellenemedi: $e'),
-          backgroundColor: AppColors.error,
-        ));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+              content: Text('Puan güncellenemedi: $e'),
+              backgroundColor: AppColors.error,
+            ));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -396,8 +401,7 @@ class _AdminMemberPointsEditorState
             label: const Text('Puan Ekle'),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.success,
-              side: BorderSide(
-                  color: AppColors.success.withValues(alpha: 0.5)),
+              side: BorderSide(color: AppColors.success.withValues(alpha: 0.5)),
             ),
           ),
         ),
@@ -409,8 +413,7 @@ class _AdminMemberPointsEditorState
             label: const Text('Puan Düş'),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.warning,
-              side: BorderSide(
-                  color: AppColors.warning.withValues(alpha: 0.5)),
+              side: BorderSide(color: AppColors.warning.withValues(alpha: 0.5)),
             ),
           ),
         ),

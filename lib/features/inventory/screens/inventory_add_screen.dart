@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -132,18 +133,22 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
   Future<void> _submit() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Ürün adı zorunludur.'),
-          backgroundColor: AppColors.error));
+      TopSnackBar.showSnackBar(
+          context,
+          const SnackBar(
+              content: Text('Ürün adı zorunludur.'),
+              backgroundColor: AppColors.error));
       return;
     }
     if (!_formKey.currentState!.validate()) return;
 
     final quantityRaw = _quantityCtrl.text.trim();
     if (quantityRaw.isNotEmpty && int.tryParse(quantityRaw) == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Adet alanı geçerli bir sayı olmalıdır.'),
-          backgroundColor: AppColors.error));
+      TopSnackBar.showSnackBar(
+          context,
+          const SnackBar(
+              content: Text('Adet alanı geçerli bir sayı olmalıdır.'),
+              backgroundColor: AppColors.error));
       return;
     }
 
@@ -209,7 +214,8 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.showSnackBar(
+          context,
           SnackBar(
             content: Text(widget.editItemId != null
                 ? 'Ürün güncellendi.'
@@ -221,9 +227,9 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Hata: $e'), backgroundColor: AppColors.error),
+        TopSnackBar.showSnackBar(
+          context,
+          SnackBar(content: Text('Hata: $e'), backgroundColor: AppColors.error),
         );
       }
     } finally {
@@ -358,9 +364,8 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                           height: 120,
                                           decoration: BoxDecoration(
                                             color: AppColors.surface2,
-                                            borderRadius:
-                                                BorderRadius.circular(
-                                                    AppConstants.radiusMd),
+                                            borderRadius: BorderRadius.circular(
+                                                AppConstants.radiusMd),
                                             border: Border.all(
                                                 color: AppColors.border),
                                           ),
@@ -391,9 +396,8 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                           height: 120,
                                           decoration: BoxDecoration(
                                             color: AppColors.surface2,
-                                            borderRadius:
-                                                BorderRadius.circular(
-                                                    AppConstants.radiusMd),
+                                            borderRadius: BorderRadius.circular(
+                                                AppConstants.radiusMd),
                                             border: Border.all(
                                                 color: AppColors.border),
                                           ),
@@ -427,10 +431,9 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                               labelText: 'Ürün Adı *',
                               hintText: 'Örn: Arduino Uno R3',
                             ),
-                            validator: (v) =>
-                                (v == null || v.trim().isEmpty)
-                                    ? 'Zorunlu'
-                                    : null,
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Zorunlu'
+                                : null,
                           ),
                           const SizedBox(height: 12),
                           // Description
@@ -465,8 +468,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                 _selectedCategoryId = null;
                               }),
                             ),
-                            loading: () =>
-                                const CircularProgressIndicator(),
+                            loading: () => const CircularProgressIndicator(),
                             error: (e, _) => Text('Hata: $e'),
                           ),
                           const SizedBox(height: 12),
@@ -476,10 +478,9 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                               data: (units) => DropdownButtonFormField<String>(
                                 initialValue: _selectedUnitId,
                                 dropdownColor: AppColors.surface2,
-                                style:
-                                    TextStyle(color: AppColors.textPrimary),
-                                decoration: const InputDecoration(
-                                    labelText: 'Birim'),
+                                style: TextStyle(color: AppColors.textPrimary),
+                                decoration:
+                                    const InputDecoration(labelText: 'Birim'),
                                 items: [
                                   const DropdownMenuItem(
                                       value: null, child: Text('—')),
@@ -492,8 +493,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                   _selectedCategoryId = null;
                                 }),
                               ),
-                              loading: () =>
-                                  const CircularProgressIndicator(),
+                              loading: () => const CircularProgressIndicator(),
                               error: (e, _) => Text('Hata: $e'),
                             ),
                           const SizedBox(height: 12),
@@ -508,8 +508,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                               return DropdownButtonFormField<String>(
                                 initialValue: _selectedCategoryId,
                                 dropdownColor: AppColors.surface2,
-                                style:
-                                    TextStyle(color: AppColors.textPrimary),
+                                style: TextStyle(color: AppColors.textPrimary),
                                 decoration: const InputDecoration(
                                     labelText: 'Kategori'),
                                 items: [
@@ -522,8 +521,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                     setState(() => _selectedCategoryId = v),
                               );
                             },
-                            loading: () =>
-                                const CircularProgressIndicator(),
+                            loading: () => const CircularProgressIndicator(),
                             error: (e, _) => Text('Hata: $e'),
                           ),
                           const SizedBox(height: 12),
@@ -532,8 +530,8 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                               Expanded(
                                 child: TextFormField(
                                   controller: _serialCtrl,
-                                  style: TextStyle(
-                                      color: AppColors.textPrimary),
+                                  style:
+                                      TextStyle(color: AppColors.textPrimary),
                                   decoration: const InputDecoration(
                                       labelText: 'Seri No',
                                       hintText: 'SN-12345'),
@@ -543,8 +541,8 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                               Expanded(
                                 child: TextFormField(
                                   controller: _modelCtrl,
-                                  style: TextStyle(
-                                      color: AppColors.textPrimary),
+                                  style:
+                                      TextStyle(color: AppColors.textPrimary),
                                   decoration: const InputDecoration(
                                       labelText: 'Model', hintText: 'R3'),
                                 ),
@@ -557,8 +555,8 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                               Expanded(
                                 child: TextFormField(
                                   controller: _brandCtrl,
-                                  style: TextStyle(
-                                      color: AppColors.textPrimary),
+                                  style:
+                                      TextStyle(color: AppColors.textPrimary),
                                   decoration: const InputDecoration(
                                       labelText: 'Marka', hintText: 'Arduino'),
                                 ),
@@ -568,8 +566,8 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                 child: TextFormField(
                                   controller: _quantityCtrl,
                                   keyboardType: TextInputType.number,
-                                  style: TextStyle(
-                                      color: AppColors.textPrimary),
+                                  style:
+                                      TextStyle(color: AppColors.textPrimary),
                                   decoration: const InputDecoration(
                                       labelText: 'Adet', hintText: '1'),
                                 ),
@@ -593,10 +591,9 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                               return DropdownButtonFormField<String>(
                                 initialValue: _selectedStatus,
                                 dropdownColor: AppColors.surface2,
-                                style:
-                                    TextStyle(color: AppColors.textPrimary),
-                                decoration: const InputDecoration(
-                                    labelText: 'Durum'),
+                                style: TextStyle(color: AppColors.textPrimary),
+                                decoration:
+                                    const InputDecoration(labelText: 'Durum'),
                                 items: options
                                     .map((s) => DropdownMenuItem(
                                         value: s.id, child: Text(s.label)))
@@ -605,8 +602,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                     setState(() => _selectedStatus = v!),
                               );
                             },
-                            loading: () =>
-                                const CircularProgressIndicator(),
+                            loading: () => const CircularProgressIndicator(),
                             error: (e, _) => Text('Hata: $e'),
                           ),
                         ],
@@ -679,17 +675,16 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                     color: AppColors.surface2,
                                     borderRadius: BorderRadius.circular(
                                         AppConstants.radiusMd),
-                                    border: Border.all(
-                                        color: AppColors.border),
+                                    border: Border.all(color: AppColors.border),
                                   ),
                                   child: _pickedLocationImage != null
                                       ? ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(
-                                                  AppConstants.radiusMd - 1),
+                                          borderRadius: BorderRadius.circular(
+                                              AppConstants.radiusMd - 1),
                                           child: PlatformImageFile(
                                             bytes: _pickedLocationImage!.bytes,
-                                            file: _pickedLocationImage!.dartFile,
+                                            file:
+                                                _pickedLocationImage!.dartFile,
                                             width: 120,
                                             height: 120,
                                             fit: BoxFit.cover,
@@ -701,8 +696,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                           children: [
                                             Icon(Icons.camera_alt,
                                                 size: 28,
-                                                color:
-                                                    AppColors.textSecondary),
+                                                color: AppColors.textSecondary),
                                             const SizedBox(height: 4),
                                             Text('Kamera',
                                                 style: TextStyle(
@@ -724,12 +718,10 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                     color: AppColors.surface2,
                                     borderRadius: BorderRadius.circular(
                                         AppConstants.radiusMd),
-                                    border: Border.all(
-                                        color: AppColors.border),
+                                    border: Border.all(color: AppColors.border),
                                   ),
                                   child: Column(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.center,
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(Icons.photo_library,
                                           size: 28,
@@ -738,8 +730,7 @@ class _InventoryAddScreenState extends ConsumerState<InventoryAddScreen> {
                                       Text('Galeri',
                                           style: TextStyle(
                                               fontSize: 10,
-                                              color:
-                                                  AppColors.textSecondary)),
+                                              color: AppColors.textSecondary)),
                                     ],
                                   ),
                                 ),
@@ -785,8 +776,7 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, nameCtrl.text.trim()),
             child: const Text('Ekle'),
@@ -800,8 +790,7 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
       context: context,
       loadingMessage: 'Ekleniyor...',
       successMessage: 'Lokasyon eklendi.',
-      operation: () =>
-          ref.read(depoRepositoryProvider).addLocationByName(name),
+      operation: () => ref.read(depoRepositoryProvider).addLocationByName(name),
     );
   }
 
@@ -819,8 +808,7 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, nameCtrl.text.trim()),
             child: const Text('Kaydet'),
@@ -842,9 +830,8 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
   Future<void> _deleteLocation(DepoLocation loc) async {
     int count = 0;
     try {
-      count = await ref
-          .read(depoRepositoryProvider)
-          .countItemsInLocation(loc.id);
+      count =
+          await ref.read(depoRepositoryProvider).countItemsInLocation(loc.id);
     } catch (_) {}
 
     if (!mounted) return;
@@ -875,8 +862,7 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
     await runDeleteWithFeedback(
       context: context,
       successMessage: 'Lokasyon silindi.',
-      operation: () =>
-          ref.read(depoRepositoryProvider).deleteLocation(loc.id),
+      operation: () => ref.read(depoRepositoryProvider).deleteLocation(loc.id),
     );
   }
 

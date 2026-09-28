@@ -36,8 +36,8 @@ final locationCategoriesProvider =
       .collection('location_categories')
       .orderBy('order')
       .snapshots()
-      .map((snap) =>
-          snap.docs.map((d) => LocationCategory.fromDoc(d)).toList());
+      .map(
+          (snap) => snap.docs.map((d) => LocationCategory.fromDoc(d)).toList());
 });
 
 /// Stream of inventory categories (hierarchical: team → unit → category).
@@ -53,20 +53,17 @@ final inventoryCategoriesProvider =
 });
 
 /// Stream of user-defined inventory status options.
-final inventoryStatusesProvider =
-    StreamProvider<List<InventoryStatus>>((ref) {
+final inventoryStatusesProvider = StreamProvider<List<InventoryStatus>>((ref) {
   final firestore = ref.watch(firestoreProvider);
   return firestore
       .collection('inventory_statuses')
       .orderBy('order')
       .snapshots()
-      .map(
-          (snap) => snap.docs.map((d) => InventoryStatus.fromDoc(d)).toList());
+      .map((snap) => snap.docs.map((d) => InventoryStatus.fromDoc(d)).toList());
 });
 
 /// Stream of all teams (for dropdown selection).
-final teamListProvider =
-    StreamProvider<List<Map<String, dynamic>>>((ref) {
+final teamListProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   final firestore = ref.watch(firestoreProvider);
   return firestore
       .collection('teams')
@@ -111,18 +108,14 @@ class DepoRepository {
     // Parallel image uploads
     final uploads = <Future<String?>>[];
     if (imageFile != null || imageBytes != null) {
-      uploads.add(_uploadImage(
-          'depo_urunler/${docRef.id}_main.jpg',
-          file: imageFile,
-          bytes: imageBytes));
+      uploads.add(_uploadImage('depo_urunler/${docRef.id}_main.jpg',
+          file: imageFile, bytes: imageBytes));
     } else {
       uploads.add(Future.value(null));
     }
     if (locationFile != null || locationBytes != null) {
-      uploads.add(_uploadImage(
-          'depo_urunler/${docRef.id}_location.jpg',
-          file: locationFile,
-          bytes: locationBytes));
+      uploads.add(_uploadImage('depo_urunler/${docRef.id}_location.jpg',
+          file: locationFile, bytes: locationBytes));
     } else {
       uploads.add(Future.value(null));
     }

@@ -112,8 +112,8 @@ class AppUser {
   ///
   /// A missing `approvalStatus` (legacy document) resolves to
   /// [approvalApproved] — see the constants block at the top of this file.
-  bool get isApproved => approvalStatus != approvalPending &&
-      approvalStatus != approvalRejected;
+  bool get isApproved =>
+      approvalStatus != approvalPending && approvalStatus != approvalRejected;
 
   /// True while the registration is waiting for an admin decision.
   bool get isPendingApproval => approvalStatus == approvalPending;
@@ -139,24 +139,37 @@ class AppUser {
     for (final p in priority) {
       if (activeTitles.any((t) => t.titleType == p)) {
         switch (p) {
-          case TitleType.admin: return 'Admin';
-          case TitleType.boardPresident: return 'Başkan';
-          case TitleType.boardVicePresident: return 'Başkan Yardımcısı';
-          case TitleType.boardMember: return 'Yönetim Kurulu Üyesi';
-          case TitleType.captain: return 'Kaptan';
-          case TitleType.unitLead: return 'Birim Sorumlusu';
+          case TitleType.admin:
+            return 'Admin';
+          case TitleType.boardPresident:
+            return 'Başkan';
+          case TitleType.boardVicePresident:
+            return 'Başkan Yardımcısı';
+          case TitleType.boardMember:
+            return 'Yönetim Kurulu Üyesi';
+          case TitleType.captain:
+            return 'Kaptan';
+          case TitleType.unitLead:
+            return 'Birim Sorumlusu';
         }
       }
     }
 
     switch (role) {
-      case 'admin': return 'Admin';
-      case 'board_president': return 'Başkan';
-      case 'board_vice_president': return 'Başkan Yardımcısı';
-      case 'board_member': return 'Yönetim Kurulu Üyesi';
-      case 'captain': return 'Kaptan';
-      case 'unit_lead': return 'Birim Sorumlusu';
-      default: return 'Üye';
+      case 'admin':
+        return 'Admin';
+      case 'board_president':
+        return 'Başkan';
+      case 'board_vice_president':
+        return 'Başkan Yardımcısı';
+      case 'board_member':
+        return 'Yönetim Kurulu Üyesi';
+      case 'captain':
+        return 'Kaptan';
+      case 'unit_lead':
+        return 'Birim Sorumlusu';
+      default:
+        return 'Üye';
     }
   }
 
@@ -211,16 +224,19 @@ class AppUser {
       points: (data['points'] as num?)?.toInt() ?? 0,
       weeklyPoints: (data['weeklyPoints'] as num?)?.toInt() ?? 0,
       prevWeeklyPoints: (data['prevWeeklyPoints'] as num?)?.toInt() ?? 0,
-      teamPoints: (data['teamPoints'] as Map?)
-              ?.map((key, value) => MapEntry(key.toString(), (value as num).toInt())) ??
+      teamPoints: (data['teamPoints'] as Map?)?.map((key, value) =>
+              MapEntry(key.toString(), (value as num).toInt())) ??
           const {},
       photoUrl: data['photoUrl'] as String?,
       coverPhotoUrl: data['coverPhotoUrl'] as String?,
       bio: data['bio'] as String?,
       department: data['department'] as String?,
       className: data['className'] as String?,
-      teamIds: (data['teamIds'] as List?)?.map((e) => e.toString()).toList() ?? const [],
-      pastTeamIds: (data['pastTeamIds'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      teamIds: (data['teamIds'] as List?)?.map((e) => e.toString()).toList() ??
+          const [],
+      pastTeamIds:
+          (data['pastTeamIds'] as List?)?.map((e) => e.toString()).toList() ??
+              const [],
       pastTeams: (data['pastTeams'] as List?)
               ?.map((e) => Map<String, dynamic>.from(e as Map))
               .toList() ??
@@ -230,7 +246,8 @@ class AppUser {
               .toList() ??
           const [],
       pastExperiences: (data['pastExperiences'] as List?)
-              ?.map((e) => PastExperience.fromMap(Map<String, dynamic>.from(e as Map)))
+              ?.map((e) =>
+                  PastExperience.fromMap(Map<String, dynamic>.from(e as Map)))
               .toList() ??
           const [],
       awards: (data['awards'] as List?)
@@ -238,7 +255,8 @@ class AppUser {
               .toList() ??
           const [],
       titles: (data['titles'] as List?)
-              ?.map((e) => UserTitle.fromMap(Map<String, dynamic>.from(e as Map)))
+              ?.map(
+                  (e) => UserTitle.fromMap(Map<String, dynamic>.from(e as Map)))
               .toList() ??
           const [],
       inWorkshop: data['inWorkshop'] as bool? ?? false,

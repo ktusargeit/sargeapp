@@ -24,9 +24,9 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title:  Text('Ürünü Sil',
-            style: TextStyle(color: AppColors.textPrimary)),
-        content:  Text(
+        title:
+            Text('Ürünü Sil', style: TextStyle(color: AppColors.textPrimary)),
+        content: Text(
             'Bu ürünü silmek istediğinize emin misiniz? Bu işlem geri alınamaz.',
             style: TextStyle(color: AppColors.textSecondary)),
         actions: [
@@ -66,9 +66,10 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
         title: const Text('Ürün Detayı'),
         backgroundColor: AppColors.surface,
         actions: [
-          if (currentUser != null && (currentUser.isAdmin || currentUser.isUnitLead))
+          if (currentUser != null &&
+              (currentUser.isAdmin || currentUser.isUnitLead))
             PopupMenuButton<String>(
-              icon:  Icon(Icons.more_vert, color: AppColors.textPrimary),
+              icon: Icon(Icons.more_vert, color: AppColors.textPrimary),
               color: AppColors.surface2,
               onSelected: (value) {
                 if (value == 'edit') {
@@ -82,7 +83,7 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
                   _deleteItem();
                 }
               },
-              itemBuilder: (_) =>  [
+              itemBuilder: (_) => [
                 PopupMenuItem(
                     value: 'edit',
                     child: Row(children: [
@@ -98,8 +99,7 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
                       Icon(Icons.delete_outline,
                           size: 18, color: AppColors.error),
                       SizedBox(width: 8),
-                      Text('Sil',
-                          style: TextStyle(color: AppColors.error)),
+                      Text('Sil', style: TextStyle(color: AppColors.error)),
                     ])),
               ],
             ),
@@ -109,14 +109,14 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
         data: (items) {
           final item = items.where((i) => i.id == widget.itemId).firstOrNull;
           if (item == null) {
-            return  Center(
+            return Center(
                 child: Text('Ürün bulunamadı.',
                     style: TextStyle(color: AppColors.textSecondary)));
           }
           return _ItemDetailView(item: item);
         },
-        loading: () =>
-            const Center(child: CircularProgressIndicator(color: AppColors.depoAccent)),
+        loading: () => const Center(
+            child: CircularProgressIndicator(color: AppColors.depoAccent)),
         error: (e, _) => Center(
             child: Text('Hata: $e',
                 style: const TextStyle(color: AppColors.error))),
@@ -171,11 +171,10 @@ class _ItemDetailView extends StatelessWidget {
                   height: 160,
                   decoration: BoxDecoration(
                     color: AppColors.surface2,
-                    borderRadius:
-                        BorderRadius.circular(AppConstants.radiusMd),
+                    borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                     border: Border.all(color: AppColors.border),
                   ),
-                  child:  Center(
+                  child: Center(
                     child: Icon(Icons.inventory_2_outlined,
                         size: 48, color: AppColors.textSecondary),
                   ),
@@ -191,7 +190,7 @@ class _ItemDetailView extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppConstants.radiusMd),
               border: Border.all(color: AppColors.border),
             ),
-            child:  Center(
+            child: Center(
               child: Icon(Icons.inventory_2_outlined,
                   size: 48, color: AppColors.textSecondary),
             ),
@@ -202,7 +201,7 @@ class _ItemDetailView extends StatelessWidget {
           children: [
             Expanded(
               child: Text(item.name,
-                  style:  TextStyle(
+                  style: TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 20,
                       fontWeight: FontWeight.w700)),
@@ -228,7 +227,7 @@ class _ItemDetailView extends StatelessWidget {
         if (item.description != null && item.description!.isNotEmpty) ...[
           const SizedBox(height: 12),
           Text(item.description!,
-              style:  TextStyle(
+              style: TextStyle(
                   color: AppColors.textSecondary, fontSize: 14, height: 1.5)),
         ],
         const SizedBox(height: 20),
@@ -243,8 +242,7 @@ class _ItemDetailView extends StatelessWidget {
         ]),
         const SizedBox(height: AppConstants.spacingLg),
         _SectionCard(title: 'LOKASYON', children: [
-          _InfoRow(
-              label: 'Lokasyon', value: item.locationName ?? '—'),
+          _InfoRow(label: 'Lokasyon', value: item.locationName ?? '—'),
           _InfoRow(label: 'Raf', value: item.shelfName ?? '—'),
           _InfoRow(label: 'Çekmece', value: item.drawerName ?? '—'),
         ]),
@@ -271,8 +269,7 @@ class _ItemDetailView extends StatelessWidget {
           Center(
             child: Text(
               'Eklenme: ${_formatDate(item.createdAt!)}',
-              style:  TextStyle(
-                  color: AppColors.textSecondary, fontSize: 11),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
             ),
           ),
         const SizedBox(height: 8),
@@ -302,8 +299,7 @@ class _CreatorLabel extends ConsumerWidget {
     return Center(
       child: Text(
         'Ekleyen: ${name ?? 'Bilinmiyor'}',
-        style:  TextStyle(
-            color: AppColors.textSecondary, fontSize: 11),
+        style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
       ),
     );
   }
@@ -320,7 +316,7 @@ class _SectionCard extends StatelessWidget {
       Padding(
         padding: const EdgeInsets.only(left: 4, bottom: 8),
         child: Text(title,
-            style:  TextStyle(
+            style: TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
@@ -336,7 +332,7 @@ class _SectionCard extends StatelessWidget {
             return Column(children: [
               entry.value,
               if (entry.key != children.length - 1)
-                 Divider(height: 1, color: AppColors.border)
+                Divider(height: 1, color: AppColors.border)
             ]);
           }).toList(),
         ),
@@ -357,13 +353,13 @@ class _InfoRow extends StatelessWidget {
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Expanded(
             child: Text(label,
-                style:  TextStyle(
-                    color: AppColors.textSecondary, fontSize: 13))),
+                style:
+                    TextStyle(color: AppColors.textSecondary, fontSize: 13))),
         const SizedBox(width: 12),
         Flexible(
             child: Text(value,
                 textAlign: TextAlign.right,
-                style:  TextStyle(
+                style: TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 13,
                     fontWeight: FontWeight.w500))),

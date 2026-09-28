@@ -14,25 +14,28 @@ class TaskModel {
   final String id;
   final String title;
   final String description;
-  final String assignedTo;       // user uid (kişiye atanan)
-  final String assignedToName;   // display name of the assigned person
-  final String assignedByName;   // display name of the task creator (atayan)
+  final String assignedTo; // user uid (kişiye atanan)
+  final String assignedToName; // display name of the assigned person
+  final String assignedByName; // display name of the task creator (atayan)
   final int points;
   final TaskStatus status;
   final DateTime? createdAt;
   final DateTime? deadline;
-  final String? teamId;          // team doc id
+  final String? teamId; // team doc id
   final String? teamName;
-  final String? unitId;           // unit doc id
+  final String? unitId; // unit doc id
   final String? unitName;
-  final String? assignedBy;       // uid of task creator (atayan)
-  final String? approvedBy;       // uid of team captain who approved
-  final bool pointsAwarded;       // guard: only award points once
-  final String? imageUrl;         // task image (uploaded by creator)
-  final DateTime? completedAt;    // when submitted/completed (for 24h "recent" window)
-  final List<Map<String, dynamic>> comments; // [{senderUid, senderName, text, imageUrl, createdAt, isAdmin}]
-  final String? bulkGroupId;      // groups tasks created in one bulk assignment (team/unit/board)
-  final String? assignmentMode;   // 'single' | 'team' | 'unit' | 'board'
+  final String? assignedBy; // uid of task creator (atayan)
+  final String? approvedBy; // uid of team captain who approved
+  final bool pointsAwarded; // guard: only award points once
+  final String? imageUrl; // task image (uploaded by creator)
+  final DateTime?
+      completedAt; // when submitted/completed (for 24h "recent" window)
+  final List<Map<String, dynamic>>
+      comments; // [{senderUid, senderName, text, imageUrl, createdAt, isAdmin}]
+  final String?
+      bulkGroupId; // groups tasks created in one bulk assignment (team/unit/board)
+  final String? assignmentMode; // 'single' | 'team' | 'unit' | 'board'
 
   const TaskModel({
     required this.id,

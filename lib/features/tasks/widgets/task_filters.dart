@@ -52,7 +52,10 @@ class TaskFilterDropdown<T> extends StatelessWidget {
               ),
             ...items.map((item) => DropdownMenuItem<T?>(
                   value: item,
-                  child: Text(labelFn(item), style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis, maxLines: 1),
+                  child: Text(labelFn(item),
+                      style: const TextStyle(fontSize: 12),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1),
                 )),
           ],
           onChanged: (v) {
@@ -96,7 +99,8 @@ class TaskTeamUnitDropdown extends ConsumerWidget {
         onChanged: (u) => onChanged(u?['id'] as String?),
         onClear: () => onChanged(null),
       ),
-      loading: () => const SizedBox(width: 16, child: CircularProgressIndicator()),
+      loading: () =>
+          const SizedBox(width: 16, child: CircularProgressIndicator()),
       error: (_, __) => const SizedBox.shrink(),
     );
   }
@@ -145,14 +149,18 @@ class TaskPersonFilterDropdown extends ConsumerWidget {
                 ),
               ...members.map((u) => DropdownMenuItem<String?>(
                     value: u.uid,
-                    child: Text(u.displayName, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis, maxLines: 1),
+                    child: Text(u.displayName,
+                        style: const TextStyle(fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1),
                   )),
             ],
             onChanged: (v) => onChanged(v),
           ),
         ),
       ),
-      loading: () => const SizedBox(width: 16, child: CircularProgressIndicator()),
+      loading: () =>
+          const SizedBox(width: 16, child: CircularProgressIndicator()),
       error: (_, __) => const SizedBox.shrink(),
     );
   }

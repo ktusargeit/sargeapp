@@ -17,8 +17,7 @@ final storeProductsProvider = StreamProvider<List<StoreProduct>>((ref) {
       .collection('store_products')
       .orderBy('createdAt', descending: true)
       .snapshots()
-      .map((snap) =>
-          snap.docs.map((d) => StoreProduct.fromDoc(d)).toList());
+      .map((snap) => snap.docs.map((d) => StoreProduct.fromDoc(d)).toList());
 });
 
 /// Stream of store settings (IBAN list).
@@ -61,12 +60,12 @@ final myOrdersProvider = StreamProvider<List<StoreOrder>>((ref) {
       .where('userId', isEqualTo: uid)
       .snapshots()
       .map((snap) {
-        final list = snap.docs.map((d) => StoreOrder.fromDoc(d)).toList();
-        // Sort client-side (newest first) to avoid a composite index on
-        // (userId + createdAt).
-        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        return list;
-      });
+    final list = snap.docs.map((d) => StoreOrder.fromDoc(d)).toList();
+    // Sort client-side (newest first) to avoid a composite index on
+    // (userId + createdAt).
+    list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return list;
+  });
 });
 
 /// A picked PDF file (receipt/dekont).
@@ -132,8 +131,7 @@ class StoreRepository {
     required List<PickedImage> newImages,
   }) async {
     // Upload any new images (parallel).
-    final newUrls =
-        await _uploadImages('store_products/$productId', newImages);
+    final newUrls = await _uploadImages('store_products/$productId', newImages);
     final allUrls = [...existingImageUrls, ...newUrls];
 
     await _firestore.collection('store_products').doc(productId).update({
@@ -219,7 +217,8 @@ class StoreRepository {
 
   // ── Uploads ────────────────────────────────────────────────────────────────
 
-  Future<List<String>> _uploadImages(String basePath, List<PickedImage> images) async {
+  Future<List<String>> _uploadImages(
+      String basePath, List<PickedImage> images) async {
     if (images.isEmpty) return const <String>[];
     final futures = <Future<String>>[];
     for (var i = 0; i < images.length; i++) {
@@ -311,7 +310,8 @@ Future<PickedPdf?> pickReceiptPdf({int maxBytes = 10 * 1024 * 1024}) async {
 
   final bytes = file.bytes;
   if (bytes == null || bytes.isEmpty) {
-    throw const FormatException('PDF dosyası okunamadı. Lütfen tekrar deneyin.');
+    throw const FormatException(
+        'PDF dosyası okunamadı. Lütfen tekrar deneyin.');
   }
 
   return PickedPdf(bytes: bytes, name: file.name);

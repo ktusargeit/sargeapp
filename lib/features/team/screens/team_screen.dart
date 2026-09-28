@@ -1,5 +1,5 @@
-
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -26,7 +26,8 @@ class TeamScreen extends ConsumerStatefulWidget {
   ConsumerState<TeamScreen> createState() => _TeamScreenState();
 }
 
-class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProviderStateMixin {
+class _TeamScreenState extends ConsumerState<TeamScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabCtrl;
   int _tabIndex = 0;
   @override
@@ -67,16 +68,29 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
         backgroundColor: AppColors.teamBg,
         actions: [
           if (isAdmin)
-            IconButton(icon: const Icon(Icons.add_circle_outline, color: AppColors.teamOrange), onPressed: () => _showCreateTeamDialog(context)),
+            IconButton(
+                icon: const Icon(Icons.add_circle_outline,
+                    color: AppColors.teamOrange),
+                onPressed: () => _showCreateTeamDialog(context)),
         ],
-        bottom: isAdmin ? TabBar(controller: _tabCtrl, indicatorColor: AppColors.teamAccent, labelColor: AppColors.textPrimary, unselectedLabelColor: AppColors.textSecondary, tabs: const [Tab(text: 'Takımlar'), Tab(text: 'Başvurular')]) : null,
+        bottom: isAdmin
+            ? TabBar(
+                controller: _tabCtrl,
+                indicatorColor: AppColors.teamAccent,
+                labelColor: AppColors.textPrimary,
+                unselectedLabelColor: AppColors.textSecondary,
+                tabs: const [Tab(text: 'Takımlar'), Tab(text: 'Başvurular')])
+            : null,
       ),
       body: Column(
         children: [
           if (showBoardCard) const _YonetimKuruluCard(),
           Expanded(
             child: isAdmin
-                ? TabBarView(controller: _tabCtrl, children: [_buildTeamList(teamsAsync, isAdmin, currentUser), _ApplicationsTab()])
+                ? TabBarView(controller: _tabCtrl, children: [
+                    _buildTeamList(teamsAsync, isAdmin, currentUser),
+                    _ApplicationsTab()
+                  ])
                 : _buildTeamList(teamsAsync, isAdmin, currentUser),
           ),
         ],
@@ -86,58 +100,175 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
 
   static bool _isBoardAppUser(AppUser? user) => userIsBoard(user);
 
-  Widget _buildTeamList(AsyncValue<List<ClubTeam>> teamsAsync, bool isAdmin, AppUser? currentUser) {
+  Widget _buildTeamList(AsyncValue<List<ClubTeam>> teamsAsync, bool isAdmin,
+      AppUser? currentUser) {
     return teamsAsync.when(
       data: (teams) {
         List<ClubTeam> visible;
-        if (isAdmin) { visible = teams; } else { visible = teams.where((t) => t.memberIds.contains(currentUser?.uid)).toList(); }
+        if (isAdmin) {
+          visible = teams;
+        } else {
+          visible = teams
+              .where((t) => t.memberIds.contains(currentUser?.uid))
+              .toList();
+        }
         if (visible.isEmpty && !isAdmin && currentUser != null) {
-          return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-             Icon(Icons.groups_outlined, size: 64, color: AppColors.textSecondary),
+          return Center(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.groups_outlined,
+                size: 64, color: AppColors.textSecondary),
             const SizedBox(height: 16),
-             Text('Henüz bir takıma dahil değilsiniz.', style: TextStyle(color: AppColors.textSecondary, fontSize: 14), textAlign: TextAlign.center),
+            Text('Henüz bir takıma dahil değilsiniz.',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                textAlign: TextAlign.center),
             const SizedBox(height: 20),
-            ElevatedButton.icon(onPressed: () => _showApplyDialog(context, teams), icon: const Icon(Icons.send_outlined, size: 18), label: const Text('Takıma Başvur'), style: ElevatedButton.styleFrom(backgroundColor: AppColors.teamOrange)),
+            ElevatedButton.icon(
+                onPressed: () => _showApplyDialog(context, teams),
+                icon: const Icon(Icons.send_outlined, size: 18),
+                label: const Text('Takıma Başvur'),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.teamOrange)),
           ]));
         }
         if (visible.isEmpty) {
-          return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-             Icon(Icons.groups_outlined, size: 64, color: AppColors.textSecondary),
+          return Center(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.groups_outlined,
+                size: 64, color: AppColors.textSecondary),
             const SizedBox(height: 16),
-            Text(isAdmin ? 'Henüz takım oluşturulmadı.' : 'Henüz bir takıma dahil değilsiniz.', style:  TextStyle(color: AppColors.textSecondary, fontSize: 14), textAlign: TextAlign.center),
-            if (isAdmin) ...[const SizedBox(height: 16), ElevatedButton.icon(onPressed: () => _showCreateTeamDialog(context), icon: const Icon(Icons.add, size: 18), label: const Text('Takım Oluştur'), style: ElevatedButton.styleFrom(backgroundColor: AppColors.teamOrange))],
+            Text(
+                isAdmin
+                    ? 'Henüz takım oluşturulmadı.'
+                    : 'Henüz bir takıma dahil değilsiniz.',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                textAlign: TextAlign.center),
+            if (isAdmin) ...[
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                  onPressed: () => _showCreateTeamDialog(context),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Takım Oluştur'),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.teamOrange))
+            ],
           ]));
         }
-        return RefreshIndicator(color: AppColors.teamOrange, onRefresh: () async => ref.refresh(clubTeamsProvider.future), child: ListView.builder(padding: const EdgeInsets.all(AppConstants.spacingMd), itemCount: visible.length, itemBuilder: (context, i) {
-          final team = visible[i];
-          return Card(color: AppColors.surface.withValues(alpha: 0.9), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.radiusMd), side:  BorderSide(color: AppColors.border)),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              InkWell(borderRadius: BorderRadius.circular(AppConstants.radiusMd), onTap: () => context.push('/team/${team.id}'),
-                child: Padding(padding: const EdgeInsets.all(14), child: Row(children: [
-                  Container(width: 56, height: 56, decoration: BoxDecoration(color: AppColors.surface2, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.teamOrange.withValues(alpha: 0.3)), image: team.photoUrl != null && team.photoUrl!.isNotEmpty ? DecorationImage(image: NetworkImage(team.photoUrl!), fit: BoxFit.cover) : null), child: team.photoUrl == null || team.photoUrl!.isEmpty ? const Icon(Icons.groups_outlined, size: 28, color: AppColors.teamOrange) : null),
-                  const SizedBox(width: 14),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(team.name, style:  TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 4),
-                    if (team.description.isNotEmpty) Text(team.description, maxLines: 2, overflow: TextOverflow.ellipsis, style:  TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                    const SizedBox(height: 6),
-                    Row(children: [
-                       Icon(Icons.people_outline, size: 14, color: AppColors.textSecondary), const SizedBox(width: 4),
-                      Text('${team.memberIds.length} üye', style:  TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                      const SizedBox(width: 16),
-                      Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: team.isActive ? AppColors.success.withValues(alpha: 0.12) : AppColors.error.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(4), border: Border.all(color: team.isActive ? AppColors.success.withValues(alpha: 0.4) : AppColors.error.withValues(alpha: 0.4))), child: Text(team.isActive ? 'AKTİF' : 'PASİF', style: TextStyle(color: team.isActive ? AppColors.success : AppColors.error, fontSize: 10, fontWeight: FontWeight.w700))),
-                    ]),
-                  ])),
-                   Icon(Icons.chevron_right, color: AppColors.border),
-                ])),
-              ),
-              _TeamUnitsSection(team: team),
-            ]),
-          );
-        }));
+        return RefreshIndicator(
+            color: AppColors.teamOrange,
+            onRefresh: () async => ref.refresh(clubTeamsProvider.future),
+            child: ListView.builder(
+                padding: const EdgeInsets.all(AppConstants.spacingMd),
+                itemCount: visible.length,
+                itemBuilder: (context, i) {
+                  final team = visible[i];
+                  return Card(
+                    color: AppColors.surface.withValues(alpha: 0.9),
+                    shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(AppConstants.radiusMd),
+                        side: BorderSide(color: AppColors.border)),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          InkWell(
+                            borderRadius:
+                                BorderRadius.circular(AppConstants.radiusMd),
+                            onTap: () => context.push('/team/${team.id}'),
+                            child: Padding(
+                                padding: const EdgeInsets.all(14),
+                                child: Row(children: [
+                                  Container(
+                                      width: 56,
+                                      height: 56,
+                                      decoration: BoxDecoration(
+                                          color: AppColors.surface2,
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          border: Border.all(
+                                              color: AppColors.teamOrange
+                                                  .withValues(alpha: 0.3)),
+                                          image: team.photoUrl != null &&
+                                                  team.photoUrl!.isNotEmpty
+                                              ? DecorationImage(
+                                                  image: NetworkImage(
+                                                      team.photoUrl!),
+                                                  fit: BoxFit.cover)
+                                              : null),
+                                      child: team.photoUrl == null ||
+                                              team.photoUrl!.isEmpty
+                                          ? const Icon(Icons.groups_outlined,
+                                              size: 28,
+                                              color: AppColors.teamOrange)
+                                          : null),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                      child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                        Text(team.name,
+                                            style: TextStyle(
+                                                color: AppColors.textPrimary,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w700)),
+                                        const SizedBox(height: 4),
+                                        if (team.description.isNotEmpty)
+                                          Text(team.description,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                  color:
+                                                      AppColors.textSecondary,
+                                                  fontSize: 13)),
+                                        const SizedBox(height: 6),
+                                        Row(children: [
+                                          Icon(Icons.people_outline,
+                                              size: 14,
+                                              color: AppColors.textSecondary),
+                                          const SizedBox(width: 4),
+                                          Text('${team.memberIds.length} üye',
+                                              style: TextStyle(
+                                                  color:
+                                                      AppColors.textSecondary,
+                                                  fontSize: 12)),
+                                          const SizedBox(width: 16),
+                                          Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                  color: team.isActive
+                                                      ? AppColors.success.withValues(
+                                                          alpha: 0.12)
+                                                      : AppColors.error.withValues(
+                                                          alpha: 0.12),
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
+                                                  border: Border.all(
+                                                      color: team.isActive
+                                                          ? AppColors.success
+                                                              .withValues(
+                                                                  alpha: 0.4)
+                                                          : AppColors.error.withValues(
+                                                              alpha: 0.4))),
+                                              child: Text(
+                                                  team.isActive ? 'AKTİF' : 'PASİF',
+                                                  style: TextStyle(color: team.isActive ? AppColors.success : AppColors.error, fontSize: 10, fontWeight: FontWeight.w700))),
+                                        ]),
+                                      ])),
+                                  Icon(Icons.chevron_right,
+                                      color: AppColors.border),
+                                ])),
+                          ),
+                          _TeamUnitsSection(team: team),
+                        ]),
+                  );
+                }));
       },
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.teamOrange)),
-      error: (e, _) => Center(child: Text('Hata: $e', style: const TextStyle(color: AppColors.error))),
+      loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.teamOrange)),
+      error: (e, _) => Center(
+          child:
+              Text('Hata: $e', style: const TextStyle(color: AppColors.error))),
     );
   }
 
@@ -168,12 +299,14 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
                     height: 100,
                     decoration: BoxDecoration(
                       color: AppColors.surface2,
-                      borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+                      borderRadius:
+                          BorderRadius.circular(AppConstants.radiusMd),
                       border: Border.all(color: AppColors.border),
                     ),
                     child: pickedImage != null
                         ? ClipRRect(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMd - 1),
+                            borderRadius: BorderRadius.circular(
+                                AppConstants.radiusMd - 1),
                             child: PlatformImageFile(
                               bytes: pickedImage!.bytes,
                               file: pickedImage!.dartFile,
@@ -182,14 +315,14 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
                               fit: BoxFit.cover,
                             ),
                           )
-                        :  Icon(Icons.add_a_photo_outlined,
+                        : Icon(Icons.add_a_photo_outlined,
                             size: 32, color: AppColors.textSecondary),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: nameCtrl,
-                  style:  TextStyle(color: AppColors.textPrimary),
+                  style: TextStyle(color: AppColors.textPrimary),
                   decoration: const InputDecoration(
                       labelText: 'Takım Adı *',
                       hintText: 'Örn: Elektronik Harp'),
@@ -198,7 +331,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
                 TextField(
                   controller: descCtrl,
                   maxLines: 3,
-                  style:  TextStyle(color: AppColors.textPrimary),
+                  style: TextStyle(color: AppColors.textPrimary),
                   decoration: const InputDecoration(
                       labelText: 'Açıklama',
                       hintText: 'Takım hakkında kısa bilgi'),
@@ -231,7 +364,8 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
                           }
                           photoUrl = await storageRef.getDownloadURL();
                         }
-                        final creatorUid = ref.read(authStateProvider).valueOrNull?.uid;
+                        final creatorUid =
+                            ref.read(authStateProvider).valueOrNull?.uid;
                         await ref
                             .read(firestoreProvider)
                             .collection('teams')
@@ -240,16 +374,19 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
                           'description': descCtrl.text.trim(),
                           'photoUrl': photoUrl,
                           'isActive': true,
-                          'memberIds': [creatorUid].whereType<String>().toList(),
+                          'memberIds':
+                              [creatorUid].whereType<String>().toList(),
                           'createdAt': FieldValue.serverTimestamp(),
                           'createdBy': creatorUid,
-                          'leadUid': creatorUid, // creator is the initial captain
+                          'leadUid':
+                              creatorUid, // creator is the initial captain
                         });
                         if (ctx.mounted) Navigator.pop(ctx);
                       } catch (e) {
                         setDialogState(() => uploading = false);
                         if (ctx.mounted) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
+                          TopSnackBar.showSnackBar(
+                            ctx,
                             SnackBar(
                                 content: Text('Hata: $e'),
                                 backgroundColor: AppColors.error),
@@ -261,8 +398,8 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
                   ? const SizedBox(
                       width: 16,
                       height: 16,
-                      child:
-                          CircularProgressIndicator(strokeWidth: 2, color: AppColors.teamOrange))
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppColors.teamOrange))
                   : const Text('Oluştur'),
             ),
           ],
@@ -271,12 +408,14 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
     );
   }
 
-  Future<void> _showApplyDialog(BuildContext context, List<ClubTeam> teams) async {
+  Future<void> _showApplyDialog(
+      BuildContext context, List<ClubTeam> teams) async {
     final currentUser = ref.read(currentAppUserProvider).valueOrNull;
     if (currentUser == null) return;
 
     // Check for ANY pending application first (spam prevention)
-    final pendingSnap = await ref.read(firestoreProvider)
+    final pendingSnap = await ref
+        .read(firestoreProvider)
         .collection('teamApplications')
         .where('applicantUid', isEqualTo: currentUser.uid)
         .where('status', isEqualTo: 'pending')
@@ -284,9 +423,11 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
 
     if (pendingSnap.docs.isNotEmpty) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.showSnackBar(
+        context,
         const SnackBar(
-          content: Text('Zaten bekleyen bir başvurunuz var. Lütfen sonuçlanmasını bekleyin.'),
+          content: Text(
+              'Zaten bekleyen bir başvurunuz var. Lütfen sonuçlanmasını bekleyin.'),
           backgroundColor: AppColors.warning,
           duration: Duration(seconds: 4),
         ),
@@ -311,22 +452,25 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
             content: SizedBox(
               width: double.maxFinite,
               child: applying
-                  ?  Padding(
+                  ? Padding(
                       padding: const EdgeInsets.symmetric(vertical: 40),
                       child: Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const CircularProgressIndicator(color: AppColors.teamOrange),
+                            const CircularProgressIndicator(
+                                color: AppColors.teamOrange),
                             const SizedBox(height: 16),
                             Text('Başvurunuz gönderiliyor...',
-                                style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                                style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 13)),
                           ],
                         ),
                       ),
                     )
                   : availableTeams.isEmpty
-                      ?  Text('Başvurabileceğiniz takım yok.',
+                      ? Text('Başvurabileceğiniz takım yok.',
                           style: TextStyle(color: AppColors.textSecondary))
                       : ListView.builder(
                           shrinkWrap: true,
@@ -338,15 +482,17 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
                                   color: AppColors.teamOrange),
                               title: Text(team.name),
                               subtitle: Text('${team.memberIds.length} üye',
-                                  style:  TextStyle(
+                                  style: TextStyle(
                                       color: AppColors.textSecondary,
                                       fontSize: 12)),
                               onTap: () async {
                                 setDialogState(() => applying = true);
                                 try {
                                   // Check if already a member (auto-approve)
-                                  if (team.memberIds.contains(currentUser.uid)) {
-                                    await ref.read(firestoreProvider)
+                                  if (team.memberIds
+                                      .contains(currentUser.uid)) {
+                                    await ref
+                                        .read(firestoreProvider)
                                         .collection('teamApplications')
                                         .add({
                                       'teamId': team.id,
@@ -358,9 +504,11 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
                                     });
                                     if (ctx.mounted) Navigator.pop(ctx);
                                     if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      TopSnackBar.showSnackBar(
+                                        context,
                                         SnackBar(
-                                          content: Text('${team.name} takımına zaten üyesiniz, başvurunuz otomatik onaylandı.'),
+                                          content: Text(
+                                              '${team.name} takımına zaten üyesiniz, başvurunuz otomatik onaylandı.'),
                                           backgroundColor: AppColors.success,
                                           duration: const Duration(seconds: 3),
                                         ),
@@ -370,7 +518,8 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
                                   }
 
                                   // Submit application
-                                  await ref.read(firestoreProvider)
+                                  await ref
+                                      .read(firestoreProvider)
                                       .collection('teamApplications')
                                       .add({
                                     'teamId': team.id,
@@ -382,16 +531,21 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
                                   });
 
                                   // Send notification to admins and unit_leads
-                                  final usersSnap = await ref.read(firestoreProvider)
+                                  final usersSnap = await ref
+                                      .read(firestoreProvider)
                                       .collection('users')
-                                      .where('role', whereIn: ['admin', 'unit_lead'])
-                                      .get();
-                                  final notifService = ref.read(notificationServiceProvider);
+                                      .where('role', whereIn: [
+                                    'admin',
+                                    'unit_lead'
+                                  ]).get();
+                                  final notifService =
+                                      ref.read(notificationServiceProvider);
                                   for (final userDoc in usersSnap.docs) {
                                     await notifService.send(
                                       recipientId: userDoc.id,
                                       title: 'Yeni Takım Başvurusu',
-                                      body: '${currentUser.displayName}, ${team.name} takımına başvurdu.',
+                                      body:
+                                          '${currentUser.displayName}, ${team.name} takımına başvurdu.',
                                       type: 'team_application',
                                       relatedId: team.id,
                                     );
@@ -399,9 +553,11 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
 
                                   if (ctx.mounted) Navigator.pop(ctx);
                                   if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
+                                    TopSnackBar.showSnackBar(
+                                      context,
                                       SnackBar(
-                                        content: Text('${team.name} takımına başvurunuz başarıyla gönderildi!'),
+                                        content: Text(
+                                            '${team.name} takımına başvurunuz başarıyla gönderildi!'),
                                         backgroundColor: AppColors.success,
                                         duration: const Duration(seconds: 3),
                                       ),
@@ -410,8 +566,11 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
                                 } catch (e) {
                                   setDialogState(() => applying = false);
                                   if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Hata: $e'), backgroundColor: AppColors.error),
+                                    TopSnackBar.showSnackBar(
+                                      context,
+                                      SnackBar(
+                                          content: Text('Hata: $e'),
+                                          backgroundColor: AppColors.error),
                                     );
                                   }
                                 }
@@ -432,7 +591,6 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
       ),
     );
   }
-
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -621,8 +779,7 @@ class _YonetimKuruluCard extends ConsumerWidget {
 /// Üye), honoring both the legacy `role` field and the active `titles` array.
 String boardMemberLabel(AppUser member) {
   if (member.role == TitleType.boardPresident ||
-      member.activeTitles
-          .any((t) => t.titleType == TitleType.boardPresident)) {
+      member.activeTitles.any((t) => t.titleType == TitleType.boardPresident)) {
     return 'Başkan';
   }
   if (member.role == TitleType.boardVicePresident ||
@@ -648,7 +805,7 @@ class _TeamUnitsSection extends ConsumerWidget {
     return unitsAsync.when(
       data: (units) {
         if (units.isEmpty) {
-          return  Padding(
+          return Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
             child: Text('Bu takımda henüz birim tanımlanmamış.',
                 style: TextStyle(
@@ -689,8 +846,7 @@ class _TeamUnitsSection extends ConsumerWidget {
                       const SizedBox(width: 5),
                       Text('${u.memberUids.length}',
                           style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 11)),
+                              color: AppColors.textSecondary, fontSize: 11)),
                     ],
                   ],
                 ),
@@ -722,27 +878,90 @@ class _ApplicationsTab extends ConsumerWidget {
     return appsAsync.when(
       data: (apps) {
         final pending = apps.where((a) => a['status'] == 'pending').toList();
-        if (pending.isEmpty) return  Center(child: Text('Bekleyen başvuru yok.', style: TextStyle(color: AppColors.textSecondary)));
-        return ListView.builder(padding: const EdgeInsets.all(AppConstants.spacingMd), itemCount: pending.length, itemBuilder: (_, i) {
-          final app = pending[i];
-          return Card(color: AppColors.surface, margin: const EdgeInsets.only(bottom: 8), child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(app['applicantName'] as String? ?? '', style:  TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
-            Text('Takım: ${app['teamName'] ?? ''}', style:  TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-            const SizedBox(height: 8),
-            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-              TextButton.icon(onPressed: () async {
-                final teamId = app['teamId'] as String?; final uid = app['applicantUid'] as String?;
-                if (teamId != null && uid != null) await ref.read(firestoreProvider).collection('teams').doc(teamId).update({'memberIds': FieldValue.arrayUnion([uid])});
-                await ref.read(firestoreProvider).collection('teamApplications').doc(app['id'] as String).update({'status': 'approved'});
-                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Onaylandı.'), backgroundColor: AppColors.success));
-              }, icon: const Icon(Icons.check, size: 16, color: AppColors.success), label: const Text('Onayla', style: TextStyle(color: AppColors.success))),
-              TextButton.icon(onPressed: () async {
-                await ref.read(firestoreProvider).collection('teamApplications').doc(app['id'] as String).update({'status': 'rejected'});
-                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reddedildi.'), backgroundColor: AppColors.warning));
-              }, icon: const Icon(Icons.close, size: 16, color: AppColors.error), label: const Text('Reddet', style: TextStyle(color: AppColors.error))),
-            ]),
-          ])));
-        });
+        if (pending.isEmpty)
+          return Center(
+              child: Text('Bekleyen başvuru yok.',
+                  style: TextStyle(color: AppColors.textSecondary)));
+        return ListView.builder(
+            padding: const EdgeInsets.all(AppConstants.spacingMd),
+            itemCount: pending.length,
+            itemBuilder: (_, i) {
+              final app = pending[i];
+              return Card(
+                  color: AppColors.surface,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(app['applicantName'] as String? ?? '',
+                                style: TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontWeight: FontWeight.w600)),
+                            Text('Takım: ${app['teamName'] ?? ''}',
+                                style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 12)),
+                            const SizedBox(height: 8),
+                            Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  TextButton.icon(
+                                      onPressed: () async {
+                                        final teamId = app['teamId'] as String?;
+                                        final uid =
+                                            app['applicantUid'] as String?;
+                                        if (teamId != null && uid != null)
+                                          await ref
+                                              .read(firestoreProvider)
+                                              .collection('teams')
+                                              .doc(teamId)
+                                              .update({
+                                            'memberIds':
+                                                FieldValue.arrayUnion([uid])
+                                          });
+                                        await ref
+                                            .read(firestoreProvider)
+                                            .collection('teamApplications')
+                                            .doc(app['id'] as String)
+                                            .update({'status': 'approved'});
+                                        if (context.mounted)
+                                          TopSnackBar.showSnackBar(
+                                              context,
+                                              const SnackBar(
+                                                  content: Text('Onaylandı.'),
+                                                  backgroundColor:
+                                                      AppColors.success));
+                                      },
+                                      icon: const Icon(Icons.check,
+                                          size: 16, color: AppColors.success),
+                                      label: const Text('Onayla',
+                                          style: TextStyle(
+                                              color: AppColors.success))),
+                                  TextButton.icon(
+                                      onPressed: () async {
+                                        await ref
+                                            .read(firestoreProvider)
+                                            .collection('teamApplications')
+                                            .doc(app['id'] as String)
+                                            .update({'status': 'rejected'});
+                                        if (context.mounted)
+                                          TopSnackBar.showSnackBar(
+                                              context,
+                                              const SnackBar(
+                                                  content: Text('Reddedildi.'),
+                                                  backgroundColor:
+                                                      AppColors.warning));
+                                      },
+                                      icon: const Icon(Icons.close,
+                                          size: 16, color: AppColors.error),
+                                      label: const Text('Reddet',
+                                          style: TextStyle(
+                                              color: AppColors.error))),
+                                ]),
+                          ])));
+            });
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Hata: $e')),
@@ -758,7 +977,8 @@ class _UnitManagementDialog extends ConsumerStatefulWidget {
   const _UnitManagementDialog();
 
   @override
-  ConsumerState<_UnitManagementDialog> createState() => _UnitManagementDialogState();
+  ConsumerState<_UnitManagementDialog> createState() =>
+      _UnitManagementDialogState();
 }
 
 class _UnitManagementDialogState extends ConsumerState<_UnitManagementDialog> {
@@ -783,15 +1003,15 @@ class _UnitManagementDialogState extends ConsumerState<_UnitManagementDialog> {
             teamsAsync.when(
               data: (teams) => DropdownButtonFormField<String>(
                 dropdownColor: AppColors.surface2,
-                style:  TextStyle(color: AppColors.textPrimary),
+                style: TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'Takım Seçin *',
                   hintText: 'Önce takım seçin',
                 ),
                 initialValue: _selectedTeamId,
                 items: teams
-                    .map((t) => DropdownMenuItem(
-                        value: t.id, child: Text(t.name)))
+                    .map((t) =>
+                        DropdownMenuItem(value: t.id, child: Text(t.name)))
                     .toList(),
                 onChanged: (v) => setState(() => _selectedTeamId = v),
               ),
@@ -802,9 +1022,9 @@ class _UnitManagementDialogState extends ConsumerState<_UnitManagementDialog> {
             if (_selectedTeamId != null) ...[
               Row(
                 children: [
-                   Text('Mevcut Birimler',
-                      style:
-                          TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                  Text('Mevcut Birimler',
+                      style: TextStyle(
+                          color: AppColors.textSecondary, fontSize: 12)),
                   const Spacer(),
                   TextButton.icon(
                     onPressed: _addUnit,
@@ -813,12 +1033,12 @@ class _UnitManagementDialogState extends ConsumerState<_UnitManagementDialog> {
                   ),
                 ],
               ),
-               Divider(color: AppColors.border),
+              Divider(color: AppColors.border),
               Expanded(
                 child: unitsAsync != null
                     ? unitsAsync.when(
                         data: (units) => units.isEmpty
-                            ?  Center(
+                            ? Center(
                                 child: Text('Bu takımda henüz birim yok.',
                                     style: TextStyle(
                                         color: AppColors.textSecondary)))
@@ -842,10 +1062,8 @@ class _UnitManagementDialogState extends ConsumerState<_UnitManagementDialog> {
                                             onPressed: () =>
                                                 _editUnit(id, name)),
                                         IconButton(
-                                          icon: const Icon(
-                                              Icons.delete_outline,
-                                              size: 16,
-                                              color: AppColors.error),
+                                          icon: const Icon(Icons.delete_outline,
+                                              size: 16, color: AppColors.error),
                                           onPressed: () =>
                                               _deleteUnit(id, name),
                                         ),
@@ -856,8 +1074,7 @@ class _UnitManagementDialogState extends ConsumerState<_UnitManagementDialog> {
                               ),
                         loading: () =>
                             const Center(child: CircularProgressIndicator()),
-                        error: (e, _) =>
-                            Center(child: Text('Hata: $e')),
+                        error: (e, _) => Center(child: Text('Hata: $e')),
                       )
                     : const SizedBox.shrink(),
               ),
@@ -886,8 +1103,7 @@ class _UnitManagementDialogState extends ConsumerState<_UnitManagementDialog> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
           ElevatedButton(
             onPressed: () async {
               if (ctrl.text.trim().isEmpty) return;
@@ -916,8 +1132,7 @@ class _UnitManagementDialogState extends ConsumerState<_UnitManagementDialog> {
         content: TextField(controller: ctrl),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
           ElevatedButton(
             onPressed: () async {
               if (ctrl.text.trim().isEmpty) return;

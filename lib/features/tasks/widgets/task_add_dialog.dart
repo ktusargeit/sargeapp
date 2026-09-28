@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -88,8 +89,7 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
     final uid = ref.read(authStateProvider).valueOrNull?.uid;
     final appUser = ref.read(currentAppUserProvider).valueOrNull;
     final allUnits = ref.read(teamUnitListProvider).valueOrNull ?? const [];
-    final teamScoped =
-        allUnits.where((u) => u['teamId'] == teamId).toList();
+    final teamScoped = allUnits.where((u) => u['teamId'] == teamId).toList();
 
     if (appUser?.isAdmin ?? false) {
       return teamScoped.map((u) => u['id'] as String).toSet();
@@ -97,9 +97,9 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
     if (uid == null) return const {};
 
     final isCaptain = ref
-        .read(clubTeamsProvider)
-        .valueOrNull
-        ?.any((t) => t.id == teamId && t.leadUid == uid) ??
+            .read(clubTeamsProvider)
+            .valueOrNull
+            ?.any((t) => t.id == teamId && t.leadUid == uid) ??
         false;
     if (isCaptain) return teamScoped.map((u) => u['id'] as String).toSet();
 
@@ -134,8 +134,10 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
               label: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.groups, size: 16,
-                      color: _boardAll ? Colors.white : AppColors.textSecondary),
+                  Icon(Icons.groups,
+                      size: 16,
+                      color:
+                          _boardAll ? Colors.white : AppColors.textSecondary),
                   const SizedBox(width: 4),
                   Text('Tüm Yönetim Kurulu',
                       style: TextStyle(
@@ -165,13 +167,16 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
               label: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.checklist, size: 16,
-                      color: !_boardAll ? Colors.white : AppColors.textSecondary),
+                  Icon(Icons.checklist,
+                      size: 16,
+                      color:
+                          !_boardAll ? Colors.white : AppColors.textSecondary),
                   const SizedBox(width: 4),
                   Text('Belirli Kişiler',
                       style: TextStyle(
                         fontSize: 12,
-                        color: !_boardAll ? Colors.white : AppColors.textPrimary,
+                        color:
+                            !_boardAll ? Colors.white : AppColors.textPrimary,
                       )),
                 ],
               ),
@@ -243,8 +248,8 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
                   itemBuilder: (context, index) {
                     final m = members[index];
                     return CheckboxListTile(
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 2),
                       controlAffinity: ListTileControlAffinity.leading,
                       activeColor: AppColors.sargeGold,
                       value: _selectedBoardUids.contains(m.uid),
@@ -333,7 +338,8 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
                           labelText: 'Takım *', hintText: 'Takım seçin'),
                       initialValue: _selectedTeam,
                       items: availableTeams
-                          .map((t) => DropdownMenuItem(value: t, child: Text(t.name)))
+                          .map((t) =>
+                              DropdownMenuItem(value: t, child: Text(t.name)))
                           .toList(),
                       onChanged: (v) => setState(() {
                         _selectedTeam = v;
@@ -360,7 +366,9 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
                           IconTheme(
                             data: IconThemeData(
                               size: 16,
-                              color: isSelected ? Colors.white : AppColors.textSecondary,
+                              color: isSelected
+                                  ? Colors.white
+                                  : AppColors.textSecondary,
                             ),
                             child: seg.icon!,
                           ),
@@ -369,7 +377,9 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
                         DefaultTextStyle(
                           style: TextStyle(
                             fontSize: 12,
-                            color: isSelected ? Colors.white : AppColors.textPrimary,
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.textPrimary,
                           ),
                           child: seg.label!,
                         ),
@@ -392,7 +402,9 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                       side: BorderSide(
-                        color: isSelected ? AppColors.tasksAccent : AppColors.border,
+                        color: isSelected
+                            ? AppColors.tasksAccent
+                            : AppColors.border,
                       ),
                     ),
                     showCheckmark: false,
@@ -418,7 +430,8 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
                   ),
                   child: const Row(
                     children: [
-                      Icon(Icons.workspace_premium, color: Colors.white, size: 18),
+                      Icon(Icons.workspace_premium,
+                          color: Colors.white, size: 18),
                       SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -458,7 +471,8 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
                 controller: _titleCtrl,
                 style: TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
-                    labelText: 'Görev Başlığı *', hintText: 'Örn: Atölye temizliği'),
+                    labelText: 'Görev Başlığı *',
+                    hintText: 'Örn: Atölye temizliği'),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -466,20 +480,23 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
                 maxLines: 3,
                 style: TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
-                    labelText: 'Açıklama', hintText: 'Görev detayı (isteğe bağlı)'),
+                    labelText: 'Açıklama',
+                    hintText: 'Görev detayı (isteğe bağlı)'),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _pointsCtrl,
                 keyboardType: TextInputType.number,
                 style: TextStyle(color: AppColors.textPrimary),
-                decoration: const InputDecoration(labelText: 'Puan', hintText: '10'),
+                decoration:
+                    const InputDecoration(labelText: 'Puan', hintText: '10'),
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 onPressed: _pickImage,
                 icon: const Icon(Icons.photo_outlined, size: 18),
-                label: Text(_pickedImage != null ? 'Görsel Seçildi' : 'Görsel Ekle'),
+                label: Text(
+                    _pickedImage != null ? 'Görsel Seçildi' : 'Görsel Ekle'),
               ),
               if (_pickedImage != null) ...[
                 const SizedBox(height: 8),
@@ -527,43 +544,55 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
     if (_selectedUnit != null &&
         _selectedTeam != null &&
         !_allowedUnitIdsFor(_selectedTeam!.id).contains(_selectedUnit!['id'])) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Bu birime görev atama yetkiniz yok.'),
-          backgroundColor: AppColors.error));
+      TopSnackBar.showSnackBar(
+          context,
+          const SnackBar(
+              content: Text('Bu birime görev atama yetkiniz yok.'),
+              backgroundColor: AppColors.error));
       return;
     }
 
     final isBoardMode = _mode == TaskAssignmentMode.board;
     if (isBoardMode) {
       if (title.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Görev başlığı zorunludur'),
-            backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            const SnackBar(
+                content: Text('Görev başlığı zorunludur'),
+                backgroundColor: AppColors.error));
         return;
       }
       if (!_isBoardCreator) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Yönetim Kurulu görevi atama yetkiniz yok.'),
-            backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            const SnackBar(
+                content: Text('Yönetim Kurulu görevi atama yetkiniz yok.'),
+                backgroundColor: AppColors.error));
         return;
       }
       if (!_boardAll && _selectedBoardUids.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('En az bir Yönetim Kurulu üyesi seçmelisiniz'),
-            backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            const SnackBar(
+                content: Text('En az bir Yönetim Kurulu üyesi seçmelisiniz'),
+                backgroundColor: AppColors.error));
         return;
       }
     } else {
       if (title.isEmpty || (_selectedTeam == null) || requiresPerson) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Takım ve başlık zorunludur'),
-            backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            const SnackBar(
+                content: Text('Takım ve başlık zorunludur'),
+                backgroundColor: AppColors.error));
         return;
       }
       if (requiresUnit) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Birim seçmelisiniz'),
-            backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            const SnackBar(
+                content: Text('Birim seçmelisiniz'),
+                backgroundColor: AppColors.error));
         return;
       }
     }
@@ -576,60 +605,59 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
       final points = int.tryParse(_pointsCtrl.text.trim()) ?? 10;
 
       final recipients = <({String uid, String name})>[];
-       if (isBoardMode) {
-         final boardSnap = await firestore
-             .collection('users')
-             .where('role',
-                 whereIn: [
-                   'board_president',
-                   'board_vice_president',
-                   'board_member',
-                 ])
-             .get();
-         for (final doc in boardSnap.docs) {
-           recipients.add((
-             uid: doc.id,
-             name: (doc.data()['displayName'] as String?) ?? 'Üye',
-           ));
-         }
-         // Ayrıca titles array'inde board_member/board_president olan kullanıcıları da ekle
-         final titlesSnap = await firestore
-             .collection('users')
-             .get();
-         for (final doc in titlesSnap.docs) {
-           final titles = (doc.data()['titles'] as List?) ?? [];
-           final hasBoard = titles.any((t) {
-             final map = t as Map;
-             final titleType = map['titleType'] as String?;
-             final isActive = map['isActive'] as bool? ?? true;
-             return isActive && TitleType.isBoardTitle(titleType);
-           });
-           if (hasBoard && !recipients.any((r) => r.uid == doc.id)) {
-             recipients.add((
-               uid: doc.id,
-               name: (doc.data()['displayName'] as String?) ?? 'Üye',
-             ));
-           }
-         }
-         // "Kuruldan Belirli Kişileri Seç" tercihinde yalnızca seçilenlere ata.
-         if (!_boardAll) {
-           recipients.removeWhere((r) => !_selectedBoardUids.contains(r.uid));
-         }
-         if (recipients.isEmpty) {
-           setState(() => _loading = false);
-           if (mounted) {
-             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                 content: Text(_boardAll
-                     ? 'Yönetim Kurulu üyesi bulunamadı.'
-                     : 'Seçilen kişiler Yönetim Kurulu üyesi olarak bulunamadı.'),
-                 backgroundColor: AppColors.warning));
-           }
-           return;
-         }
-         recipients.sort((a, b) => a.name.compareTo(b.name));
+      if (isBoardMode) {
+        final boardSnap =
+            await firestore.collection('users').where('role', whereIn: [
+          'board_president',
+          'board_vice_president',
+          'board_member',
+        ]).get();
+        for (final doc in boardSnap.docs) {
+          recipients.add((
+            uid: doc.id,
+            name: (doc.data()['displayName'] as String?) ?? 'Üye',
+          ));
+        }
+        // Ayrıca titles array'inde board_member/board_president olan kullanıcıları da ekle
+        final titlesSnap = await firestore.collection('users').get();
+        for (final doc in titlesSnap.docs) {
+          final titles = (doc.data()['titles'] as List?) ?? [];
+          final hasBoard = titles.any((t) {
+            final map = t as Map;
+            final titleType = map['titleType'] as String?;
+            final isActive = map['isActive'] as bool? ?? true;
+            return isActive && TitleType.isBoardTitle(titleType);
+          });
+          if (hasBoard && !recipients.any((r) => r.uid == doc.id)) {
+            recipients.add((
+              uid: doc.id,
+              name: (doc.data()['displayName'] as String?) ?? 'Üye',
+            ));
+          }
+        }
+        // "Kuruldan Belirli Kişileri Seç" tercihinde yalnızca seçilenlere ata.
+        if (!_boardAll) {
+          recipients.removeWhere((r) => !_selectedBoardUids.contains(r.uid));
+        }
+        if (recipients.isEmpty) {
+          setState(() => _loading = false);
+          if (mounted) {
+            TopSnackBar.showSnackBar(
+                context,
+                SnackBar(
+                    content: Text(_boardAll
+                        ? 'Yönetim Kurulu üyesi bulunamadı.'
+                        : 'Seçilen kişiler Yönetim Kurulu üyesi olarak bulunamadı.'),
+                    backgroundColor: AppColors.warning));
+          }
+          return;
+        }
+        recipients.sort((a, b) => a.name.compareTo(b.name));
       } else if (_mode == TaskAssignmentMode.unit) {
-        final unitDoc =
-            await firestore.collection('units').doc(_selectedUnit!['id'] as String).get();
+        final unitDoc = await firestore
+            .collection('units')
+            .doc(_selectedUnit!['id'] as String)
+            .get();
         final memberUids = (unitDoc.data()?['memberUids'] as List?)
                 ?.map((e) => e.toString())
                 .toList() ??
@@ -637,8 +665,7 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
         if (memberUids.isNotEmpty) {
           for (var i = 0; i < memberUids.length; i += 10) {
             final chunk = memberUids.sublist(
-                i,
-                i + 10 > memberUids.length ? memberUids.length : i + 10);
+                i, i + 10 > memberUids.length ? memberUids.length : i + 10);
             final snap = await firestore
                 .collection('users')
                 .where(FieldPath.documentId, whereIn: chunk)
@@ -656,14 +683,17 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
         if (recipients.isEmpty) {
           setState(() => _loading = false);
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Bu birimde görev atanacak üye yok.'),
-                backgroundColor: AppColors.warning));
+            TopSnackBar.showSnackBar(
+                context,
+                const SnackBar(
+                    content: Text('Bu birimde görev atanacak üye yok.'),
+                    backgroundColor: AppColors.warning));
           }
           return;
         }
       } else if (_mode == TaskAssignmentMode.team) {
-        final members = ref.read(teamMembersProvider(_selectedTeam!.id)).valueOrNull;
+        final members =
+            ref.read(teamMembersProvider(_selectedTeam!.id)).valueOrNull;
         if (members == null || members.isEmpty) {
           final teamDoc =
               await firestore.collection('teams').doc(_selectedTeam!.id).get();
@@ -686,9 +716,11 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
         if (recipients.isEmpty) {
           setState(() => _loading = false);
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Bu takımda görev atanacak üye yok.'),
-                backgroundColor: AppColors.warning));
+            TopSnackBar.showSnackBar(
+                context,
+                const SnackBar(
+                    content: Text('Bu takımda görev atanacak üye yok.'),
+                    backgroundColor: AppColors.warning));
           }
           return;
         }
@@ -716,48 +748,66 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
           ? 'bulk_${DateTime.now().microsecondsSinceEpoch}'
           : null;
 
-      for (final recipient in recipients) {
-        final docRef = await firestore.collection('tasks').add({
-          'title': title,
-          'description': _descCtrl.text.trim(),
-          'assignedTo': recipient.uid,
-          'assignedToName': recipient.name,
-          'assignedByName': user?.displayName ?? 'Admin',
-          'assignedBy': user?.uid,
-          'points': points,
-          'status': 'assigned',
-          'createdAt': FieldValue.serverTimestamp(),
-          'teamId': _selectedTeam?.id,
-          'teamName': _selectedTeam?.name,
-          'unitId': _selectedUnit?['id'],
-          'unitName': _selectedUnit?['name'],
-          'pointsAwarded': false,
-          'imageUrl': imageUrl,
-          'bulkGroupId': bulkGroupId,
-          'assignmentMode': _mode.name,
-        });
-        await notifService.send(
-          recipientId: recipient.uid,
-          title: 'Yeni görev atandı',
-          body: 'Sana "$title" görevi atandı. +$points puan',
-          type: 'task_assigned',
-          relatedId: docRef.id,
-        );
-      }
+      final titleStr = title;
+      final descStr = _descCtrl.text.trim();
+      final modeName = _mode.name;
+      final teamId = _selectedTeam?.id;
+      final teamName = _selectedTeam?.name;
+      final unitId = _selectedUnit?['id'];
+      final unitName = _selectedUnit?['name'];
+      final assignedByName = user?.displayName ?? 'Admin';
+      final assignedBy = user?.uid;
 
       if (mounted) Navigator.pop(context);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(recipients.length > 1
-                ? '${recipients.length} kişiye görev atandı.'
-                : 'Görev atandı.'),
-            backgroundColor: AppColors.success));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content: Text(recipients.length > 1
+                    ? '${recipients.length} kişiye görev arka planda atanıyor.'
+                    : 'Görev arka planda atanıyor.'),
+                backgroundColor: AppColors.success));
       }
+
+      Future(() async {
+        for (final recipient in recipients) {
+          try {
+            final docRef = await firestore.collection('tasks').add({
+              'title': titleStr,
+              'description': descStr,
+              'assignedTo': recipient.uid,
+              'assignedToName': recipient.name,
+              'assignedByName': assignedByName,
+              'assignedBy': assignedBy,
+              'points': points,
+              'status': 'assigned',
+              'createdAt': FieldValue.serverTimestamp(),
+              'teamId': teamId,
+              'teamName': teamName,
+              'unitId': unitId,
+              'unitName': unitName,
+              'pointsAwarded': false,
+              'imageUrl': imageUrl,
+              'bulkGroupId': bulkGroupId,
+              'assignmentMode': modeName,
+            });
+            await notifService.send(
+              recipientId: recipient.uid,
+              title: 'Yeni görev atandı',
+              body: 'Sana "$titleStr" görevi atandı. +$points puan',
+              type: 'task_assigned',
+              relatedId: docRef.id,
+            );
+          } catch (_) {}
+        }
+      });
     } catch (e) {
       setState(() => _loading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Hata: $e'), backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content: Text('Hata: $e'), backgroundColor: AppColors.error));
       }
     }
   }
@@ -800,7 +850,9 @@ class TaskTeamUnitSelector extends ConsumerWidget {
                   style: TextStyle(color: AppColors.textSecondary)),
             ),
             ...visible.map((u) => DropdownMenuItem(
-                value: u, child: Text(u['name'] as String? ?? '', overflow: TextOverflow.ellipsis, maxLines: 1))),
+                value: u,
+                child: Text(u['name'] as String? ?? '',
+                    overflow: TextOverflow.ellipsis, maxLines: 1))),
           ],
           onChanged: onChanged,
         );
@@ -836,7 +888,10 @@ class TaskTeamMemberSelector extends ConsumerWidget {
             labelText: 'Kişi *', hintText: 'Görev atanacak kişi'),
         initialValue: selectedUid,
         items: members
-            .map((u) => DropdownMenuItem(value: u.uid, child: Text(u.displayName, overflow: TextOverflow.ellipsis, maxLines: 1)))
+            .map((u) => DropdownMenuItem(
+                value: u.uid,
+                child: Text(u.displayName,
+                    overflow: TextOverflow.ellipsis, maxLines: 1)))
             .toList(),
         onChanged: (v) {
           if (v != null) {

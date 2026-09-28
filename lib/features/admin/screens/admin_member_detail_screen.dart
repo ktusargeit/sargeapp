@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/app_user.dart';
 import '../../../core/providers/auth_providers.dart';
@@ -107,11 +108,13 @@ class _AdminMemberDetailScreenState
             runSpacing: 6,
             children: user.activeTitles
                 .map((t) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: AppColors.sargeGold.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.sargeGold.withValues(alpha: 0.4)),
+                        border: Border.all(
+                            color: AppColors.sargeGold.withValues(alpha: 0.4)),
                       ),
                       child: Text(
                         t.displayLabel,
@@ -231,19 +234,23 @@ class _AdminMemberDetailScreenState
           .doc(user.uid)
           .update({'isSuspended': targetActive});
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(targetActive
-              ? 'Hesap askıya alındı.'
-              : 'Hesap aktifleştirildi.'),
-          backgroundColor: AppColors.success,
-        ));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+              content: Text(targetActive
+                  ? 'Hesap askıya alındı.'
+                  : 'Hesap aktifleştirildi.'),
+              backgroundColor: AppColors.success,
+            ));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('İşlem başarısız: $e'),
-          backgroundColor: AppColors.error,
-        ));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+              content: Text('İşlem başarısız: $e'),
+              backgroundColor: AppColors.error,
+            ));
       }
     }
   }

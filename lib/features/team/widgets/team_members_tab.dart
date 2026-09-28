@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -70,7 +71,8 @@ class _TeamMembersTabState extends ConsumerState<TeamMembersTab> {
                     final user = availableUsers[i];
                     return ListTile(
                       leading: SafeAvatar(url: user.photoUrl, radius: 16),
-                      title: Text(user.displayName, overflow: TextOverflow.ellipsis, maxLines: 1),
+                      title: Text(user.displayName,
+                          overflow: TextOverflow.ellipsis, maxLines: 1),
                       subtitle: Text(user.roleLabel,
                           style: const TextStyle(fontSize: 11)),
                       onTap: () async {
@@ -83,10 +85,13 @@ class _TeamMembersTabState extends ConsumerState<TeamMembersTab> {
                           'memberIds': FieldValue.arrayUnion([user.uid]),
                         });
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text('${user.displayName} takıma eklendi.'),
-                            backgroundColor: AppColors.success,
-                          ));
+                          TopSnackBar.showSnackBar(
+                              context,
+                              SnackBar(
+                                content:
+                                    Text('${user.displayName} takıma eklendi.'),
+                                backgroundColor: AppColors.success,
+                              ));
                         }
                       },
                     );
@@ -95,8 +100,7 @@ class _TeamMembersTabState extends ConsumerState<TeamMembersTab> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Kapat')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('Kapat')),
         ],
       ),
     );
@@ -121,8 +125,8 @@ class _TeamMembersTabState extends ConsumerState<TeamMembersTab> {
                 dropdownColor: AppColors.surface2,
                 style: TextStyle(color: AppColors.textPrimary, fontSize: 13),
                 decoration: InputDecoration(
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 8),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   labelText: 'Birim Filtresi',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -136,7 +140,8 @@ class _TeamMembersTabState extends ConsumerState<TeamMembersTab> {
                   ),
                   ...units.map((u) => DropdownMenuItem(
                       value: u['id'] as String,
-                      child: Text(u['name'] as String? ?? '', overflow: TextOverflow.ellipsis, maxLines: 1))),
+                      child: Text(u['name'] as String? ?? '',
+                          overflow: TextOverflow.ellipsis, maxLines: 1))),
                 ],
                 onChanged: (v) => setState(() => _filterUnitId = v),
               ),
@@ -166,7 +171,8 @@ class _TeamMembersTabState extends ConsumerState<TeamMembersTab> {
           child: usersAsync.when(
             data: (users) {
               final members = users
-                  .where((u) => widget.team.memberIds.contains(u.uid))
+                  .where((u) =>
+                      widget.team.memberIds.contains(u.uid) || u.isBoardMember)
                   .toList();
               if (members.isEmpty) {
                 return Center(
@@ -185,8 +191,7 @@ class _TeamMembersTabState extends ConsumerState<TeamMembersTab> {
                     child: Column(
                       children: members.asMap().entries.map((e) {
                         final user = e.value;
-                        if (!_matchesUnitFilter(
-                            user, unitsAsync.valueOrNull)) {
+                        if (!_matchesUnitFilter(user, unitsAsync.valueOrNull)) {
                           return const SizedBox.shrink();
                         }
                         return TeamMemberRow(
@@ -202,8 +207,7 @@ class _TeamMembersTabState extends ConsumerState<TeamMembersTab> {
                 ],
               );
             },
-            loading: () =>
-                const Center(child: CircularProgressIndicator()),
+            loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('Hata: $e')),
           ),
         ),
@@ -235,8 +239,7 @@ class TeamMemberRow extends ConsumerWidget {
         InkWell(
           onTap: () => context.push('/profile/${user.uid}'),
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
                 SafeAvatar(url: user.photoUrl, radius: 18),
@@ -289,8 +292,7 @@ class TeamMemberRow extends ConsumerWidget {
                   PopupMenuButton<String>(
                     icon: Icon(Icons.more_vert,
                         size: 18, color: AppColors.textSecondary),
-                    onSelected: (action) =>
-                        _handleAction(context, ref, action),
+                    onSelected: (action) => _handleAction(context, ref, action),
                     itemBuilder: (ctx) => [
                       const PopupMenuItem(
                         value: 'make_captain',
@@ -313,8 +315,7 @@ class TeamMemberRow extends ConsumerWidget {
                     ],
                   )
                 else
-                  Icon(Icons.chevron_right,
-                      size: 18, color: AppColors.border),
+                  Icon(Icons.chevron_right, size: 18, color: AppColors.border),
               ],
             ),
           ),
@@ -333,9 +334,11 @@ class TeamMemberRow extends ConsumerWidget {
             .doc(team.id)
             .update({'leadUid': user.uid});
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('${user.displayName} takım kaptanı yapıldı.'),
-              backgroundColor: AppColors.success));
+          TopSnackBar.showSnackBar(
+              context,
+              SnackBar(
+                  content: Text('${user.displayName} takım kaptanı yapıldı.'),
+                  backgroundColor: AppColors.success));
         }
         break;
       case 'make_unit_lead':
@@ -349,9 +352,11 @@ class TeamMemberRow extends ConsumerWidget {
           'memberIds': FieldValue.arrayRemove([user.uid]),
         });
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('${user.displayName} takımdan çıkarıldı.'),
-              backgroundColor: AppColors.success));
+          TopSnackBar.showSnackBar(
+              context,
+              SnackBar(
+                  content: Text('${user.displayName} takımdan çıkarıldı.'),
+                  backgroundColor: AppColors.success));
         }
         break;
     }
@@ -422,11 +427,11 @@ class TeamMemberRow extends ConsumerWidget {
                                 onSelected: (action) {
                                   Navigator.pop(ctx);
                                   if (action == 'edit') {
-                                    _editUnitDialog(context, ref,
-                                        u['id'] as String, name);
+                                    _editUnitDialog(
+                                        context, ref, u['id'] as String, name);
                                   } else if (action == 'delete') {
-                                    _deleteUnit(context, ref, u['id'] as String,
-                                        name);
+                                    _deleteUnit(
+                                        context, ref, u['id'] as String, name);
                                   }
                                 },
                                 itemBuilder: (_) => const [
@@ -463,10 +468,12 @@ class TeamMemberRow extends ConsumerWidget {
                           }
                           ref.invalidate(teamUnitsProvider(team.id));
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: Text(
-                                    '${user.displayName} → $name sorumlusu'),
-                                backgroundColor: AppColors.success));
+                            TopSnackBar.showSnackBar(
+                                context,
+                                SnackBar(
+                                    content: Text(
+                                        '${user.displayName} → $name sorumlusu'),
+                                    backgroundColor: AppColors.success));
                           }
                         },
                       );
@@ -492,8 +499,7 @@ class TeamMemberRow extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
           ElevatedButton(
             onPressed: () async {
               if (ctrl.text.trim().isEmpty) return;
@@ -522,8 +528,7 @@ class TeamMemberRow extends ConsumerWidget {
         content: TextField(controller: ctrl),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
           ElevatedButton(
             onPressed: () async {
               if (ctrl.text.trim().isEmpty) return;
@@ -541,8 +546,7 @@ class TeamMemberRow extends ConsumerWidget {
     );
   }
 
-  void _deleteUnit(
-      BuildContext ctx, WidgetRef ref, String id, String name) {
+  void _deleteUnit(BuildContext ctx, WidgetRef ref, String id, String name) {
     showDialog(
       context: ctx,
       builder: (ctx) => AlertDialog(
@@ -550,8 +554,7 @@ class TeamMemberRow extends ConsumerWidget {
         content: Text('"$name" silinecek.'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () async {

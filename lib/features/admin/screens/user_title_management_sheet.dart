@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/models/app_user.dart';
@@ -63,7 +64,7 @@ class _UserTitleManagementSheet extends ConsumerWidget {
                   Expanded(
                     child: Text(
                       'Ünvanları Yönet — ${liveUser.displayName}',
-                      style:  TextStyle(
+                      style: TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -71,8 +72,7 @@ class _UserTitleManagementSheet extends ConsumerWidget {
                     ),
                   ),
                   IconButton(
-                    icon:  Icon(Icons.close,
-                        color: AppColors.textSecondary),
+                    icon: Icon(Icons.close, color: AppColors.textSecondary),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -110,10 +110,9 @@ class _UserTitleManagementSheet extends ConsumerWidget {
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: () => _showAddTitleDialog(
-                            context, ref, service),
-                        icon: const Icon(Icons.add_circle_outline,
-                            size: 18),
+                        onPressed: () =>
+                            _showAddTitleDialog(context, ref, service),
+                        icon: const Icon(Icons.add_circle_outline, size: 18),
                         label: const Text('Ünvan Ekle'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.primaryGreen,
@@ -147,7 +146,7 @@ class _UserTitleManagementSheet extends ConsumerWidget {
             shrinkWrap: true,
             padding: const EdgeInsets.symmetric(vertical: 8),
             children: [
-               Padding(
+              Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                 child: Text(
                   'Ünvan Seç',
@@ -165,8 +164,7 @@ class _UserTitleManagementSheet extends ConsumerWidget {
                   leading: const Icon(Icons.workspace_premium_outlined,
                       size: 18, color: AppColors.sargeGold),
                   title: Text(label,
-                      style:  TextStyle(
-                          color: AppColors.textPrimary)),
+                      style: TextStyle(color: AppColors.textPrimary)),
                   onTap: () async {
                     Navigator.pop(ctx);
                     String? unitName;
@@ -184,7 +182,8 @@ class _UserTitleManagementSheet extends ConsumerWidget {
                       );
                       if (context.mounted) {
                         ref.invalidate(userProfileProvider(user.uid));
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        TopSnackBar.showSnackBar(
+                          context,
                           SnackBar(
                             content: Text('Ünvan eklendi: $label'),
                             backgroundColor: AppColors.success,
@@ -193,7 +192,8 @@ class _UserTitleManagementSheet extends ConsumerWidget {
                       }
                     } catch (e) {
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        TopSnackBar.showSnackBar(
+                          context,
                           SnackBar(
                             content: Text('Eklenemedi: $e'),
                             backgroundColor: AppColors.error,
@@ -220,13 +220,12 @@ class _UserTitleManagementSheet extends ConsumerWidget {
         content: TextField(
           controller: ctrl,
           autofocus: true,
-          decoration: const InputDecoration(
-              hintText: 'Birim adı (örn: Elektrik)'),
+          decoration:
+              const InputDecoration(hintText: 'Birim adı (örn: Elektrik)'),
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
             child: const Text('Ekle'),
@@ -284,7 +283,7 @@ class _TitleRow extends ConsumerWidget {
                 Text(
                   '${_dateFormat.format(title.startDate)}'
                   '${title.endDate != null ? ' → ${_dateFormat.format(title.endDate!)}' : ''}',
-                  style:  TextStyle(
+                  style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 11,
                   ),
@@ -293,8 +292,8 @@ class _TitleRow extends ConsumerWidget {
             ),
           ),
           PopupMenuButton<String>(
-            icon:  Icon(Icons.more_vert,
-                size: 18, color: AppColors.textSecondary),
+            icon:
+                Icon(Icons.more_vert, size: 18, color: AppColors.textSecondary),
             onSelected: (action) async {
               switch (action) {
                 case 'retire':
@@ -302,7 +301,7 @@ class _TitleRow extends ConsumerWidget {
                     context,
                     'Ünvanı Eskiye Al',
                     '"${title.displayLabel}" eski ünvan olarak '
-                    'işaretlenecek.',
+                        'işaretlenecek.',
                   );
                   if (confirmed != true) return;
                   try {
@@ -310,7 +309,8 @@ class _TitleRow extends ConsumerWidget {
                     onChanged(title.id);
                   } catch (e) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      TopSnackBar.showSnackBar(
+                        context,
                         SnackBar(
                           content: Text('İşlem başarısız: $e'),
                           backgroundColor: AppColors.error,
@@ -331,7 +331,8 @@ class _TitleRow extends ConsumerWidget {
                     onChanged(title.id);
                   } catch (e) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      TopSnackBar.showSnackBar(
+                        context,
                         SnackBar(
                           content: Text('Silinemedi: $e'),
                           backgroundColor: AppColors.error,
@@ -350,8 +351,7 @@ class _TitleRow extends ConsumerWidget {
                 ),
               const PopupMenuItem(
                 value: 'remove',
-                child: Text('Sil',
-                    style: TextStyle(color: AppColors.error)),
+                child: Text('Sil', style: TextStyle(color: AppColors.error)),
               ),
             ],
           ),
@@ -360,8 +360,7 @@ class _TitleRow extends ConsumerWidget {
     );
   }
 
-  Future<bool?> _confirm(
-      BuildContext context, String title, String message) {
+  Future<bool?> _confirm(BuildContext context, String title, String message) {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -372,8 +371,7 @@ class _TitleRow extends ConsumerWidget {
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('İptal')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Onayla'),
           ),
@@ -392,7 +390,7 @@ class _SectionLabel extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
-        style:  TextStyle(
+        style: TextStyle(
           color: AppColors.textSecondary,
           fontSize: 11,
           fontWeight: FontWeight.w600,
@@ -412,7 +410,7 @@ class _EmptyText extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
-        style:  TextStyle(
+        style: TextStyle(
           color: AppColors.textSecondary,
           fontSize: 13,
         ),

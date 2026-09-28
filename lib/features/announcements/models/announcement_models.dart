@@ -11,9 +11,10 @@ class Announcement {
   final String createdBy;
   final String createdByName;
   final bool notifyAll;
-  final String targetType;       // 'club' | 'team'
+  final String targetType; // 'club' | 'team'
   final List<String> targetTeamIds; // team doc ids if targetType == 'team'
-  final List<Map<String, dynamic>> comments; // [{senderUid, senderName, text, createdAt, isAdmin}]
+  final List<Map<String, dynamic>>
+      comments; // [{senderUid, senderName, text, createdAt, isAdmin}]
 
   const Announcement({
     required this.id,
@@ -60,7 +61,9 @@ class Announcement {
       createdByName: data['createdByName'] as String? ?? 'Kullanıcı',
       notifyAll: data['notifyAll'] as bool? ?? false,
       targetType: data['targetType'] as String? ?? 'club',
-      targetTeamIds: (data['targetTeamIds'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      targetTeamIds:
+          (data['targetTeamIds'] as List?)?.map((e) => e.toString()).toList() ??
+              const [],
       comments: (data['comments'] as List?)
               ?.map((e) => Map<String, dynamic>.from(e as Map))
               .toList() ??

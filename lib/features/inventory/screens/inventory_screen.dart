@@ -35,7 +35,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final locationsAsync = ref.watch(locationsProvider);
     final categoriesAsync = ref.watch(locationCategoriesProvider);
     final width = MediaQuery.of(context).size.width;
-    final crossAxisCount = width >= 1200 ? 6 : (width >= AppConstants.breakpointTablet ? 5 : 3);
+    final crossAxisCount =
+        width >= 1200 ? 6 : (width >= AppConstants.breakpointTablet ? 5 : 3);
 
     return Scaffold(
       backgroundColor: AppColors.depoBg,
@@ -48,14 +49,17 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             children: [
               // Search bar
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 child: TextField(
                   controller: _searchCtrl,
-                  style:  TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                  style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'Ürün ara...',
-                    hintStyle:  TextStyle(color: AppColors.textSecondary, fontSize: 13),
-                    prefixIcon:  Icon(Icons.search, size: 20, color: AppColors.textSecondary),
+                    hintStyle:
+                        TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                    prefixIcon: Icon(Icons.search,
+                        size: 20, color: AppColors.textSecondary),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear, size: 18),
@@ -73,7 +77,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                       borderSide: BorderSide.none,
                     ),
                   ),
-                  onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
+                  onChanged: (v) =>
+                      setState(() => _searchQuery = v.trim().toLowerCase()),
                 ),
               ),
               // Location category filter buttons (Tümü / categories)
@@ -81,7 +86,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               // Filter chips
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 child: Row(
                   children: [
                     _FilterChipGroup(
@@ -103,8 +109,11 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                       _FilterChipGroup(
                         label: 'Birim',
                         selected: _filterUnitId,
-                        stream: ref.watch(teamUnitsProvider(_filterTeamId!)).valueOrNull,
-                        labelFn: (u) => u is Map ? (u['name'] as String? ?? '') : '',
+                        stream: ref
+                            .watch(teamUnitsProvider(_filterTeamId!))
+                            .valueOrNull,
+                        labelFn: (u) =>
+                            u is Map ? (u['name'] as String? ?? '') : '',
                         idFn: (u) => u is Map ? (u['id'] as String) : '',
                         onChanged: (v) {
                           setState(() {
@@ -129,7 +138,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                           _filterCategoryId = null;
                         }),
                         child: const Text('Temizle',
-                            style: TextStyle(fontSize: 12, color: AppColors.error)),
+                            style: TextStyle(
+                                fontSize: 12, color: AppColors.error)),
                       ),
                   ],
                 ),
@@ -142,7 +152,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         data: (items) {
           // Build location→category map so category filtering works even for
           // items that predate the denormalized `locationCategoryId` field.
-          final locations = locationsAsync.valueOrNull ?? const <DepoLocation>[];
+          final locations =
+              locationsAsync.valueOrNull ?? const <DepoLocation>[];
           final locCategoryById = <String, String>{
             for (final l in locations)
               if (l.categoryId != null) l.id: l.categoryId!,
@@ -151,13 +162,17 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           // Apply filters
           List<DepoItem> filtered = items;
           if (_filterTeamId != null) {
-            filtered = filtered.where((i) => i.teamId == _filterTeamId).toList();
+            filtered =
+                filtered.where((i) => i.teamId == _filterTeamId).toList();
           }
           if (_filterUnitId != null) {
-            filtered = filtered.where((i) => i.unitId == _filterUnitId).toList();
+            filtered =
+                filtered.where((i) => i.unitId == _filterUnitId).toList();
           }
           if (_filterCategoryId != null) {
-            filtered = filtered.where((i) => i.categoryId == _filterCategoryId).toList();
+            filtered = filtered
+                .where((i) => i.categoryId == _filterCategoryId)
+                .toList();
           }
           if (_filterLocationCategoryId != null) {
             filtered = filtered.where((i) {
@@ -170,11 +185,13 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           }
           // Apply search query
           if (_searchQuery.isNotEmpty) {
-            filtered = filtered.where((i) => i.name.toLowerCase().contains(_searchQuery)).toList();
+            filtered = filtered
+                .where((i) => i.name.toLowerCase().contains(_searchQuery))
+                .toList();
           }
 
           if (filtered.isEmpty) {
-            return  Center(
+            return Center(
                 child: Text('Henüz ürün yok.',
                     style: TextStyle(color: AppColors.textSecondary)));
           }
@@ -185,7 +202,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 crossAxisCount: crossAxisCount,
                 mainAxisSpacing: 8,
                 crossAxisSpacing: 8,
-               childAspectRatio: 0.9,
+                childAspectRatio: 0.9,
               ),
               itemCount: filtered.length,
               itemBuilder: (_, i) {
@@ -195,8 +212,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             ),
           );
         },
-        loading: () =>
-            const Center(child: CircularProgressIndicator(color: AppColors.depoAccent)),
+        loading: () => const Center(
+            child: CircularProgressIndicator(color: AppColors.depoAccent)),
         error: (e, _) => Center(
             child: Text('Hata: $e',
                 style: const TextStyle(color: AppColors.error))),
@@ -213,8 +230,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final catsAsync = ref.watch(inventoryCategoriesProvider);
     final cats = catsAsync.valueOrNull ?? [];
     final filtered = cats
-        .where((c) =>
-            c.teamId == _filterTeamId && c.unitId == _filterUnitId)
+        .where((c) => c.teamId == _filterTeamId && c.unitId == _filterUnitId)
         .toList();
 
     return _FilterChipGroup(
@@ -242,8 +258,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           ...categories.map((c) => _LocationFilterButton(
                 label: c.name,
                 selected: _filterLocationCategoryId == c.id,
-                onTap: () => setState(
-                    () => _filterLocationCategoryId = c.id),
+                onTap: () => setState(() => _filterLocationCategoryId = c.id),
               )),
         ],
       ),
@@ -287,9 +302,7 @@ class _LocationFilterButton extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                color: selected
-                    ? AppColors.depoAccent
-                    : AppColors.textPrimary,
+                color: selected ? AppColors.depoAccent : AppColors.textPrimary,
                 fontSize: 12,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
               ),
@@ -336,9 +349,9 @@ class _FilterChipGroup extends StatelessWidget {
           value: selected,
           isDense: true,
           dropdownColor: AppColors.surface2,
-          style:  TextStyle(color: AppColors.textPrimary, fontSize: 12),
+          style: TextStyle(color: AppColors.textPrimary, fontSize: 12),
           hint: Text(label,
-              style:  TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
           items: [
             DropdownMenuItem<String?>(
               value: null,
@@ -349,7 +362,8 @@ class _FilterChipGroup extends StatelessWidget {
             ),
             ...items.map((item) => DropdownMenuItem(
                   value: idFn(item),
-                  child: Text(labelFn(item), style: const TextStyle(fontSize: 12)),
+                  child:
+                      Text(labelFn(item), style: const TextStyle(fontSize: 12)),
                 )),
           ],
           onChanged: onChanged,
@@ -386,7 +400,7 @@ class _ProductImage extends StatelessWidget {
     if (urls.isEmpty) {
       return Container(
         color: AppColors.surface2,
-        child:  Center(
+        child: Center(
           child: Icon(Icons.inventory_2_outlined,
               size: 28, color: AppColors.textSecondary),
         ),
@@ -399,7 +413,7 @@ class _ProductImage extends StatelessWidget {
       width: double.infinity,
       errorBuilder: (_, __, ___) => Container(
         color: AppColors.surface2,
-        child:  Center(
+        child: Center(
           child: Icon(Icons.image_not_supported_outlined,
               size: 28, color: AppColors.textSecondary),
         ),
@@ -446,7 +460,7 @@ class _ItemCard extends StatelessWidget {
                       child: Text(item.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style:  TextStyle(
+                          style: TextStyle(
                               color: AppColors.textPrimary,
                               fontSize: 11,
                               fontWeight: FontWeight.w600)),

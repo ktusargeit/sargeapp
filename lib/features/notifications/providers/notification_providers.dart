@@ -38,13 +38,14 @@ final unreadNotificationCountProvider = StreamProvider<int>((ref) {
       .collection('notifications')
       .where('recipientId', isEqualTo: uid)
       .snapshots()
-      .map((snap) =>
-          snap.docs.where((d) => d.data()['isRead'] == false).length);
+      .map(
+          (snap) => snap.docs.where((d) => d.data()['isRead'] == false).length);
 });
 
 /// All notifications for the current user, newest first.
 /// Sorted client‑side to avoid requiring a composite index.
-final userNotificationsProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+final userNotificationsProvider =
+    StreamProvider<List<Map<String, dynamic>>>((ref) {
   final authState = ref.watch(authStateProvider);
   // `.valueOrNull` — see `unreadNotificationCountProvider` above.
   final uid = authState.valueOrNull?.uid;
@@ -55,23 +56,23 @@ final userNotificationsProvider = StreamProvider<List<Map<String, dynamic>>>((re
       .where('recipientId', isEqualTo: uid)
       .snapshots()
       .map((snap) {
-        final list = snap.docs.map((d) {
-          final data = d.data();
-          data['id'] = d.id;
-          return data;
-        }).toList();
-        // Sort client-side: newest first (descending updatedAt/createdAt).
-        list.sort((a, b) {
-          final aTime = (a['updatedAt'] as Timestamp?)?.toDate() ??
-              (a['createdAt'] as Timestamp?)?.toDate() ??
-              DateTime(2000);
-          final bTime = (b['updatedAt'] as Timestamp?)?.toDate() ??
-              (b['createdAt'] as Timestamp?)?.toDate() ??
-              DateTime(2000);
-          return bTime.compareTo(aTime);
-        });
-        return list;
-      });
+    final list = snap.docs.map((d) {
+      final data = d.data();
+      data['id'] = d.id;
+      return data;
+    }).toList();
+    // Sort client-side: newest first (descending updatedAt/createdAt).
+    list.sort((a, b) {
+      final aTime = (a['updatedAt'] as Timestamp?)?.toDate() ??
+          (a['createdAt'] as Timestamp?)?.toDate() ??
+          DateTime(2000);
+      final bTime = (b['updatedAt'] as Timestamp?)?.toDate() ??
+          (b['createdAt'] as Timestamp?)?.toDate() ??
+          DateTime(2000);
+      return bTime.compareTo(aTime);
+    });
+    return list;
+  });
 });
 
 /// Tracks which thread the current device is actively viewing, so the sender
@@ -150,7 +151,8 @@ class NotificationService {
       'type': type,
       'relatedId': relatedId,
       'senderUid': uid,
-      'senderName': senderName ?? FirebaseAuth.instance.currentUser?.displayName,
+      'senderName':
+          senderName ?? FirebaseAuth.instance.currentUser?.displayName,
       'isRead': false,
       'createdAt': FieldValue.serverTimestamp(),
     });
@@ -238,6 +240,15 @@ class NotificationService {
     }
   }
 
+  /// Deletes a notification document.
+  Future<void> deleteNotification(String notificationId) async {
+    try {
+      await _firestore.collection('notifications').doc(notificationId).delete();
+    } catch (_) {
+      // Ignore errors
+    }
+  }
+
   /// Resets the grouped notification for a specific thread (when the user
   /// opens that thread directly).
   Future<void> resetThread(
@@ -262,8 +273,7 @@ class NotificationService {
     final uid = senderUid ?? FirebaseAuth.instance.currentUser?.uid;
     final snap = await _firestore
         .collection('users')
-        .where('role', whereIn: ['admin', 'unit_lead'])
-        .get();
+        .where('role', whereIn: ['admin', 'unit_lead']).get();
     for (final doc in snap.docs) {
       await send(
         recipientId: doc.id,
@@ -290,8 +300,7 @@ class NotificationService {
     final uid = senderUid ?? FirebaseAuth.instance.currentUser?.uid;
     final snap = await _firestore
         .collection('users')
-        .where('role', whereIn: ['admin', 'unit_lead'])
-        .get();
+        .where('role', whereIn: ['admin', 'unit_lead']).get();
     for (final doc in snap.docs) {
       await sendThreaded(
         recipientId: doc.id,

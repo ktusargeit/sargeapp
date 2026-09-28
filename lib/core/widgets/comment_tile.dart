@@ -30,9 +30,8 @@ class UserAvatar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = uid.isEmpty
-        ? null
-        : ref.watch(userProfileProvider(uid)).valueOrNull;
+    final profile =
+        uid.isEmpty ? null : ref.watch(userProfileProvider(uid)).valueOrNull;
     final photoUrl = profile?.photoUrl;
     final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
 
@@ -49,16 +48,14 @@ class UserAvatar extends ConsumerWidget {
       backgroundColor: isAdminUser
           ? AppColors.sargeGold.withValues(alpha: 0.2)
           : AppColors.surface2,
-      backgroundImage:
-          hasPhoto ? CachedNetworkImageProvider(photoUrl) : null,
+      backgroundImage: hasPhoto ? CachedNetworkImageProvider(photoUrl) : null,
       child: hasPhoto
           ? null
           : Text(
               displayInitial,
               style: TextStyle(
-                color: isAdminUser
-                    ? AppColors.sargeGold
-                    : AppColors.textSecondary,
+                color:
+                    isAdminUser ? AppColors.sargeGold : AppColors.textSecondary,
                 fontSize: radius * 0.78,
                 fontWeight: FontWeight.w700,
               ),
@@ -93,17 +90,14 @@ class UserAvatarWithName extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Resolve the live profile so the displayed name/avatar match Firebase.
-    final profile = uid.isEmpty
-        ? null
-        : ref.watch(userProfileProvider(uid)).valueOrNull;
+    final profile =
+        uid.isEmpty ? null : ref.watch(userProfileProvider(uid)).valueOrNull;
     final liveName = profile?.displayName ?? name;
     final liveIsAdmin = (profile?.isAdmin ?? false) || isAdmin;
     final displayName = liveName.isNotEmpty ? liveName : 'Bilinmeyen';
 
     return GestureDetector(
-      onTap: uid.isEmpty
-          ? null
-          : () => context.push('/profile/$uid'),
+      onTap: uid.isEmpty ? null : () => context.push('/profile/$uid'),
       behavior: HitTestBehavior.opaque,
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -317,12 +311,16 @@ class ChatBubble extends ConsumerWidget {
   /// Called when the user taps the "Yanıtla" (reply) action on this message.
   final void Function()? onReply;
 
+  /// Called when the user wants to delete their own message.
+  final void Function()? onDelete;
+
   const ChatBubble({
     super.key,
     required this.data,
     required this.isMine,
     this.onReplyQuoteTap,
     this.onReply,
+    this.onDelete,
   });
 
   @override
@@ -342,10 +340,9 @@ class ChatBubble extends ConsumerWidget {
     final liveName = profile?.displayName ?? senderName;
     final liveIsAdmin = (profile?.isAdmin ?? false) || isAdminComment;
 
-    final imageUrls = (data['imageUrls'] as List?)
-            ?.map((e) => e.toString())
-            .toList() ??
-        const [];
+    final imageUrls =
+        (data['imageUrls'] as List?)?.map((e) => e.toString()).toList() ??
+            const [];
     final singleImage = data['imageUrl'] as String?;
 
     final timeStr = timestamp != null
@@ -353,18 +350,15 @@ class ChatBubble extends ConsumerWidget {
         : '';
 
     // Own bubbles: greenish tint. Others: neutral surface.
-    final bubbleColor = isMine
-        ? AppColors.ownBubble
-        : AppColors.surface2;
+    final bubbleColor = isMine ? AppColors.ownBubble : AppColors.surface2;
     final textColor = AppColors.textPrimary;
     final timeColor = AppColors.textSecondary;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
-        mainAxisAlignment: isMine
-            ? MainAxisAlignment.end
-            : MainAxisAlignment.start,
+        mainAxisAlignment:
+            isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!isMine) ...[
@@ -395,9 +389,7 @@ class ChatBubble extends ConsumerWidget {
                   bottomLeft: const Radius.circular(14),
                   bottomRight: const Radius.circular(14),
                 ),
-                border: isMine
-                    ? null
-                    : Border.all(color: AppColors.border),
+                border: isMine ? null : Border.all(color: AppColors.border),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -408,9 +400,7 @@ class ChatBubble extends ConsumerWidget {
                       author: replyToAuthor.isNotEmpty
                           ? replyToAuthor
                           : 'Bilinmeyen',
-                      text: replyToText.isNotEmpty
-                          ? replyToText
-                          : '📎 Ek',
+                      text: replyToText.isNotEmpty ? replyToText : '📎 Ek',
                       color: isMine ? Colors.white70 : AppColors.panelBlue,
                       onTap: onReplyQuoteTap,
                     ),
@@ -475,8 +465,7 @@ class ChatBubble extends ConsumerWidget {
                         );
                       }).toList(),
                     ),
-                  ] else if (singleImage != null &&
-                      singleImage.isNotEmpty) ...[
+                  ] else if (singleImage != null && singleImage.isNotEmpty) ...[
                     const SizedBox(height: 6),
                     GestureDetector(
                       onTap: () => openNetworkImageViewer(context, singleImage),
@@ -492,8 +481,7 @@ class ChatBubble extends ConsumerWidget {
                             height: 140,
                             color: AppColors.surface2,
                           ),
-                          errorWidget: (_, __, ___) =>
-                              const SizedBox.shrink(),
+                          errorWidget: (_, __, ___) => const SizedBox.shrink(),
                         ),
                       ),
                     ),
@@ -550,6 +538,57 @@ class ChatBubble extends ConsumerWidget {
                           ),
                         ),
                       ],
+                      if (isMine && onDelete != null) ...[
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          onTap: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Sil'),
+                                content: const Text(
+                                    'Bu mesajı silmek istediğinize emin misiniz?'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.of(ctx).pop(false),
+                                    child: const Text('İptal'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.of(ctx).pop(true),
+                                    child: const Text('Sil',
+                                        style: TextStyle(color: Colors.red)),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirm == true) {
+                              onDelete!();
+                            }
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(
+                                Icons.delete_outline,
+                                size: 12,
+                                color: Colors.white70,
+                              ),
+                              SizedBox(width: 2),
+                              Text(
+                                'Sil',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],
@@ -586,6 +625,7 @@ class CommentTile extends ConsumerWidget {
   final bool isMine;
   final void Function()? onReplyQuoteTap;
   final void Function()? onReply;
+  final void Function()? onDelete;
 
   const CommentTile({
     super.key,
@@ -593,6 +633,7 @@ class CommentTile extends ConsumerWidget {
     this.isMine = false,
     this.onReplyQuoteTap,
     this.onReply,
+    this.onDelete,
   });
 
   @override
@@ -602,6 +643,7 @@ class CommentTile extends ConsumerWidget {
       isMine: isMine,
       onReplyQuoteTap: onReplyQuoteTap,
       onReply: onReply,
+      onDelete: onDelete,
     );
   }
 }
@@ -688,11 +730,13 @@ class SmartChatScroller extends ChangeNotifier {
     final c = _controller;
     if (c != null && c.hasClients) {
       final target = reverse ? 0.0 : c.position.maxScrollExtent;
-      c.animateTo(
-        target,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOut,
-      ).catchError((_) {});
+      c
+          .animateTo(
+            target,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+          )
+          .catchError((_) {});
     }
     if (_newMessageCount != 0) {
       _newMessageCount = 0;
@@ -742,7 +786,8 @@ class ChatScrollOverlay extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 if (count > 0) ...[
-                  _NewMessageBadge(count: count, onTap: scroller.scrollToBottom),
+                  _NewMessageBadge(
+                      count: count, onTap: scroller.scrollToBottom),
                   const SizedBox(height: 8),
                 ],
                 _ScrollToBottomButton(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -43,9 +44,11 @@ class _StoreOrderDetailScreenState
           );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Durum güncellendi: $newStatus'),
-            backgroundColor: AppColors.success));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content: Text('Durum güncellendi: $newStatus'),
+                backgroundColor: AppColors.success));
       }
     } catch (e) {
       setState(() => _errorText = 'Hata: $e');
@@ -73,9 +76,11 @@ class _StoreOrderDetailScreenState
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('PDF açılamadı: $e'),
-            backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content: Text('PDF açılamadı: $e'),
+                backgroundColor: AppColors.error));
       }
     }
   }
@@ -84,7 +89,8 @@ class _StoreOrderDetailScreenState
   Widget build(BuildContext context) {
     final allOrdersAsync = ref.watch(allOrdersProvider);
     final myOrdersAsync = ref.watch(myOrdersProvider);
-    final canManage = ref.watch(currentUserCanProvider(Permissions.manageStore));
+    final canManage =
+        ref.watch(currentUserCanProvider(Permissions.manageStore));
     final authUid = ref.watch(authStateProvider).valueOrNull?.uid;
 
     return Scaffold(
@@ -115,8 +121,8 @@ class _StoreOrderDetailScreenState
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
-          child: Text('Hata: $e',
-              style: const TextStyle(color: AppColors.error)),
+          child:
+              Text('Hata: $e', style: const TextStyle(color: AppColors.error)),
         ),
       ),
     );
@@ -184,12 +190,10 @@ class _OrderDetailBody extends StatelessWidget {
                 color: AppColors.sargeGold),
             title: Text(order.productName,
                 style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w600)),
+                    color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
             subtitle: Text('₺${order.price.toStringAsFixed(0)}',
                 style: const TextStyle(
-                    color: AppColors.sargeGold,
-                    fontWeight: FontWeight.w700)),
+                    color: AppColors.sargeGold, fontWeight: FontWeight.w700)),
           ),
         ),
         const SizedBox(height: 12),
@@ -205,14 +209,13 @@ class _OrderDetailBody extends StatelessWidget {
           Card(
             color: AppColors.surface,
             child: ListTile(
-              leading: Icon(Icons.person_outline,
-                  color: AppColors.textSecondary),
+              leading:
+                  Icon(Icons.person_outline, color: AppColors.textSecondary),
               title: Text(order.userName,
                   style: TextStyle(color: AppColors.textPrimary)),
               trailing: TextButton(
-                onPressed: () => Navigator.of(context)
-                    .push(MaterialPageRoute(
-                        builder: (_) => ProfileScreen(userId: order.userId))),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => ProfileScreen(userId: order.userId))),
                 child: const Text('Profil'),
               ),
             ),
@@ -312,11 +315,10 @@ class _OrderDetailBody extends StatelessWidget {
               if (order.status != StoreOrderStatus.cancelled)
                 ActionChip(
                   label: const Text('İptal Edildi',
-                      style: TextStyle(
-                          color: AppColors.error, fontSize: 12)),
+                      style: TextStyle(color: AppColors.error, fontSize: 12)),
                   backgroundColor: AppColors.error.withValues(alpha: 0.08),
-                  side: BorderSide(
-                      color: AppColors.error.withValues(alpha: 0.3)),
+                  side:
+                      BorderSide(color: AppColors.error.withValues(alpha: 0.3)),
                   onPressed: updating
                       ? null
                       : () => onChangeStatus(StoreOrderStatus.cancelled),

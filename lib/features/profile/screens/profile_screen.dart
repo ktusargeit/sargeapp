@@ -99,8 +99,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                     controller: _tabController,
                     indicator: const BoxDecoration(
                       color: AppColors.sargeGold,
-                      borderRadius:
-                          BorderRadius.all(Radius.circular(30)),
+                      borderRadius: BorderRadius.all(Radius.circular(30)),
                     ),
                     indicatorSize: TabBarIndicatorSize.tab,
                     dividerColor: Colors.transparent,

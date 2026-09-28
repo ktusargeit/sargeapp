@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -60,9 +61,8 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
     final urls = <String>[];
     for (final img in images) {
       final tempId = 'task_comment_${DateTime.now().microsecondsSinceEpoch}';
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('task_comments/$tempId.jpg');
+      final storageRef =
+          FirebaseStorage.instance.ref().child('task_comments/$tempId.jpg');
       debugPrint(
           '[task-comment-upload] path=${storageRef.fullPath} uid=${ref.read(authStateProvider).valueOrNull?.uid}');
       final compressed = await img.compressedUploadBytes();
@@ -162,8 +162,10 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
           .update({'status': newStatus.name});
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Hata: $e'), backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content: Text('Hata: $e'), backgroundColor: AppColors.error));
       }
     }
   }
@@ -188,7 +190,8 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
   Future<void> _submitForApproval() async {
     final firestore = ref.read(firestoreProvider);
     try {
-      final taskDoc = await firestore.collection('tasks').doc(widget.taskId).get();
+      final taskDoc =
+          await firestore.collection('tasks').doc(widget.taskId).get();
       final data = taskDoc.data() ?? {};
       final creatorId = data['assignedBy'] as String?;
       final title = data['title'] as String? ?? 'Görev';
@@ -213,14 +216,18 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
       } catch (_) {}
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Görev teslim edildi, onay bekleniyor.'),
-            backgroundColor: AppColors.success));
+        TopSnackBar.showSnackBar(
+            context,
+            const SnackBar(
+                content: Text('Görev teslim edildi, onay bekleniyor.'),
+                backgroundColor: AppColors.success));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Hata: $e'), backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content: Text('Hata: $e'), backgroundColor: AppColors.error));
       }
     }
   }
@@ -233,7 +240,8 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
         content: const Text('Görevi teslim etmek istediğinize emin misiniz?\n\n'
             'Teslim edildiğinde görev onay beklemeye alınacaktır.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Vazgeç')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Vazgeç')),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
@@ -258,7 +266,8 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
       maxChildSize: 1.0,
       expand: true,
       builder: (context, scrollController) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
         child: taskAsync.when(
           data: (task) {
             final isAssignee = task.assignedTo == currentUid;
@@ -286,7 +295,8 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                                 fontWeight: FontWeight.w700)),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: (task.status == TaskStatus.completed
                                   ? AppColors.success
@@ -320,19 +330,29 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                       ],
                       TaskMetaRow(
                           label: 'Atanan',
-                          value: task.assignedToName.isNotEmpty ? task.assignedToName : '—'),
+                          value: task.assignedToName.isNotEmpty
+                              ? task.assignedToName
+                              : '—'),
                       TaskMetaRow(
                           label: 'Atayan',
-                          value: task.assignedByName.isNotEmpty ? task.assignedByName : '—'),
+                          value: task.assignedByName.isNotEmpty
+                              ? task.assignedByName
+                              : '—'),
                       TaskMetaRow(label: 'Durum', value: task.statusLabel),
-                      if (task.teamName != null) TaskMetaRow(label: 'Takım', value: task.teamName!),
-                      if (task.unitName != null) TaskMetaRow(label: 'Birim', value: task.unitName!),
+                      if (task.teamName != null)
+                        TaskMetaRow(label: 'Takım', value: task.teamName!),
+                      if (task.unitName != null)
+                        TaskMetaRow(label: 'Birim', value: task.unitName!),
                       TaskMetaRow(label: 'Puan', value: '${task.points}'),
-                      if (task.pointsAwarded) const TaskMetaRow(label: 'Puan Durumu', value: 'Verildi ✓'),
-                      if (task.imageUrl != null && task.imageUrl!.isNotEmpty) ...[
+                      if (task.pointsAwarded)
+                        const TaskMetaRow(
+                            label: 'Puan Durumu', value: 'Verildi ✓'),
+                      if (task.imageUrl != null &&
+                          task.imageUrl!.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         GestureDetector(
-                          onTap: () => openNetworkImageViewer(context, task.imageUrl!),
+                          onTap: () =>
+                              openNetworkImageViewer(context, task.imageUrl!),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(10),
                             child: Image.network(
@@ -340,7 +360,8 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                               height: 140,
                               width: double.infinity,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                              errorBuilder: (_, __, ___) =>
+                                  const SizedBox.shrink(),
                             ),
                           ),
                         ),
@@ -349,13 +370,15 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   child: Row(
                     children: [
                       if (isAssignee && task.status == TaskStatus.assigned)
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () => _updateStatus(TaskStatus.inProgress),
+                            onPressed: () =>
+                                _updateStatus(TaskStatus.inProgress),
                             icon: const Icon(Icons.play_arrow, size: 18),
                             label: const Text('Göreve Başla'),
                             style: ElevatedButton.styleFrom(
@@ -378,7 +401,8 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                             ),
                           ),
                         ),
-                      if (task.status == TaskStatus.pendingApproval && canApprove) ...[
+                      if (task.status == TaskStatus.pendingApproval &&
+                          canApprove) ...[
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: () => _approve(false),
@@ -410,7 +434,8 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                 ),
                 Divider(color: AppColors.border, height: 1),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   child: Row(
                     children: [
                       const Text('💬', style: TextStyle(fontSize: 14)),
@@ -441,10 +466,12 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                   onPickImages: () async {
                     final imgs = await PickedImage.pickMultiple();
                     if (imgs.isNotEmpty && mounted) {
-                      setState(() => _commentImages = [..._commentImages, ...imgs]);
+                      setState(
+                          () => _commentImages = [..._commentImages, ...imgs]);
                     }
                   },
-                  onRemoveImage: (i) => setState(() => _commentImages.removeAt(i)),
+                  onRemoveImage: (i) =>
+                      setState(() => _commentImages.removeAt(i)),
                   onSend: _sendComment,
                 ),
               ],
@@ -461,7 +488,8 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
     final uid = ref.read(authStateProvider).valueOrNull?.uid;
     final firestore = ref.read(firestoreProvider);
     try {
-      final taskDoc = await firestore.collection('tasks').doc(widget.taskId).get();
+      final taskDoc =
+          await firestore.collection('tasks').doc(widget.taskId).get();
       final data = taskDoc.data() ?? {};
       final assignedTo = data['assignedTo'] as String? ?? '';
       final assignedToName = data['assignedToName'] as String? ?? '';
@@ -505,9 +533,11 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
           } catch (_) {}
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Görev onaylandı, puan verildi.'),
-              backgroundColor: AppColors.success));
+          TopSnackBar.showSnackBar(
+              context,
+              const SnackBar(
+                  content: Text('Görev onaylandı, puan verildi.'),
+                  backgroundColor: AppColors.success));
         }
       } else {
         await firestore.collection('tasks').doc(widget.taskId).update({
@@ -515,14 +545,19 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
           'approvedBy': uid,
         });
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Görev reddedildi.'), backgroundColor: AppColors.warning));
+          TopSnackBar.showSnackBar(
+              context,
+              const SnackBar(
+                  content: Text('Görev reddedildi.'),
+                  backgroundColor: AppColors.warning));
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Hata: $e'), backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content: Text('Hata: $e'), backgroundColor: AppColors.error));
       }
     }
   }
@@ -586,7 +621,8 @@ class _TaskCommentsListState extends ConsumerState<TaskCommentsList> {
         if (comments.isEmpty && widget.pendingComments.isEmpty) {
           return Center(
               child: Text('Henüz yorum yapılmadı.',
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13)));
+                  style:
+                      TextStyle(color: AppColors.textSecondary, fontSize: 13)));
         }
 
         final orderedComments = comments.reversed.toList();
@@ -633,6 +669,15 @@ class _TaskCommentsListState extends ConsumerState<TaskCommentsList> {
                     'senderName': data['senderName'] as String? ?? '',
                     'senderUid': data['senderUid'] as String? ?? '',
                   }),
+                  onDelete: () {
+                    ref
+                        .read(firestoreProvider)
+                        .collection('tasks')
+                        .doc(widget.taskId)
+                        .collection('comments')
+                        .doc(doc.id)
+                        .delete();
+                  },
                 );
               },
             ),
@@ -716,7 +761,8 @@ class TaskCommentInputBar extends StatelessWidget {
                             padding: const EdgeInsets.all(2),
                             decoration: const BoxDecoration(
                                 color: AppColors.error, shape: BoxShape.circle),
-                            child: const Icon(Icons.close, size: 12, color: Colors.white),
+                            child: const Icon(Icons.close,
+                                size: 12, color: Colors.white),
                           ),
                         ),
                       ),
@@ -744,8 +790,8 @@ class TaskCommentInputBar extends StatelessWidget {
                   style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'Yorum yaz...',
-                    hintStyle: TextStyle(
-                        color: AppColors.textSecondary, fontSize: 13),
+                    hintStyle:
+                        TextStyle(color: AppColors.textSecondary, fontSize: 13),
                     filled: true,
                     fillColor: AppColors.surface2,
                     contentPadding: const EdgeInsets.symmetric(

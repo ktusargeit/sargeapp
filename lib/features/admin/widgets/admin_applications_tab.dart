@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/auth_providers.dart';
@@ -63,8 +64,7 @@ class AdminApplicationsTab extends ConsumerWidget {
                               batch.update(
                                 firestore.collection('teams').doc(teamId),
                                 {
-                                  'memberIds':
-                                      FieldValue.arrayUnion([uid]),
+                                  'memberIds': FieldValue.arrayUnion([uid]),
                                 },
                               );
                               batch.update(
@@ -80,7 +80,8 @@ class AdminApplicationsTab extends ConsumerWidget {
                                 .doc(app['id'] as String)
                                 .update({'status': 'approved'});
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              TopSnackBar.showSnackBar(
+                                context,
                                 const SnackBar(
                                     content: Text('Onaylandı.'),
                                     backgroundColor: AppColors.success),
@@ -100,7 +101,8 @@ class AdminApplicationsTab extends ConsumerWidget {
                                 .doc(app['id'] as String)
                                 .update({'status': 'rejected'});
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              TopSnackBar.showSnackBar(
+                                context,
                                 const SnackBar(
                                     content: Text('Reddedildi.'),
                                     backgroundColor: AppColors.warning),

@@ -55,14 +55,12 @@ class _RolePermissionScreenState extends ConsumerState<RolePermissionScreen> {
                           selectedColor: AppColors.sargeGold,
                           backgroundColor: AppColors.surface,
                           labelStyle: TextStyle(
-                            color: selected
-                                ? Colors.black
-                                : AppColors.textPrimary,
+                            color:
+                                selected ? Colors.black : AppColors.textPrimary,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                           ),
-                          onSelected: (_) =>
-                              setState(() => _selectedRole = r),
+                          onSelected: (_) => setState(() => _selectedRole = r),
                         ),
                       );
                     }).toList(),
@@ -71,7 +69,8 @@ class _RolePermissionScreenState extends ConsumerState<RolePermissionScreen> {
               ),
               Divider(height: 1, color: AppColors.border),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Row(
                   children: [
                     Text(
@@ -104,10 +103,10 @@ class _RolePermissionScreenState extends ConsumerState<RolePermissionScreen> {
                       controlAffinity: ListTileControlAffinity.leading,
                       activeColor: AppColors.sargeGold,
                       title: Text(label,
-                          style:
-                              TextStyle(color: AppColors.textPrimary, fontSize: 14)),
-                      onChanged: (v) => _togglePermission(
-                          role, permission, v ?? false),
+                          style: TextStyle(
+                              color: AppColors.textPrimary, fontSize: 14)),
+                      onChanged: (v) =>
+                          _togglePermission(role, permission, v ?? false),
                     );
                   },
                 ),
@@ -117,8 +116,8 @@ class _RolePermissionScreenState extends ConsumerState<RolePermissionScreen> {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
-          child: Text('Hata: $e',
-              style: const TextStyle(color: AppColors.error)),
+          child:
+              Text('Hata: $e', style: const TextStyle(color: AppColors.error)),
         ),
       ),
     );
@@ -129,8 +128,9 @@ class _RolePermissionScreenState extends ConsumerState<RolePermissionScreen> {
     final service = ref.read(permissionServiceProvider);
     final rolePerms = ref.read(rolePermissionsProvider).valueOrNull ??
         Permissions.defaultRolePermissions;
-    final current = Set<String>.from(
-        rolePerms[role] ?? Permissions.defaultRolePermissions[role] ?? const {});
+    final current = Set<String>.from(rolePerms[role] ??
+        Permissions.defaultRolePermissions[role] ??
+        const {});
 
     if (value) {
       current.add(permission);
@@ -156,7 +156,8 @@ class _RolePermissionScreenState extends ConsumerState<RolePermissionScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Varsayılana Dön'),
-        content: Text('${roleLabel(role)} rolünün yetkileri varsayılana döndürülecek.'),
+        content: Text(
+            '${roleLabel(role)} rolünün yetkileri varsayılana döndürülecek.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -174,7 +175,8 @@ class _RolePermissionScreenState extends ConsumerState<RolePermissionScreen> {
       context: context,
       loadingMessage: 'Varsayılana döndürülüyor...',
       successMessage: '${roleLabel(role)} rolü varsayılana döndürüldü.',
-      operation: () => ref.read(permissionServiceProvider).resetRolePermissions(role),
+      operation: () =>
+          ref.read(permissionServiceProvider).resetRolePermissions(role),
     );
   }
 }

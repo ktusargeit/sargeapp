@@ -43,7 +43,10 @@ class UserTitleService {
   /// A stable, ordered list of selectable titles for the admin UI.
   static const List<Map<String, String>> titleOptions = [
     {'type': TitleType.boardPresident, 'label': 'Yönetim Kurulu Başkanı'},
-    {'type': TitleType.boardVicePresident, 'label': 'Yönetim Kurulu Başkan Yardımcısı'},
+    {
+      'type': TitleType.boardVicePresident,
+      'label': 'Yönetim Kurulu Başkan Yardımcısı'
+    },
     {'type': TitleType.boardMember, 'label': 'Yönetim Kurulu Üyesi'},
     {'type': TitleType.captain, 'label': 'Kaptan'},
     {'type': TitleType.unitLead, 'label': 'Birim Sorumlusu'},
@@ -98,16 +101,19 @@ class UserTitleService {
       final data = snap.data()!;
       final titles = _titlesFromData(data);
       var changed = false;
-      final updated = titles.map((t) {
-        if (t.id == titleId && t.isActive) {
-          changed = true;
-          return t.copyWith(
-            isActive: false,
-            endDate: endDate ?? DateTime.now(),
-          );
-        }
-        return t;
-      }).map((t) => t.toMap()).toList();
+      final updated = titles
+          .map((t) {
+            if (t.id == titleId && t.isActive) {
+              changed = true;
+              return t.copyWith(
+                isActive: false,
+                endDate: endDate ?? DateTime.now(),
+              );
+            }
+            return t;
+          })
+          .map((t) => t.toMap())
+          .toList();
       if (changed) {
         txn.update(userRef, {'titles': updated});
       }
@@ -132,18 +138,21 @@ class UserTitleService {
       final data = snap.data()!;
       final titles = _titlesFromData(data);
       var changed = false;
-      final updated = titles.map((t) {
-        if (t.isActive &&
-            t.titleType == TitleType.unitLead &&
-            t.unitName == unitName) {
-          changed = true;
-          return t.copyWith(
-            isActive: false,
-            endDate: DateTime.now(),
-          );
-        }
-        return t;
-      }).map((t) => t.toMap()).toList();
+      final updated = titles
+          .map((t) {
+            if (t.isActive &&
+                t.titleType == TitleType.unitLead &&
+                t.unitName == unitName) {
+              changed = true;
+              return t.copyWith(
+                isActive: false,
+                endDate: DateTime.now(),
+              );
+            }
+            return t;
+          })
+          .map((t) => t.toMap())
+          .toList();
       if (changed) {
         retired = true;
         txn.update(userRef, {'titles': updated});
@@ -172,18 +181,21 @@ class UserTitleService {
       final data = snap.data()!;
       final titles = _titlesFromData(data);
       var changed = false;
-      final updated = titles.map((t) {
-        if (t.isActive &&
-            t.titleType == TitleType.captain &&
-            t.unitName == teamName) {
-          changed = true;
-          return t.copyWith(
-            isActive: false,
-            endDate: DateTime.now(),
-          );
-        }
-        return t;
-      }).map((t) => t.toMap()).toList();
+      final updated = titles
+          .map((t) {
+            if (t.isActive &&
+                t.titleType == TitleType.captain &&
+                t.unitName == teamName) {
+              changed = true;
+              return t.copyWith(
+                isActive: false,
+                endDate: DateTime.now(),
+              );
+            }
+            return t;
+          })
+          .map((t) => t.toMap())
+          .toList();
       if (changed) {
         retired = true;
         txn.update(userRef, {'titles': updated});
@@ -277,13 +289,16 @@ class UserTitleService {
       if (!snap.exists) return;
       final data = snap.data()!;
       final titles = _titlesFromData(data);
-      final updated = titles.map((t) {
-        if (t.isActive && t.titleType == titleType) {
-          changed = true;
-          return t.copyWith(isActive: false, endDate: DateTime.now());
-        }
-        return t;
-      }).map((t) => t.toMap()).toList();
+      final updated = titles
+          .map((t) {
+            if (t.isActive && t.titleType == titleType) {
+              changed = true;
+              return t.copyWith(isActive: false, endDate: DateTime.now());
+            }
+            return t;
+          })
+          .map((t) => t.toMap())
+          .toList();
       if (changed) {
         txn.update(userRef, {'titles': updated});
       }
@@ -302,10 +317,8 @@ class UserTitleService {
       if (!snap.exists) return;
       final data = snap.data()!;
       final titles = _titlesFromData(data);
-      final updated = titles
-          .where((t) => t.id != titleId)
-          .map((t) => t.toMap())
-          .toList();
+      final updated =
+          titles.where((t) => t.id != titleId).map((t) => t.toMap()).toList();
       if (updated.length != titles.length) {
         txn.update(userRef, {'titles': updated});
       }

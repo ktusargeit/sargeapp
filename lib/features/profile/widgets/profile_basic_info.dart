@@ -1,4 +1,5 @@
- import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -54,15 +55,19 @@ class _ProfileHeroState extends ConsumerState<ProfileHero> {
           .doc(widget.user.uid)
           .update({'coverPhotoUrl': url});
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Kapak fotoğrafı güncellendi.'),
-            backgroundColor: AppColors.success));
+        TopSnackBar.showSnackBar(
+            context,
+            const SnackBar(
+                content: Text('Kapak fotoğrafı güncellendi.'),
+                backgroundColor: AppColors.success));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Kapak fotoğrafı yüklenemedi: $e'),
-            backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content: Text('Kapak fotoğrafı yüklenemedi: $e'),
+                backgroundColor: AppColors.error));
       }
     } finally {
       if (mounted) setState(() => _uploadingCover = false);
@@ -75,8 +80,7 @@ class _ProfileHeroState extends ConsumerState<ProfileHero> {
     final headline = [
       if (user.department != null && user.department!.isNotEmpty)
         user.department!,
-      if (user.className != null && user.className!.isNotEmpty)
-        user.className!,
+      if (user.className != null && user.className!.isNotEmpty) user.className!,
     ].join(' · ');
 
     final activeTitles = user.activeTitles;
@@ -146,8 +150,7 @@ class _ProfileHeroState extends ConsumerState<ProfileHero> {
                                 width: 14,
                                 height: 14,
                                 child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppColors.sargeGold),
+                                    strokeWidth: 2, color: AppColors.sargeGold),
                               )
                             : const Icon(Icons.camera_alt_outlined,
                                 size: 15, color: Colors.white),
@@ -274,8 +277,8 @@ class ProfileCoverFallback extends StatelessWidget {
         ),
       ),
       child: Center(
-        child: Icon(Icons.landscape_outlined,
-            size: 44, color: Color(0x66FFFFFF)),
+        child:
+            Icon(Icons.landscape_outlined, size: 44, color: Color(0x66FFFFFF)),
       ),
     );
   }
@@ -442,7 +445,8 @@ class ProfileStatBadge extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: color.withValues(alpha: 0.16),
-              border: Border.all(color: color.withValues(alpha: 0.6), width: 1.5),
+              border:
+                  Border.all(color: color.withValues(alpha: 0.6), width: 1.5),
             ),
             child: Icon(icon, color: color, size: 21),
           ),

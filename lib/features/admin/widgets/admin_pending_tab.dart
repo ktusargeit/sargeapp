@@ -104,8 +104,7 @@ class AdminPendingCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style:
-                      TextStyle(color: AppColors.textPrimary, fontSize: 15),
+                  style: TextStyle(color: AppColors.textPrimary, fontSize: 15),
                 ),
               ),
               Text(

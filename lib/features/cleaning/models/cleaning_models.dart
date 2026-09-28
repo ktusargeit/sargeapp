@@ -215,7 +215,8 @@ class CleaningSchedule {
           const [],
       overrideLabel: data['overrideLabel'] as String?,
       items: (data['items'] as List?)
-              ?.map((e) => CleaningItem.fromMap(Map<String, dynamic>.from(e as Map)))
+              ?.map((e) =>
+                  CleaningItem.fromMap(Map<String, dynamic>.from(e as Map)))
               .toList() ??
           const [],
       completed: data['completed'] as bool? ?? false,

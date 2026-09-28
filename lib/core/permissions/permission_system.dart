@@ -81,15 +81,30 @@ class Permissions {
   /// Default role → permission map. This is the baseline used when no
   /// `role_permissions/{role}` override document exists.
   ///
-  /// Defaults: `admin` and `board_president` (Başkan) have every permission.
-  /// Every other role starts with reasonable defaults and can be fine-tuned
-  /// from the admin panel.
+  /// Hierarchy: YKB > YKBY > YKÜ > TK > BS > Üye
+  /// Higher roles inherit all permissions of the roles below them.
   static const Map<String, Set<String>> defaultRolePermissions = {
     'admin': {
       ...all,
     },
     'board_president': {
       ...all,
+    },
+    'board_vice_president': {
+      viewAdminPanel,
+      manageTitles,
+      manageAnnouncements,
+      reviewApplications,
+      editClubStory,
+      editTeamStory,
+      addHonoraryMember,
+      manageStore,
+      createTasks,
+      approveTasks,
+      deleteTasks,
+      manageUnits,
+      manageReports,
+      awardPoints,
     },
     'board_member': {
       viewAdminPanel,
@@ -100,27 +115,24 @@ class Permissions {
       editTeamStory,
       addHonoraryMember,
       manageStore,
-    },
-    // Başkan Yardımcısı has exactly the same privileges as a board member.
-    'board_vice_president': {
-      viewAdminPanel,
-      manageTitles,
-      manageAnnouncements,
-      reviewApplications,
-      editClubStory,
-      editTeamStory,
-      addHonoraryMember,
-      manageStore,
-    },
-    'captain': {
       createTasks,
       approveTasks,
       deleteTasks,
       manageUnits,
+      manageReports,
+      awardPoints,
+    },
+    'captain': {
       manageAnnouncements,
       reviewApplications,
       editTeamStory,
       manageStore,
+      createTasks,
+      approveTasks,
+      deleteTasks,
+      manageUnits,
+      manageReports,
+      awardPoints,
     },
     'unit_lead': {
       manageAnnouncements,
@@ -190,13 +202,20 @@ bool userIsBoardPresident(AppUser? user) {
 /// Human-readable Turkish label for a role value.
 String roleLabel(String role) {
   switch (role) {
-    case 'admin': return 'Admin';
-    case 'board_president': return 'Başkan';
-    case 'board_vice_president': return 'Başkan Yardımcısı';
-    case 'board_member': return 'Yönetim Kurulu Üyesi';
-    case 'captain': return 'Kaptan';
-    case 'unit_lead': return 'Birim Sorumlusu';
-    default: return 'Üye';
+    case 'admin':
+      return 'Admin';
+    case 'board_president':
+      return 'Başkan';
+    case 'board_vice_president':
+      return 'Başkan Yardımcısı';
+    case 'board_member':
+      return 'Yönetim Kurulu Üyesi';
+    case 'captain':
+      return 'Kaptan';
+    case 'unit_lead':
+      return 'Birim Sorumlusu';
+    default:
+      return 'Üye';
   }
 }
 
@@ -220,7 +239,9 @@ Set<String> userEffectivePermissions(
   final out = <String>{};
   if (user == null) return out;
   for (final role in effectiveRoleCodes(user)) {
-    out.addAll(rolePerms[role] ?? Permissions.defaultRolePermissions[role] ?? const {});
+    out.addAll(rolePerms[role] ??
+        Permissions.defaultRolePermissions[role] ??
+        const {});
   }
   return out;
 }
@@ -329,7 +350,7 @@ final currentRoleProvider = Provider<String>((ref) {
 /// any `role_permissions` overrides.
 final currentUserCanProvider = Provider.family<bool, String>((ref, permission) {
   final user = ref.watch(currentAppUserProvider).valueOrNull;
-  final rolePerms =
-      ref.watch(rolePermissionsProvider).valueOrNull ?? Permissions.defaultRolePermissions;
+  final rolePerms = ref.watch(rolePermissionsProvider).valueOrNull ??
+      Permissions.defaultRolePermissions;
   return userHasPermission(user, rolePerms, permission);
 });

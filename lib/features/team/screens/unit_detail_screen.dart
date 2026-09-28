@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/app_user.dart';
@@ -33,8 +34,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
   Widget build(BuildContext context) {
     final currentUid = ref.watch(authStateProvider).valueOrNull?.uid;
     final isAdmin = ref.watch(isAdminProvider);
-    final canManage =
-        isAdmin || (widget.team.leadUid == currentUid);
+    final canManage = isAdmin || (widget.team.leadUid == currentUid);
 
     final unitAsync = ref.watch(unitDocProvider(widget.unitId));
 
@@ -46,8 +46,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
         actions: [
           if (canManage && unitAsync.valueOrNull != null)
             PopupMenuButton<String>(
-              icon: Icon(Icons.more_vert,
-                  color: AppColors.textSecondary),
+              icon: Icon(Icons.more_vert, color: AppColors.textSecondary),
               onSelected: (action) {
                 final unit = unitAsync.valueOrNull!;
                 if (action == 'edit') _editUnit(unit);
@@ -57,8 +56,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
                 PopupMenuItem(value: 'edit', child: Text('Düzenle')),
                 PopupMenuItem(
                   value: 'delete',
-                  child: Text('Sil',
-                      style: TextStyle(color: AppColors.error)),
+                  child: Text('Sil', style: TextStyle(color: AppColors.error)),
                 ),
               ],
             ),
@@ -110,8 +108,8 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: AppColors.teamAccent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
@@ -129,8 +127,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
                   ),
                 ],
               ),
-              if (unit.description != null &&
-                  unit.description!.isNotEmpty) ...[
+              if (unit.description != null && unit.description!.isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Text(
                   unit.description!,
@@ -161,8 +158,8 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
                   if (canManage)
                     TextButton.icon(
                       onPressed: () => _assignLead(unit),
-                      icon: const Icon(Icons.manage_accounts_outlined,
-                          size: 16),
+                      icon:
+                          const Icon(Icons.manage_accounts_outlined, size: 16),
                       label: const Text('Ata/Değiştir'),
                     ),
                 ],
@@ -215,21 +212,17 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
                       border: Border.all(color: AppColors.border),
                     ),
                     child: Column(
-                      children: members
-                          .asMap()
-                          .entries
-                          .map((e) {
-                            final user = e.value;
-                            final isLead = unit.unitLeadUid == user.uid;
-                            return _UnitMemberRow(
-                              user: user,
-                              isLead: isLead,
-                              canManage: canManage,
-                              unit: unit,
-                              isLast: e.key == members.length - 1,
-                            );
-                          })
-                          .toList(),
+                      children: members.asMap().entries.map((e) {
+                        final user = e.value;
+                        final isLead = unit.unitLeadUid == user.uid;
+                        return _UnitMemberRow(
+                          user: user,
+                          isLead: isLead,
+                          canManage: canManage,
+                          unit: unit,
+                          isLast: e.key == members.length - 1,
+                        );
+                      }).toList(),
                     ),
                   ),
                 ],
@@ -274,8 +267,7 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
           ElevatedButton(
             onPressed: () async {
               if (nameCtrl.text.trim().isEmpty) return;
@@ -288,9 +280,11 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
                 if (ctx.mounted) Navigator.pop(ctx);
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text('Güncellenemedi: $e'),
-                      backgroundColor: AppColors.error));
+                  TopSnackBar.showSnackBar(
+                      context,
+                      SnackBar(
+                          content: Text('Güncellenemedi: $e'),
+                          backgroundColor: AppColors.error));
                 }
               }
             },
@@ -345,14 +339,17 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
   }
 
   Future<void> _addMember(TeamUnit unit) async {
-    final teamMembers = ref.read(teamMembersProvider(widget.team.id)).valueOrNull ?? [];
+    final teamMembers =
+        ref.read(teamMembersProvider(widget.team.id)).valueOrNull ?? [];
     final available =
         teamMembers.where((u) => !unit.memberUids.contains(u.uid)).toList();
 
     if (available.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Eklenebilecek takım üyesi yok.'),
-          backgroundColor: AppColors.warning));
+      TopSnackBar.showSnackBar(
+          context,
+          const SnackBar(
+              content: Text('Eklenebilecek takım üyesi yok.'),
+              backgroundColor: AppColors.warning));
       return;
     }
 
@@ -381,8 +378,8 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
                     .map((u) => ListTile(
                           leading: SafeAvatar(url: u.photoUrl, radius: 16),
                           title: Text(u.displayName),
-                          subtitle:
-                              Text(u.roleLabel, style: const TextStyle(fontSize: 11)),
+                          subtitle: Text(u.roleLabel,
+                              style: const TextStyle(fontSize: 11)),
                           onTap: () => Navigator.pop(ctx, u.uid),
                         ))
                     .toList(),
@@ -398,16 +395,17 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
       await ref.read(unitServiceProvider).addMember(unit.id, selectedUid);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Eklenemedi: $e'),
-            backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content: Text('Eklenemedi: $e'),
+                backgroundColor: AppColors.error));
       }
     }
   }
 
   Future<void> _assignLead(TeamUnit unit) async {
-    final members =
-        ref.read(unitMembersProvider(unit.id)).valueOrNull ?? [];
+    final members = ref.read(unitMembersProvider(unit.id)).valueOrNull ?? [];
 
     final selectedUid = await showModalBottomSheet<String?>(
       context: context,
@@ -466,17 +464,21 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
           .read(unitServiceProvider)
           .setUnitLead(unit: unit, newLeadUid: newLead);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(newLead == null
-                ? 'Birim sorumlusu kaldırıldı.'
-                : 'Birim sorumlusu güncellendi.'),
-            backgroundColor: AppColors.success));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content: Text(newLead == null
+                    ? 'Birim sorumlusu kaldırıldı.'
+                    : 'Birim sorumlusu güncellendi.'),
+                backgroundColor: AppColors.success));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('İşlem başarısız: $e'),
-            backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content: Text('İşlem başarısız: $e'),
+                backgroundColor: AppColors.error));
       }
     }
   }
@@ -513,15 +515,19 @@ class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
       }
       await service.removeMember(unit.id, user.uid);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('${user.displayName} birimden çıkarıldı.'),
-            backgroundColor: AppColors.success));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content: Text('${user.displayName} birimden çıkarıldı.'),
+                backgroundColor: AppColors.success));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Çıkarılamadı: $e'),
-            backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content: Text('Çıkarılamadı: $e'),
+                backgroundColor: AppColors.error));
       }
     }
   }
@@ -616,8 +622,8 @@ class _UnitMemberRow extends ConsumerWidget {
                               color: AppColors.warning.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(3),
                               border: Border.all(
-                                  color: AppColors.warning
-                                      .withValues(alpha: 0.4)),
+                                  color:
+                                      AppColors.warning.withValues(alpha: 0.4)),
                             ),
                             child: const Text(
                               'SORUMLU',
@@ -663,8 +669,7 @@ class _UnitMemberRow extends ConsumerWidget {
                   ],
                 )
               else
-                Icon(Icons.chevron_right,
-                    size: 18, color: AppColors.border),
+                Icon(Icons.chevron_right, size: 18, color: AppColors.border),
             ],
           ),
         ),
@@ -685,7 +690,8 @@ class _UnitMemberRow extends ConsumerWidget {
           break;
         case 'remove':
           // Delegate to the screen-level remove flow (handles lead clearing).
-          final screen = context.findAncestorStateOfType<_UnitDetailScreenState>();
+          final screen =
+              context.findAncestorStateOfType<_UnitDetailScreenState>();
           if (screen != null) {
             await screen._removeMember(unit, user);
           } else {
@@ -694,15 +700,19 @@ class _UnitMemberRow extends ConsumerWidget {
           return;
       }
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Güncellendi.'),
-            backgroundColor: AppColors.success));
+        TopSnackBar.showSnackBar(
+            context,
+            const SnackBar(
+                content: Text('Güncellendi.'),
+                backgroundColor: AppColors.success));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('İşlem başarısız: $e'),
-            backgroundColor: AppColors.error));
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+                content: Text('İşlem başarısız: $e'),
+                backgroundColor: AppColors.error));
       }
     }
   }

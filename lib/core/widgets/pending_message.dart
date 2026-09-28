@@ -164,8 +164,7 @@ class PendingMessageBubble extends StatelessWidget {
                         const SizedBox(width: 6),
                         const Text(
                           'Gönderiliyor…',
-                          style: TextStyle(
-                              color: Colors.white70, fontSize: 10),
+                          style: TextStyle(color: Colors.white70, fontSize: 10),
                         ),
                       ],
                     ],
@@ -227,8 +226,8 @@ class _LocalImageThumb extends StatelessWidget {
               child: Container(
                 color: Colors.black.withValues(alpha: 0.2),
                 child: const Center(
-                  child: Icon(Icons.error_outline,
-                      size: 20, color: Colors.white),
+                  child:
+                      Icon(Icons.error_outline, size: 20, color: Colors.white),
                 ),
               ),
             ),
