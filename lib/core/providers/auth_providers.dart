@@ -126,32 +126,38 @@ class AuthController {
     final userDoc = _firestore.collection('users').doc(uid);
     final existing = await userDoc.get();
     if (!existing.exists) {
-      await userDoc.set({
-        'email': email.trim(),
-        'displayName': displayName.trim(),
-        'role': 'member',
-        // NEW SIGN-UPS WAIT FOR ADMIN APPROVAL. The user lands on
-        // [PendingApprovalScreen] until an admin flips this to 'approved'.
-        // Legacy documents have no such field at all and are read as
-        // 'approved' (see AppUser.fromDoc), so existing members keep access.
-        'approvalStatus': approvalPending,
-        'points': 0,
-        'weeklyPoints': 0,
-        'prevWeeklyPoints': 0,
-        'teamPoints': <String, int>{},
-        'photoUrl': null,
-        'bio': null,
-        'department': null,
-        'className': null,
-        'teamIds': <String>[],
-        'pastTeamIds': <String>[],
-        'pastTeams': <Map<String, dynamic>>[],
-        'links': <Map<String, dynamic>>[],
-        'pastExperiences': <Map<String, dynamic>>[],
-        'awards': <Map<String, dynamic>>[],
-        'inWorkshop': false,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      try {
+        await userDoc.set({
+          'email': email.trim(),
+          'displayName': displayName.trim(),
+          'role': 'member',
+          // NEW SIGN-UPS WAIT FOR ADMIN APPROVAL. The user lands on
+          // [PendingApprovalScreen] until an admin flips this to 'approved'.
+          // Legacy documents have no such field at all and are read as
+          // 'approved' (see AppUser.fromDoc), so existing members keep access.
+          'approvalStatus': approvalPending,
+          'points': 0,
+          'weeklyPoints': 0,
+          'prevWeeklyPoints': 0,
+          'teamPoints': <String, int>{},
+          'photoUrl': null,
+          'bio': null,
+          'department': null,
+          'className': null,
+          'teamIds': <String>[],
+          'pastTeamIds': <String>[],
+          'pastTeams': <Map<String, dynamic>>[],
+          'links': <Map<String, dynamic>>[],
+          'pastExperiences': <Map<String, dynamic>>[],
+          'awards': <Map<String, dynamic>>[],
+          'inWorkshop': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        // Clean up orphaned auth account
+        await cred.user?.delete();
+        rethrow;
+      }
     }
   }
 

@@ -384,7 +384,7 @@ class ChatBubble extends ConsumerWidget {
           Flexible(
             child: Container(
               constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.72,
+                maxWidth: MediaQuery.of(context).size.width * 0.78,
               ),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
@@ -415,41 +415,33 @@ class ChatBubble extends ConsumerWidget {
                       onTap: onReplyQuoteTap,
                     ),
                   ],
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (liveName.isNotEmpty) ...[
-                        Flexible(
-                          child: Text(
-                            liveName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: isMine
-                                  ? Colors.white
-                                  : (liveIsAdmin
-                                      ? AppColors.sargeGold
-                                      : AppColors.textPrimary),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                      ],
-                      if (text.isNotEmpty)
-                        Flexible(
-                          child: LinkifiedText(
-                            text: text,
-                            style: TextStyle(
-                              color: isMine ? Colors.white : textColor,
-                              fontSize: 13,
-                            ),
-                            linkColor: AppColors.panelBlue,
-                          ),
-                        ),
-                    ],
-                  ),
+                  // Sender name — only for incoming messages (WhatsApp style)
+                  if (!isMine && liveName.isNotEmpty) ...[
+                    Text(
+                      liveName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: liveIsAdmin
+                            ? AppColors.sargeGold
+                            : AppColors.panelBlue,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                  ],
+                  // Message text — takes full bubble width
+                  if (text.isNotEmpty)
+                    LinkifiedText(
+                      text: text,
+                      style: TextStyle(
+                        color: isMine ? Colors.white : textColor,
+                        fontSize: 13.5,
+                        height: 1.35,
+                      ),
+                      linkColor: isMine ? Colors.white70 : AppColors.panelBlue,
+                    ),
                   if (text.isNotEmpty) const SizedBox(height: 2),
                   // Images.
                   if (imageUrls.isNotEmpty) ...[

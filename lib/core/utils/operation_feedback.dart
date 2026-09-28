@@ -30,23 +30,31 @@ Future<bool> runOperationWithFeedback({
   final navigator = Navigator.of(context, rootNavigator: true);
   final messenger = ScaffoldMessenger.maybeOf(context);
 
+  final dialogCompleter = Completer<void>();
   showDialog<void>(
     context: context,
     useRootNavigator: true,
     barrierDismissible: false,
-    builder: (_) => PopScope(
-      canPop: false,
-      child: AlertDialog(
-        content: Row(
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(width: 16),
-            Expanded(child: Text(loadingMessage)),
-          ],
+    builder: (_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!dialogCompleter.isCompleted) dialogCompleter.complete();
+      });
+      return PopScope(
+        canPop: false,
+        child: AlertDialog(
+          content: Row(
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(width: 16),
+              Expanded(child: Text(loadingMessage)),
+            ],
+          ),
         ),
-      ),
-    ),
+      );
+    },
   );
+
+  await dialogCompleter.future;
 
   void closeOverlay() {
     // `canPop` guards against popping an unrelated route in edge cases.

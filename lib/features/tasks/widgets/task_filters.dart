@@ -52,7 +52,7 @@ class TaskFilterDropdown<T> extends StatelessWidget {
               ),
             ...items.map((item) => DropdownMenuItem<T?>(
                   value: item,
-                  child: Text(labelFn(item), style: const TextStyle(fontSize: 12)),
+                  child: Text(labelFn(item), style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis, maxLines: 1),
                 )),
           ],
           onChanged: (v) {
@@ -87,9 +87,8 @@ class TaskTeamUnitDropdown extends ConsumerWidget {
     return unitsAsync.when(
       data: (units) => TaskFilterDropdown<Map<String, dynamic>>(
         hint: 'Birim',
-        value: value != null
-            ? units.firstWhere((u) => u['id'] == value,
-                orElse: () => <String, dynamic>{})
+        value: value != null && units.any((u) => u['id'] == value)
+            ? units.firstWhere((u) => u['id'] == value)
             : null,
         items: units,
         labelFn: (u) => u['name'] as String? ?? '',
@@ -146,7 +145,7 @@ class TaskPersonFilterDropdown extends ConsumerWidget {
                 ),
               ...members.map((u) => DropdownMenuItem<String?>(
                     value: u.uid,
-                    child: Text(u.displayName, style: const TextStyle(fontSize: 12)),
+                    child: Text(u.displayName, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis, maxLines: 1),
                   )),
             ],
             onChanged: (v) => onChanged(v),

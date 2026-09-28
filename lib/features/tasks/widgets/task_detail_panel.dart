@@ -171,7 +171,7 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
   bool _computeCanApprove(TaskModel task) {
     final appUser = ref.read(currentAppUserProvider).valueOrNull;
     if (appUser?.isAdmin ?? false) return true;
-    if (appUser?.isUnitLead ?? false) return true;
+    // Unit leads can only approve tasks in their own team/unit
     final uid = appUser?.uid;
     if (uid != null && task.teamId != null) {
       final teams = ref.read(clubTeamsProvider).valueOrNull ?? [];
@@ -737,6 +737,10 @@ class TaskCommentInputBar extends StatelessWidget {
               Expanded(
                 child: TextField(
                   controller: controller,
+                  minLines: 1,
+                  maxLines: 5,
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
                   style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'Yorum yaz...',
@@ -747,12 +751,10 @@ class TaskCommentInputBar extends StatelessWidget {
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 10),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(20),
                       borderSide: BorderSide.none,
                     ),
                   ),
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => onSend(),
                 ),
               ),
               const SizedBox(width: 8),

@@ -677,6 +677,8 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
                                 controller: _msgCtrl,
                                 maxLines: 4,
                                 minLines: 1,
+                                keyboardType: TextInputType.multiline,
+                                textInputAction: TextInputAction.newline,
                                 style: TextStyle(
                                     color: AppColors.textPrimary,
                                     fontSize: 13),

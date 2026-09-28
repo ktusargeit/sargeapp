@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/permissions/permission_system.dart';
-import '../../../core/providers/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/store_models.dart';
 import '../providers/store_providers.dart';

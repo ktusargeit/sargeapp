@@ -668,6 +668,7 @@ class _AnnouncementDetailSheetState
   void dispose() {
     _presenceService.clearActiveThread(_threadKey);
     _commentCtrl.dispose();
+    _scroller.dispose();
     super.dispose();
   }
 
@@ -1014,6 +1015,9 @@ class _AnnouncementDetailSheetState
                         Expanded(
                           child: TextField(
                             controller: _commentCtrl,
+                            minLines: 1,
+                            maxLines: 5,
+                            keyboardType: TextInputType.multiline,
                             style: TextStyle(
                                 color: AppColors.textPrimary, fontSize: 14),
                             decoration: InputDecoration(
@@ -1025,12 +1029,11 @@ class _AnnouncementDetailSheetState
                               contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 14, vertical: 10),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(24),
+                                borderRadius: BorderRadius.circular(20),
                                 borderSide: BorderSide.none,
                               ),
                             ),
-                            textInputAction: TextInputAction.send,
-                            onSubmitted: (_) => _sendComment(),
+                            textInputAction: TextInputAction.newline,
                           ),
                         ),
                         const SizedBox(width: 8),

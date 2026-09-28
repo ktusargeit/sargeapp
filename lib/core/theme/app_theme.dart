@@ -47,13 +47,13 @@ class AppTheme {
     return _buildTheme(
       base: base,
       brightness: Brightness.dark,
-      scaffoldBg: AppColors.background,
-      surfaceColor: AppColors.surface,
+      scaffoldBg: const Color(0xFF000000),
+      surfaceColor: const Color(0xFF0D0D0D),
       primaryColor: AppColors.primaryBlue,
-      textPrimary: AppColors.textPrimary,
-      textSecondary: AppColors.textSecondary,
-      borderColor: AppColors.border,
-      cardColor: AppColors.surface,
+      textPrimary: const Color(0xFFF1F5F9),
+      textSecondary: const Color(0xFF94A3B8),
+      borderColor: const Color(0xFF333333),
+      cardColor: const Color(0xFF0D0D0D),
     );
   }
 

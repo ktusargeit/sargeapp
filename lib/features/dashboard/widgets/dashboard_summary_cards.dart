@@ -347,12 +347,16 @@ class _DashboardLeaderboardCardState
   String? _weekKey;
 
   static String _weekLabel(String weekKey) {
-    final parts = weekKey.split('-');
-    if (parts.length != 3) return weekKey;
-    final monday = DateTime(
-        int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
-    final sunday = monday.add(const Duration(days: 6));
-    return '${SafeDate.dayMonth(monday)} – ${SafeDate.dayMonth(sunday)}';
+    try {
+      final parts = weekKey.split('-');
+      if (parts.length != 3) return weekKey;
+      final monday = DateTime(
+          int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+      final sunday = monday.add(const Duration(days: 6));
+      return '${SafeDate.dayMonth(monday)} – ${SafeDate.dayMonth(sunday)}';
+    } catch (_) {
+      return weekKey;
+    }
   }
 
   @override
@@ -369,6 +373,9 @@ class _DashboardLeaderboardCardState
         ? const <ClubTeam>[]
         : allTeams.where((t) => t.memberIds.contains(currentUid)).toList();
     final selectedTeamId = _teamId ?? (teams.isNotEmpty ? teams.first.id : null);
+    final validTeamId = (selectedTeamId != null && teams.any((t) => t.id == selectedTeamId))
+        ? selectedTeamId
+        : (teams.isNotEmpty ? teams.first.id : null);
     final archiveWeeks = archiveWeeksAsync.valueOrNull ?? const <String>[];
     final meta = metaAsync.valueOrNull ?? const <String, dynamic>{};
 
@@ -417,7 +424,7 @@ class _DashboardLeaderboardCardState
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String?>(
-                          value: selectedTeamId,
+                          value: validTeamId,
                           isDense: true,
                           dropdownColor: AppColors.surface2,
                           style: TextStyle(

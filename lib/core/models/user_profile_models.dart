@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 /// Models for user profile sub-entities: past teams, social links, awards,
 /// and club titles.
 class PastTeamEntry {
@@ -383,6 +385,7 @@ class UserTitle {
   /// Handles both epoch millis (int) and already-decoded [DateTime] values.
   static DateTime _dateFrom(dynamic value) {
     if (value is DateTime) return value;
+    if (value is Timestamp) return value.toDate();
     if (value is num) return DateTime.fromMillisecondsSinceEpoch(value.toInt());
     return DateTime.fromMillisecondsSinceEpoch(0);
   }

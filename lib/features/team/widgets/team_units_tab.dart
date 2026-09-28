@@ -69,22 +69,24 @@ class TeamUnitsTab extends ConsumerWidget {
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         title: const Text('Yeni Birim'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              style: TextStyle(color: AppColors.textPrimary),
-              decoration: const InputDecoration(labelText: 'Birim Adı *'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: descCtrl,
-              maxLines: 3,
-              style: TextStyle(color: AppColors.textPrimary),
-              decoration: const InputDecoration(labelText: 'Açıklama'),
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                style: TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(labelText: 'Birim Adı *'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descCtrl,
+                maxLines: 3,
+                style: TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(labelText: 'Açıklama'),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(

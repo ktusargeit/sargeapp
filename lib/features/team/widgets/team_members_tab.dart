@@ -60,17 +60,17 @@ class _TeamMembersTabState extends ConsumerState<TeamMembersTab> {
         title: const Text('Üye Ekle'),
         content: SizedBox(
           width: double.maxFinite,
+          height: 350,
           child: availableUsers.isEmpty
               ? Text('Eklenebilecek uygun kullanıcı yok.',
                   style: TextStyle(color: AppColors.textSecondary))
               : ListView.builder(
-                  shrinkWrap: true,
                   itemCount: availableUsers.length,
                   itemBuilder: (_, i) {
                     final user = availableUsers[i];
                     return ListTile(
                       leading: SafeAvatar(url: user.photoUrl, radius: 16),
-                      title: Text(user.displayName),
+                      title: Text(user.displayName, overflow: TextOverflow.ellipsis, maxLines: 1),
                       subtitle: Text(user.roleLabel,
                           style: const TextStyle(fontSize: 11)),
                       onTap: () async {
@@ -116,6 +116,7 @@ class _TeamMembersTabState extends ConsumerState<TeamMembersTab> {
               margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: DropdownButtonFormField<String?>(
                 initialValue: _filterUnitId,
+                isExpanded: true,
                 isDense: true,
                 dropdownColor: AppColors.surface2,
                 style: TextStyle(color: AppColors.textPrimary, fontSize: 13),
@@ -135,7 +136,7 @@ class _TeamMembersTabState extends ConsumerState<TeamMembersTab> {
                   ),
                   ...units.map((u) => DropdownMenuItem(
                       value: u['id'] as String,
-                      child: Text(u['name'] as String? ?? ''))),
+                      child: Text(u['name'] as String? ?? '', overflow: TextOverflow.ellipsis, maxLines: 1))),
                 ],
                 onChanged: (v) => setState(() => _filterUnitId = v),
               ),
@@ -248,6 +249,8 @@ class TeamMemberRow extends ConsumerWidget {
                         children: [
                           Flexible(
                             child: Text(user.displayName,
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
                                 style: TextStyle(
                                     color: AppColors.textPrimary,
                                     fontSize: 14,

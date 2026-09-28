@@ -126,31 +126,72 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
               fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 6),
-        SegmentedButton<bool>(
-          segments: const [
-            ButtonSegment(
-              value: true,
-              label: Text('Tüm Yönetim Kurulu'),
-              icon: Icon(Icons.groups, size: 16),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            ChoiceChip(
+              label: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.groups, size: 16,
+                      color: _boardAll ? Colors.white : AppColors.textSecondary),
+                  const SizedBox(width: 4),
+                  Text('Tüm Yönetim Kurulu',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _boardAll ? Colors.white : AppColors.textPrimary,
+                      )),
+                ],
+              ),
+              selected: _boardAll,
+              onSelected: (_) => setState(() {
+                _boardAll = true;
+                _selectedBoardUids.clear();
+              }),
+              selectedColor: AppColors.sargeGold,
+              backgroundColor: AppColors.surface2,
+              showCheckmark: false,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: BorderSide(
+                  color: _boardAll ? AppColors.sargeGold : AppColors.border,
+                ),
+              ),
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            ButtonSegment(
-              value: false,
-              label: Text('Kuruldan Belirli Kişileri Seç'),
-              icon: Icon(Icons.checklist, size: 16),
+            ChoiceChip(
+              label: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.checklist, size: 16,
+                      color: !_boardAll ? Colors.white : AppColors.textSecondary),
+                  const SizedBox(width: 4),
+                  Text('Belirli Kişiler',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: !_boardAll ? Colors.white : AppColors.textPrimary,
+                      )),
+                ],
+              ),
+              selected: !_boardAll,
+              onSelected: (_) => setState(() {
+                _boardAll = false;
+              }),
+              selectedColor: AppColors.sargeGold,
+              backgroundColor: AppColors.surface2,
+              showCheckmark: false,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: BorderSide(
+                  color: !_boardAll ? AppColors.sargeGold : AppColors.border,
+                ),
+              ),
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ],
-          selected: {_boardAll},
-          showSelectedIcon: false,
-          onSelectionChanged: (s) => setState(() {
-            _boardAll = s.first;
-            if (_boardAll) _selectedBoardUids.clear();
-          }),
-          style: ButtonStyle(
-            visualDensity: VisualDensity.compact,
-            textStyle: WidgetStatePropertyAll(
-              TextStyle(fontSize: 12, color: AppColors.textPrimary),
-            ),
-          ),
         ),
         if (!_boardAll) ...[
           const SizedBox(height: 8),
@@ -202,16 +243,15 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
                   itemBuilder: (context, index) {
                     final m = members[index];
                     return CheckboxListTile(
-                      dense: true,
                       contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 8),
+                          const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
                       controlAffinity: ListTileControlAffinity.leading,
                       activeColor: AppColors.sargeGold,
                       value: _selectedBoardUids.contains(m.uid),
                       title: Text(
                         m.displayName,
                         style: TextStyle(
-                            color: AppColors.textPrimary, fontSize: 13),
+                            color: AppColors.textPrimary, fontSize: 14),
                       ),
                       subtitle: Text(
                         boardMemberLabel(m),
@@ -225,6 +265,7 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
                           _selectedBoardUids.remove(m.uid);
                         }
                       }),
+                      materialTapTargetSize: MaterialTapTargetSize.padded,
                     );
                   },
                 ),
@@ -264,6 +305,7 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
     ];
 
     return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       title: const Text('Yeni Görev Ata'),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 500),
@@ -284,6 +326,7 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
                       );
                     }
                     return DropdownButtonFormField<ClubTeam>(
+                      isExpanded: true,
                       dropdownColor: AppColors.surface2,
                       style: TextStyle(color: AppColors.textPrimary),
                       decoration: const InputDecoration(
@@ -304,27 +347,59 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
                   error: (e, _) => Text('Hata: $e'),
                 ),
               const SizedBox(height: 12),
-              SegmentedButton<TaskAssignmentMode>(
-                segments: assignmentSegments,
-                selected: {_mode},
-                onSelectionChanged: (s) => setState(() {
-                  _mode = s.first;
-                  _selectedUid = null;
-                  _selectedName = null;
-                  _selectedUnit = null;
-                  _boardAll = true;
-                  _selectedBoardUids.clear();
-                  if (_mode == TaskAssignmentMode.board) {
-                    _selectedTeam = null;
-                  }
-                }),
-                showSelectedIcon: false,
-                style: ButtonStyle(
-                  visualDensity: VisualDensity.compact,
-                  textStyle: WidgetStatePropertyAll(
-                    TextStyle(fontSize: 12, color: AppColors.textPrimary),
-                  ),
-                ),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: assignmentSegments.map((seg) {
+                  final isSelected = _mode == seg.value;
+                  return ChoiceChip(
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (seg.icon != null) ...[
+                          IconTheme(
+                            data: IconThemeData(
+                              size: 16,
+                              color: isSelected ? Colors.white : AppColors.textSecondary,
+                            ),
+                            child: seg.icon!,
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        DefaultTextStyle(
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isSelected ? Colors.white : AppColors.textPrimary,
+                          ),
+                          child: seg.label!,
+                        ),
+                      ],
+                    ),
+                    selected: isSelected,
+                    onSelected: (_) => setState(() {
+                      _mode = seg.value;
+                      _selectedUid = null;
+                      _selectedName = null;
+                      _selectedUnit = null;
+                      _boardAll = true;
+                      _selectedBoardUids.clear();
+                      if (_mode == TaskAssignmentMode.board) {
+                        _selectedTeam = null;
+                      }
+                    }),
+                    selectedColor: AppColors.tasksAccent,
+                    backgroundColor: AppColors.surface2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(
+                        color: isSelected ? AppColors.tasksAccent : AppColors.border,
+                      ),
+                    ),
+                    showCheckmark: false,
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  );
+                }).toList(),
               ),
               if (_mode == TaskAssignmentMode.board) ...[
                 const SizedBox(height: 8),
@@ -712,10 +787,11 @@ class TaskTeamUnitSelector extends ConsumerWidget {
             ? units
             : units.where((u) => allowedUnitIds!.contains(u['id'])).toList();
         return DropdownButtonFormField<Map<String, dynamic>>(
+          isExpanded: true,
           dropdownColor: AppColors.surface2,
           style: TextStyle(color: AppColors.textPrimary),
           decoration: const InputDecoration(
-              labelText: 'Birim', hintText: 'Birim seçin (isteğe bağlı)'),
+              labelText: 'Birim', hintText: 'Birim seçin'),
           initialValue: value,
           items: [
             DropdownMenuItem<Map<String, dynamic>>(
@@ -724,7 +800,7 @@ class TaskTeamUnitSelector extends ConsumerWidget {
                   style: TextStyle(color: AppColors.textSecondary)),
             ),
             ...visible.map((u) => DropdownMenuItem(
-                value: u, child: Text(u['name'] as String? ?? ''))),
+                value: u, child: Text(u['name'] as String? ?? '', overflow: TextOverflow.ellipsis, maxLines: 1))),
           ],
           onChanged: onChanged,
         );
@@ -753,13 +829,14 @@ class TaskTeamMemberSelector extends ConsumerWidget {
     final membersAsync = ref.watch(teamMembersProvider(teamId));
     return membersAsync.when(
       data: (members) => DropdownButtonFormField<String>(
+        isExpanded: true,
         dropdownColor: AppColors.surface2,
         style: TextStyle(color: AppColors.textPrimary),
         decoration: const InputDecoration(
             labelText: 'Kişi *', hintText: 'Görev atanacak kişi'),
         initialValue: selectedUid,
         items: members
-            .map((u) => DropdownMenuItem(value: u.uid, child: Text(u.displayName)))
+            .map((u) => DropdownMenuItem(value: u.uid, child: Text(u.displayName, overflow: TextOverflow.ellipsis, maxLines: 1)))
             .toList(),
         onChanged: (v) {
           if (v != null) {

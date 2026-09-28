@@ -223,10 +223,12 @@ class TaskCard extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
                     width: 3,
                     height: 20,
+                    margin: const EdgeInsets.only(top: 2),
                     decoration: BoxDecoration(
                       color: statusColor,
                       borderRadius: BorderRadius.circular(2),
@@ -235,19 +237,26 @@ class TaskCard extends ConsumerWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(task.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 15,
                             fontWeight: FontWeight.w600)),
                   ),
+                  const SizedBox(width: 8),
                   TaskCommentCountBadge(taskId: task.id),
                   if (_canDelete()) ...[
-                    const SizedBox(width: 2),
+                    const SizedBox(width: 4),
                     CustomDeleteButton(
                       onPressed: () => _deleteTask(context, ref),
                     ),
                   ],
-                  const SizedBox(width: 2),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
@@ -511,8 +520,8 @@ class TaskActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextButton(
       style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        minimumSize: Size.zero,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        minimumSize: const Size(0, 36),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
       onPressed: onTap,

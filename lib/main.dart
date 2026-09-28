@@ -117,6 +117,7 @@ void main() async {
   }
 
   // --- Launch App ---
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   runApp(const ProviderScope(child: SargeDepoApp()));
 }
 
@@ -245,7 +246,6 @@ class SargeDepoApp extends ConsumerWidget {
     // widget tree. Screens read theme-aware `AppColors` tokens, which would
     // otherwise stay stale until an unrelated rebuild.
     return MaterialApp.router(
-      key: ValueKey('sarge_${themeMode.name}'),
       title: 'SARGE',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,

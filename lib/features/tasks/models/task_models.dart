@@ -119,7 +119,7 @@ class TaskModel {
       case TaskStatus.assigned:
         return 'Yeni Görev';
       case TaskStatus.inProgress:
-        return 'Üzerinde Çalışılıyor';
+        return 'Devam Ediyor';
       case TaskStatus.pendingApproval:
         return 'Onay Bekliyor';
       case TaskStatus.completed:

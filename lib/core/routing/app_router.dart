@@ -246,7 +246,7 @@ class AppRouter {
           navigatorKey: _shellNavigatorKey,
           pageBuilder: (context, state, child) => CustomTransitionPage<void>(
             key: state.pageKey,
-            child: AppShell(key: ValueKey(state.matchedLocation), child: child),
+            child: AppShell(child: child),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               // NOTE: this transition is purely decorative. It must never gate
               // the shell from being *painted*: if the animation is interrupted

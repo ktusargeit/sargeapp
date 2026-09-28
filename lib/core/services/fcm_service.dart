@@ -74,7 +74,11 @@ class FcmService {
         // Sign-out: remove the previous user's token so a stale token can never
         // be used to deliver another user's notifications after re-login.
         if (lastUid != null) {
-          await _clearToken(lastUid!);
+          try {
+            await _clearToken(lastUid!);
+          } catch (_) {
+            // Token cleanup may fail after sign-out due to permissions — this is acceptable
+          }
           lastUid = null;
         }
         return;

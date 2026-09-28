@@ -358,7 +358,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ],
         ),
       ),
-    );
+    ).then((_) => ctrl.dispose());
   }
 
   String _mapResetPasswordError(FirebaseAuthException e) {
