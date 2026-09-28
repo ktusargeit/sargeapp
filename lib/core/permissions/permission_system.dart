@@ -190,20 +190,13 @@ bool userIsBoardPresident(AppUser? user) {
 /// Human-readable Turkish label for a role value.
 String roleLabel(String role) {
   switch (role) {
-    case 'admin':
-      return 'Admin';
-    case 'board_president':
-      return 'Başkan';
-    case 'board_vice_president':
-      return 'Başkan Yardımcısı';
-    case 'board_member':
-      return 'Yönetim Kurulu Üyesi';
-    case 'captain':
-      return 'Kaptan';
-    case 'unit_lead':
-      return 'Birim Sorumlusu';
-    default:
-      return 'Üye';
+    case 'admin': return 'Admin';
+    case 'board_president': return 'Başkan';
+    case 'board_vice_president': return 'Başkan Yardımcısı';
+    case 'board_member': return 'Yönetim Kurulu Üyesi';
+    case 'captain': return 'Kaptan';
+    case 'unit_lead': return 'Birim Sorumlusu';
+    default: return 'Üye';
   }
 }
 

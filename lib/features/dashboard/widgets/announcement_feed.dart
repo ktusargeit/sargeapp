@@ -733,6 +733,12 @@ class _AnnouncementDetailSheetState
         imageUrls.add(await storageRef.getDownloadURL());
       }
 
+      if (mounted) {
+        setState(() {
+          _pendingComments.remove(pending);
+        });
+      }
+
       await firestore
           .collection('announcements')
           .doc(widget.announcement.id)
@@ -749,12 +755,6 @@ class _AnnouncementDetailSheetState
         'replyToAuthor': pending.replyToAuthor,
         'replyToUid': pending.replyToUid,
       });
-
-      if (mounted) {
-        setState(() {
-          _pendingComments.remove(pending);
-        });
-      }
     } catch (_) {
       if (mounted) {
         setState(() {

@@ -122,6 +122,12 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
       final imageUrls = await _uploadCommentImages(
           pending.images.map((a) => a.image).toList());
 
+      if (mounted) {
+        setState(() {
+          _pendingComments.remove(pending);
+        });
+      }
+
       await firestore
           .collection('tasks')
           .doc(widget.taskId)
@@ -138,12 +144,6 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
         'replyToAuthor': pending.replyToAuthor,
         'replyToUid': pending.replyToUid,
       });
-
-      if (mounted) {
-        setState(() {
-          _pendingComments.remove(pending);
-        });
-      }
     } catch (_) {
       if (mounted) {
         setState(() {

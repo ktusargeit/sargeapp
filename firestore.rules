@@ -459,6 +459,13 @@ service cloud.firestore {
           get(/databases/$(database)/documents/teams/$(resource.data.teamId)).data.leadUid == request.auth.uid;
       }
 
+      function canApproveTask() {
+        return isAdmin() ||
+          isTeamLeadApprover() ||
+          (isSignedIn() && resource.data.unitId != null && exists(/databases/$(database)/documents/units/$(resource.data.unitId)) && get(/databases/$(database)/documents/units/$(resource.data.unitId)).data.unitLeadUid == request.auth.uid) ||
+          (isBoardMember() && resource.data.assignmentMode == 'board');
+      }
+
       // Captain is determined by `teams/{teamId}.leadUid` (NOT a global role
       // field), so a captain may create a task in any team they lead.
       function isCaptainOfTeam(teamId) {
@@ -512,10 +519,10 @@ service cloud.firestore {
         isSignedIn() &&
         request.auth.uid == resource.data.assignedTo &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
-        request.resource.data.status == 'pendingApproval'
+        request.resource.data.status in ['in_progress', 'pendingApproval']
       ) || (
-        // Team lead (veya admin) onayı: durum + onay alanları.
-        isTeamLeadApprover() &&
+        // Team lead, Unit lead, Board, veya admin onayı: durum + onay alanları.
+        canApproveTask() &&
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['status', 'approvedBy', 'pointsAwarded'])
       );

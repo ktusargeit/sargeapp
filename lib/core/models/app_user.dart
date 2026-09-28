@@ -126,23 +126,37 @@ class AppUser {
   bool get needsApproval => !isApproved;
 
   String get roleLabel {
+    // If we have an active title with a higher priority, display that label instead.
+    // The highest priority title should be displayed.
+    final priority = [
+      TitleType.admin,
+      TitleType.boardPresident,
+      TitleType.boardVicePresident,
+      TitleType.boardMember,
+      TitleType.captain,
+      TitleType.unitLead,
+    ];
+    for (final p in priority) {
+      if (activeTitles.any((t) => t.titleType == p)) {
+        switch (p) {
+          case TitleType.admin: return 'Admin';
+          case TitleType.boardPresident: return 'Başkan';
+          case TitleType.boardVicePresident: return 'Başkan Yardımcısı';
+          case TitleType.boardMember: return 'Yönetim Kurulu Üyesi';
+          case TitleType.captain: return 'Kaptan';
+          case TitleType.unitLead: return 'Birim Sorumlusu';
+        }
+      }
+    }
+
     switch (role) {
-      case 'admin':
-        return 'Admin';
-      case 'board_president':
-        return 'Başkan';
-      case 'board_vice_president':
-        return 'Başkan Yardımcısı';
-      case 'board_member':
-        return 'Yönetim Kurulu Üyesi';
-      case 'captain':
-        return 'Kaptan';
-      case 'unit_lead':
-        return 'Birim Sorumlusu';
-      // Both 'member' and the legacy 'user' value fall through here, so the
-      // display stays identical regardless of the stored string.
-      default:
-        return 'Üye';
+      case 'admin': return 'Admin';
+      case 'board_president': return 'Başkan';
+      case 'board_vice_president': return 'Başkan Yardımcısı';
+      case 'board_member': return 'Yönetim Kurulu Üyesi';
+      case 'captain': return 'Kaptan';
+      case 'unit_lead': return 'Birim Sorumlusu';
+      default: return 'Üye';
     }
   }
 

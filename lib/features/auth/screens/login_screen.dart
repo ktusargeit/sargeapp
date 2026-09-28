@@ -40,8 +40,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // the new auth state, so the router's redirect still evaluated the user as
       // "signed out" and bounced them straight back to /login — a silent
       // sign-in loop that left the user on a screen without a bottom nav bar.
-      await _awaitAuthUser();
-      if (mounted) context.go('/dashboard');
+      await _awaitAuthUserAndProfile();
+      if (mounted) {
+        final user = ref.read(currentAppUserProvider).valueOrNull;
+        if (user != null && user.needsApproval) {
+          context.go('/pending-approval');
+        } else {
+          context.go('/dashboard');
+        }
+      }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -52,15 +59,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  /// Polls [authStateProvider] until it reports a user (or times out).
+  /// Polls [currentAppUserProvider] until it reports a user profile (or times out).
   ///
   /// The timeout keeps a slow/offline token refresh from blocking the UI
   /// forever; on timeout the navigation is still attempted, and the router's
   /// redirect honours shell routes for an inconclusive auth state.
-  Future<void> _awaitAuthUser() async {
-    for (var i = 0; i < 20; i++) {
+  Future<void> _awaitAuthUserAndProfile() async {
+    for (var i = 0; i < 40; i++) {
       if (!mounted) return;
-      if (ref.read(authStateProvider).valueOrNull != null) return;
+      if (ref.read(currentAppUserProvider).valueOrNull != null) return;
       await Future<void>.delayed(const Duration(milliseconds: 50));
     }
   }

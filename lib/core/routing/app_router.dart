@@ -172,6 +172,10 @@ class AppRouter {
         // startup (manual login AND persisted auto-login).
         if (isLoggedIn) {
           if (path == '/login' || path == '/register') {
+            // Prevent flashing the dashboard if we don't know the approval status yet.
+            if (!hasProfile && appUserAsync.isLoading) {
+              return null; // stay on auth screen while loading profile
+            }
             return '/dashboard';
           }
           return null;

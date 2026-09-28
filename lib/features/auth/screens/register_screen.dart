@@ -46,7 +46,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             password: _passwordCtrl.text,
             displayName: _displayNameCtrl.text,
           );
-      if (mounted) context.go('/dashboard');
+      if (mounted) context.go('/pending-approval');
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
