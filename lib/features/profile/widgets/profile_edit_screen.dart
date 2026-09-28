@@ -3,15 +3,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../about/providers/club_info_providers.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/app_user.dart';
+import '../../../core/models/user_profile_models.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/image_utils.dart';
-import '../../team/models/team_models.dart';
 import 'profile_basic_info.dart';
-import 'profile_past_teams.dart';
+import 'past_experience_form.dart';
 
 const List<(String, String)> _linkPlatforms = [
   ('GitHub', 'github'),
@@ -135,28 +134,25 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
       TextEditingController(text: widget.user.department ?? '');
   late final TextEditingController _classNameCtrl =
       TextEditingController(text: widget.user.className ?? '');
-  final TextEditingController _unitCtrl = TextEditingController();
 
   PickedImage? _avatar;
   PickedImage? _cover;
   bool _saving = false;
 
   late List<Map<String, dynamic>> _links;
-  late List<Map<String, dynamic>> _clubRoles;
-  late List<String> _unitResponsibilities;
+
+  /// AŞAMA 4: structured \"Deneyim\" entries (replaces the removed free-text
+  /// `clubRoles` / `unitResponsibilities` fields and the legacy past-teams UI).
+  late List<PastExperience> _pastExperiences;
   late List<Map<String, dynamic>> _awards;
-  late List<String> _pastTeamIds;
 
   @override
   void initState() {
     super.initState();
     _links = widget.user.links.map((e) => Map<String, dynamic>.from(e)).toList();
-    _clubRoles =
-        widget.user.clubRoles.map((e) => Map<String, dynamic>.from(e)).toList();
-    _unitResponsibilities = List<String>.from(widget.user.unitResponsibilities);
+    _pastExperiences = List<PastExperience>.from(widget.user.pastExperiences);
     _awards =
         widget.user.awards.map((e) => Map<String, dynamic>.from(e)).toList();
-    _pastTeamIds = List<String>.from(widget.user.pastTeamIds);
   }
 
   @override
@@ -165,7 +161,6 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     _bioCtrl.dispose();
     _departmentCtrl.dispose();
     _classNameCtrl.dispose();
-    _unitCtrl.dispose();
     super.dispose();
   }
 
@@ -291,17 +286,10 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
             ),
             const SizedBox(height: AppConstants.spacingLg),
             _EditSection(
-              icon: Icons.badge_outlined,
+              icon: Icons.history_outlined,
               color: AppColors.sargeGold,
-              title: 'Kulüp Rolleri',
-              child: _buildClubRolesSection(),
-            ),
-            const SizedBox(height: AppConstants.spacingLg),
-            _EditSection(
-              icon: Icons.assignment_outlined,
-              color: AppColors.warning,
-              title: 'Birim Sorumlulukları',
-              child: _buildUnitsSection(),
+              title: 'Deneyim',
+              child: _buildPastExperiencesSection(),
             ),
             const SizedBox(height: AppConstants.spacingLg),
             _EditSection(
@@ -309,17 +297,6 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
               color: AppColors.primaryGreen,
               title: 'Ödüller & Başarılar',
               child: _buildAwardsSection(),
-            ),
-            const SizedBox(height: AppConstants.spacingLg),
-            _EditSection(
-              icon: Icons.history_outlined,
-              color: AppColors.depoAccent,
-              title: 'Geçmiş Takımlarım',
-              child: ProfilePastTeamsSection(
-                userId: widget.user.uid,
-                selectedIds: _pastTeamIds,
-                onToggle: _togglePastTeam,
-              ),
             ),
             const SizedBox(height: 40),
           ],
@@ -536,137 +513,119 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     );
   }
 
-  Widget _buildClubRolesSection() {
+  /// AŞAMA 4.1 — \"Deneyim Ekle\" butonu + dinamik form.
+  ///
+  /// The list shows every entry the user already added; the button opens the
+  /// RBAC-aware [PastExperienceFormSheet] sheet.
+  Widget _buildPastExperiencesSection() {
+    final entries = [..._pastExperiences];
+    entries.sort((a, b) {
+      final y = b.startYear.compareTo(a.startYear);
+      if (y != 0) return y;
+      return b.roleLabel.compareTo(a.roleLabel);
+    });
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ..._clubRoles.asMap().entries.map((entry) {
-          final i = entry.key;
-          final r = entry.value;
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.surface2,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
+        Text(
+          'Önceki yıllardaki görevlerini buraya ekle. Profilindeki "Deneyim" sekmesinde, sistemin otomatik kaydettiği geçmiş ünvanlarınla birlikte zaman çizelgesinde görünür.',
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+        ),
+        const SizedBox(height: 12),
+        if (entries.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Henüz geçmiş deneyim eklenmedi.',
+              style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic),
             ),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        initialValue: r['roleName'] as String? ?? '',
-                        style: TextStyle(color: AppColors.textPrimary),
-                        decoration: _editInputDecoration(
-                            label: 'Rol Adı (örn: Başkan)'),
-                        onChanged: (v) => _clubRoles[i]['roleName'] = v,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                        icon: const Icon(Icons.remove_circle_outline,
-                            color: AppColors.error, size: 22),
-                        onPressed: () => setState(() => _clubRoles.removeAt(i))),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                TextFormField(
-                  initialValue: r['teamName'] as String? ?? '',
-                  style: TextStyle(color: AppColors.textPrimary),
-                  decoration: _editInputDecoration(
-                      label: 'Takım (opsiyonel)', icon: Icons.groups_outlined),
-                  onChanged: (v) => _clubRoles[i]['teamName'] =
-                      v.trim().isEmpty ? null : v,
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        initialValue: r['startYear']?.toString() ?? '',
-                        keyboardType: TextInputType.number,
-                        style: TextStyle(color: AppColors.textPrimary),
-                        decoration: _editInputDecoration(
-                            label: 'Başlangıç Yılı'),
-                        onChanged: (v) => _clubRoles[i]['startYear'] =
-                            int.tryParse(v) ?? 0,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        initialValue: r['endYear']?.toString() ?? '',
-                        keyboardType: TextInputType.number,
-                        style: TextStyle(color: AppColors.textPrimary),
-                        decoration:
-                            _editInputDecoration(label: 'Bitiş Yılı'),
-                        onChanged: (v) => _clubRoles[i]['endYear'] =
-                            v.trim().isEmpty ? null : int.tryParse(v),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        }),
+          )
+        else
+          ...entries.map((e) => _buildPastExperienceTile(e)),
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
-            onPressed: () => setState(() => _clubRoles.add({
-                  'roleName': '',
-                  'teamName': null,
-                  'startYear': DateTime.now().year,
-                  'endYear': null
-                })),
+            onPressed: _addPastExperience,
             icon: const Icon(Icons.add, size: 18),
-            label: const Text('Rol Ekle'),
-            style: TextButton.styleFrom(
-                foregroundColor: AppColors.primaryGreen),
+            label: const Text('Deneyim Ekle'),
+            style: TextButton.styleFrom(foregroundColor: AppColors.sargeGold),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildUnitsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (_unitResponsibilities.isNotEmpty)
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _unitResponsibilities.asMap().entries.map((entry) {
-              return Chip(
-                label: Text(entry.value,
-                    style: const TextStyle(fontSize: 12)),
-                deleteIcon: const Icon(Icons.close, size: 16),
-                onDeleted: () => setState(
-                    () => _unitResponsibilities.removeAt(entry.key)),
-                backgroundColor: AppColors.surface2,
-                side: BorderSide(color: AppColors.border),
-              );
-            }).toList(),
+  Widget _buildPastExperienceTile(PastExperience e) {
+    final color = e.isBoard ? AppColors.gold : AppColors.teamAccent;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface2,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Icon(
+              e.isBoard ? Icons.workspace_premium : Icons.groups_outlined,
+              size: 17,
+              color: color,
+            ),
           ),
-        if (_unitResponsibilities.isNotEmpty) const SizedBox(height: 12),
-        TextFormField(
-          controller: _unitCtrl,
-          style: TextStyle(color: AppColors.textPrimary),
-          decoration: _editInputDecoration(
-              label: 'Yeni sorumluluk ekle (örn: Envanter)',
-              icon: Icons.add_task_outlined),
-          onFieldSubmitted: (v) {
-            if (v.trim().isNotEmpty) {
-              setState(() => _unitResponsibilities.add(v.trim()));
-              _unitCtrl.clear();
-            }
-          },
-        ),
-      ],
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  e.headline,
+                  style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  e.periodLabel,
+                  style:
+                      TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.remove_circle_outline,
+                color: AppColors.error, size: 20),
+            onPressed: () =>
+                setState(() => _pastExperiences.removeWhere((x) => x.id == e.id)),
+          ),
+        ],
+      ),
     );
+  }
+
+  Future<void> _addPastExperience() async {
+    final created = await showModalBottomSheet<PastExperience>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      builder: (_) => PastExperienceFormSheet(currentUser: widget.user),
+    );
+    if (created != null && mounted) {
+      setState(() => _pastExperiences = [..._pastExperiences, created]);
+    }
   }
 
   Widget _buildAwardsSection() {
@@ -731,29 +690,6 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     );
   }
 
-  Future<void> _togglePastTeam(ClubTeam team, bool value) async {
-    final linkService = ref.read(pastTeamLinkServiceProvider);
-    try {
-      if (value) {
-        await linkService.addPastTeam(uid: widget.user.uid, teamId: team.id);
-        setState(() {
-          if (!_pastTeamIds.contains(team.id)) _pastTeamIds.add(team.id);
-        });
-      } else {
-        await linkService.removePastTeam(
-            uid: widget.user.uid, teamId: team.id);
-        setState(() => _pastTeamIds.remove(team.id));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Güncellenemedi: $e'),
-          backgroundColor: AppColors.error,
-        ));
-      }
-    }
-  }
-
   ButtonStyle _outlineButtonStyle(Color color) {
     return OutlinedButton.styleFrom(
       foregroundColor: color,
@@ -810,9 +746,6 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                 'type': _normalizeLinkType(l['type'] as String?),
               })
           .toList();
-      final cleanRoles = _clubRoles
-          .where((r) => (r['roleName'] as String? ?? '').isNotEmpty)
-          .toList();
       final cleanAwards = _awards
           .where((a) => (a['title'] as String? ?? '').isNotEmpty)
           .toList();
@@ -833,10 +766,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
         'photoUrl': photoUrl,
         'coverPhotoUrl': coverUrl,
         'links': cleanLinks,
-        'clubRoles': cleanRoles,
-        'unitResponsibilities': _unitResponsibilities
-            .where((s) => s.trim().isNotEmpty)
-            .toList(),
+        'pastExperiences': _pastExperiences.map((e) => e.toMap()).toList(),
         'awards': cleanAwards,
       });
 

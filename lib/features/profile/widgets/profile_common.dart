@@ -11,12 +11,13 @@ final profileDateFormat = DateFormat('dd.MM.yyyy');
 /// Lower number = higher priority.
 const Map<String, int> profileTitlePriority = {
   TitleType.boardPresident: 0,
-  TitleType.boardMember: 1,
-  TitleType.captain: 2,
-  TitleType.admin: 3,
-  TitleType.unitLead: 4,
-  TitleType.honoraryMember: 5,
-  TitleType.member: 6,
+  TitleType.boardVicePresident: 1,
+  TitleType.boardMember: 2,
+  TitleType.captain: 3,
+  TitleType.admin: 4,
+  TitleType.unitLead: 5,
+  TitleType.honoraryMember: 6,
+  TitleType.member: 7,
 };
 
 int profileTitleRank(String titleType) => profileTitlePriority[titleType] ?? 99;
@@ -34,6 +35,8 @@ Color profileTitleColor(String titleType) {
   switch (titleType) {
     case TitleType.boardPresident:
       return AppColors.sargeGold;
+    case TitleType.boardVicePresident:
+      return AppColors.goldLight;
     case TitleType.boardMember:
       return AppColors.teamAccent;
     case TitleType.captain:

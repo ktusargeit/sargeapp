@@ -20,6 +20,43 @@ import 'firebase_options.dart';
 final FlutterLocalNotificationsPlugin localNotifications =
     FlutterLocalNotificationsPlugin();
 
+/// Whether the Turkish (`tr_TR`) `intl` locale data was loaded successfully.
+///
+/// Set by [_initDateFormatting]. When this is `false`, any
+/// `DateFormat(pattern, 'tr_TR')` call WILL throw `LocaleDataException`, so UI
+/// that formats dates must fall back to a locale-less formatter (see
+/// `core/utils/date_format_utils.dart`).
+bool intlLocaleReady = false;
+
+/// Loads the `tr_TR` locale data required by every `DateFormat(..., 'tr_TR')`
+/// call in the app.
+///
+/// Retries once (the first call can race with plugin/channel setup on some
+/// platforms) and records the outcome in [intlLocaleReady] instead of silently
+/// swallowing the failure — a swallowed failure is exactly what used to make
+/// the bottom navigation bar vanish.
+Future<void> _initDateFormatting() async {
+  for (var attempt = 1; attempt <= 2; attempt++) {
+    try {
+      await initializeDateFormatting('tr_TR', null);
+      Intl.defaultLocale = 'tr_TR';
+      // Verify it actually took effect: this is the call that throws when the
+      // data is missing.
+      DateFormat('d MMMM yyyy', 'tr_TR').format(DateTime.now());
+      intlLocaleReady = true;
+      debugPrint('Date formatting ready (tr_TR), attempt $attempt');
+      return;
+    } catch (e, st) {
+      debugPrint('Date format init attempt $attempt failed: $e');
+      if (attempt == 2) {
+        debugPrint('Date format init FAILED - falling back to locale-less '
+            'formatting. UI will not crash. $st');
+      }
+    }
+  }
+  intlLocaleReady = false;
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -32,13 +69,21 @@ void main() async {
     return;
   }
 
-  // --- Date Formatting (non-fatal) ---
-  try {
-    await initializeDateFormatting('tr_TR', null);
-    Intl.defaultLocale = 'tr_TR';
-  } catch (e, st) {
-    debugPrint('Date format init failed (non-fatal): $e\n$st');
-  }
+  // --- Date Formatting (CRITICAL — must NOT be swallowed) ---
+  //
+  // Every `DateFormat(pattern, 'tr_TR')` call in the app (dashboard header,
+  // announcement feed, reports, cleaning, ...) throws `LocaleDataException`
+  // ("Locale data has not been initialized") unless the Turkish locale data has
+  // been loaded here first.
+  //
+  // This used to be wrapped in a silent try-catch that CONTINUED on failure.
+  // When it failed, `DashboardHeader.build` threw while the shell was building
+  // its body, which aborted the whole `AppShell` Scaffold — and so the bottom
+  // navigation bar silently disappeared (no visible crash, just a missing bar).
+  //
+  // Now we (1) initialise it before `runApp`, (2) retry once, and (3) record
+  // whether it succeeded so `intlLocaleReady` can be checked by the UI.
+  await _initDateFormatting();
 
   // --- Auth Persistence (web only, non-fatal) ---
   if (kIsWeb) {

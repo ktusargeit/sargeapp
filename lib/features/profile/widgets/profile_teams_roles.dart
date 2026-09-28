@@ -57,7 +57,16 @@ class ProfileTeamsRolesSection extends ConsumerWidget {
           type: 'board_president',
           label: 'Yönetim Kurulu Başkanı',
           icon: Icons.gavel_outlined,
-          color: AppColors.info,
+          color: AppColors.gold,
+        ),
+      if (user.role == 'board_vice_president' ||
+          user.activeTitles
+              .any((t) => t.titleType == TitleType.boardVicePresident))
+        (
+          type: 'board_vice_president',
+          label: 'Yönetim Kurulu Başkan Yardımcısı',
+          icon: Icons.workspace_premium_outlined,
+          color: AppColors.goldLight,
         ),
       if (user.role == 'board_member' ||
           user.activeTitles.any((t) => t.titleType == TitleType.boardMember))

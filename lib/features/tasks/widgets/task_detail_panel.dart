@@ -39,7 +39,7 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
     super.initState();
     _presenceService = ref.read(presenceServiceProvider);
     _presenceService.setActiveThread(_threadKey);
-    final uid = ref.read(authStateProvider).value?.uid;
+    final uid = ref.read(authStateProvider).valueOrNull?.uid;
     if (uid != null) {
       ref.read(notificationServiceProvider).resetThread(
             uid,
@@ -64,7 +64,7 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
           .ref()
           .child('task_comments/$tempId.jpg');
       debugPrint(
-          '[task-comment-upload] path=${storageRef.fullPath} uid=${ref.read(authStateProvider).value?.uid}');
+          '[task-comment-upload] path=${storageRef.fullPath} uid=${ref.read(authStateProvider).valueOrNull?.uid}');
       final compressed = await img.compressedUploadBytes();
       if (compressed.isNotEmpty) {
         await storageRef.putData(compressed);
@@ -82,7 +82,7 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
     final text = _commentCtrl.text.trim();
     if (text.isEmpty && _commentImages.isEmpty) return;
 
-    final user = ref.read(authStateProvider).value;
+    final user = ref.read(authStateProvider).valueOrNull;
     final uid = user?.uid ?? '';
     final name = user?.displayName ?? 'Kullanıcı';
     final isAdmin = ref.read(isAdminProvider);
@@ -169,7 +169,7 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
   }
 
   bool _computeCanApprove(TaskModel task) {
-    final appUser = ref.read(currentAppUserProvider).value;
+    final appUser = ref.read(currentAppUserProvider).valueOrNull;
     if (appUser?.isAdmin ?? false) return true;
     if (appUser?.isUnitLead ?? false) return true;
     final uid = appUser?.uid;
@@ -200,7 +200,7 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
       });
 
       try {
-        final uid = ref.read(authStateProvider).value?.uid;
+        final uid = ref.read(authStateProvider).valueOrNull?.uid;
         if (creatorId != null && creatorId.isNotEmpty && creatorId != uid) {
           await ref.read(notificationServiceProvider).send(
                 recipientId: creatorId,
@@ -249,7 +249,7 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUid = ref.read(authStateProvider).value?.uid;
+    final currentUid = ref.read(authStateProvider).valueOrNull?.uid;
     final taskAsync = ref.watch(taskDocProvider(widget.taskId));
 
     return DraggableScrollableSheet(
@@ -458,7 +458,7 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
   }
 
   Future<void> _approve(bool approve) async {
-    final uid = ref.read(authStateProvider).value?.uid;
+    final uid = ref.read(authStateProvider).valueOrNull?.uid;
     final firestore = ref.read(firestoreProvider);
     try {
       final taskDoc = await firestore.collection('tasks').doc(widget.taskId).get();

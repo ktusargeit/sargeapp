@@ -31,7 +31,7 @@ class UnitDetailScreen extends ConsumerStatefulWidget {
 class _UnitDetailScreenState extends ConsumerState<UnitDetailScreen> {
   @override
   Widget build(BuildContext context) {
-    final currentUid = ref.watch(authStateProvider).value?.uid;
+    final currentUid = ref.watch(authStateProvider).valueOrNull?.uid;
     final isAdmin = ref.watch(isAdminProvider);
     final canManage =
         isAdmin || (widget.team.leadUid == currentUid);

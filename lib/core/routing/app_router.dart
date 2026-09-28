@@ -18,6 +18,7 @@ import '../../features/contact/screens/contact_screen.dart';
 import '../../features/reports/screens/report_bug_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
+import '../../features/auth/screens/pending_approval_screen.dart';
 import '../../features/splash/screens/splash_screen.dart';
 import '../../settings/screens/settings_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
@@ -46,18 +47,30 @@ GlobalKey<NavigatorState> get rootNavigatorKey => _rootNavigatorKey;
 /// Public routes that guests (not logged in) are allowed to see without redirect.
 const _publicRoutes = {'/login', '/register', '/about', '/contact', '/splash'};
 
-/// Routes guests are allowed to browse (showcase only).
-const _guestAllowedRoutes = {
+/// The waiting room for signed-in users whose registration has not been
+/// approved by an admin yet. Reachable ONLY in that state, and it is the only
+/// non-public route an unapproved user is allowed to stay on.
+const String kPendingApprovalRoute = '/pending-approval';
+
+/// Routes that live inside the [ShellRoute] (i.e. the screens that render the
+/// bottom navigation bar). Used by [AppRouter.build]'s redirect to decide
+/// whether a requested location is safe to honour while the auth state is still
+/// inconclusive. Keeping this list in sync with the `ShellRoute.routes` below is
+/// what guarantees a signed-in user can never be silently parked on a
+/// non-shell screen (login/splash) that has no bottom navigation bar.
+const _shellAllowedRoutes = {
   '/dashboard',
+  '/club',
+  '/inventory',
+  '/locations',
+  '/cleaning',
+  '/team',
+  '/tasks',
   '/about',
   '/contact',
-  '/login',
-  '/register',
-  '/splash',
-  '/profile',
-  '/team',
-  '/notifications',
-  '/club',
+  '/report-bug',
+  '/settings',
+  '/store',
 };
 
 class AppRouter {
@@ -68,13 +81,85 @@ class AppRouter {
       refreshListenable: GoRouterRefreshStream(ref),
       redirect: (context, state) {
         final authState = ref.read(authStateProvider);
-        final isLoggedIn = authState.value != null;
-        final isGuest = ref.read(isGuestProvider);
+        // CRITICAL: `.valueOrNull`, never `.value`.
+        //
+        // `AsyncError.value` RETHROWS the provider error (riverpod's
+        // `throwErrorWithCombinedStackTrace`). This `redirect` callback runs on
+        // every navigation AND on every auth-state change (see
+        // [GoRouterRefreshStream]). If auth hits an error state (token refresh,
+        // offline, permission-denied), a `.value` read here would throw INSIDE
+        // go_router's redirect, so go_router renders its error page INSTEAD of
+        // the matched route — which means the whole ShellRoute (and therefore
+        // the bottom navigation bar) silently disappears. With `.valueOrNull`
+        // an errored auth state simply behaves like "not logged in yet" and the
+        // shell keeps rendering.
+        final isLoggedIn = authState.valueOrNull != null;
         final path = state.matchedLocation;
         final isPublic = _publicRoutes.contains(path);
 
-        // Still loading auth state -> don't redirect yet.
-        if (authState.isLoading) return null;
+        // ─── REGISTRATION APPROVAL GUARD (v4.4.0) ────────────────────────────
+        //
+        // Guest login was REMOVED. A signed-in user whose `approvalStatus` is
+        // 'pending' (or 'rejected') must NOT reach the shell/dashboard; they may
+        // only sit on [kPendingApprovalRoute].
+        //
+        // `hasProfile` distinguishes "profile document not loaded YET" (the
+        // common transient state right after sign-in, and also the state an
+        // admin would be in if their own document were missing) from a real
+        // 'pending' verdict. We only enforce the gate when the profile is
+        // actually in hand, so a slow/offline profile fetch can never bounce an
+        // approved member onto the waiting screen.
+        final appUserAsync = ref.read(currentAppUserProvider);
+        final appUser = appUserAsync.valueOrNull;
+        final hasProfile = appUser != null;
+        final isUnapproved = hasProfile && appUser.needsApproval;
+
+        if (isUnapproved) {
+          if (path == kPendingApprovalRoute) return null;
+          // Anything else — including /login and /register, which would
+          // otherwise let them sign in as a different account while the
+          // unapproved session is still active — goes to the waiting room.
+          return kPendingApprovalRoute;
+        }
+
+        // An approved user has no business on the waiting screen.
+        if (hasProfile && !appUser.needsApproval && path == kPendingApprovalRoute) {
+          return '/dashboard';
+        }
+
+        // Auth state not conclusive yet (first stream emission still pending, or
+        // the stream is in an error state — offline / token refresh /
+        // permission-denied / Firebase still booting).
+        //
+        // CRITICAL: in this window we must NOT treat the user as "signed out".
+        // `LoginScreen._submit` calls `context.go('/dashboard')` immediately
+        // after `signInWithEmailAndPassword` succeeds, i.e. one microtask BEFORE
+        // `authStateChanges()` emits the new user. With the old
+        // `if (isLoading || hasError) return null;` the redirect was skipped
+        // entirely, so go_router kept rendering the *previous* match (the login
+        // screen) under the new `/dashboard` URL — the user stayed stuck on a
+        // screen that has no bottom navigation bar, with a perfectly clean log.
+        //
+        // Fix: (1) an authenticated route requested while auth is inconclusive is
+        // always ALLOWED (optimistic — the ShellRoute renders and any screen that
+        // needs a uid already degrades gracefully via `.valueOrNull`), and
+        // (2) only the signed-out decision is deferred.
+        if (authState.isLoading || authState.hasError) {
+          if (isPublic) return null;
+          // REQUESTS TARGETING A SHELL ROUTE ARE ALWAYS HONOURED. These are
+          // exactly the screens that render the bottom navigation bar, so
+          // letting them through means an authenticated user can never be
+          // parked on login/splash just because `authStateChanges()` had not
+          // emitted yet (the sign-in race described above). Every screen inside
+          // the shell resolves its own data with `.valueOrNull`, so an
+          // inconclusive auth state degrades to a guest-like view instead of a
+          // crash.
+          if (_shellAllowedRoutes.any(path.startsWith)) return null;
+          // Unknown session on a protected route (admin, store checkout, ...):
+          // stay put rather than bouncing a possibly-authenticated user back to
+          // /login, which would wipe the screen they were on.
+          return null;
+        }
 
         // Logged in: only redirect away from login/register.
         //
@@ -92,27 +177,9 @@ class AppRouter {
           return null;
         }
 
-        // Guest session active: allow showcase routes but NOT admin or write operations.
-        if (isGuest) {
-          if (path.startsWith('/admin') || path.startsWith('/inventory/add')) {
-            return '/dashboard';
-          }
-          if (!_guestAllowedRoutes.contains(path) &&
-              !path.startsWith('/profile') &&
-              !path.startsWith('/team') &&
-              !path.startsWith('/inventory') &&
-              !path.startsWith('/locations') &&
-              !path.startsWith('/cleaning') &&
-              !path.startsWith('/settings') &&
-              !path.startsWith('/tasks') &&
-              !path.startsWith('/report-bug') &&
-              !path.startsWith('/notifications')) {
-            return '/dashboard';
-          }
-          return null;
-        }
-
-        // Not logged in and not guest.
+        // Not logged in: every non-public route bounces to /login.
+        // (Guest sessions were removed in v4.4.0, so there is no showcase
+        // carve-out any more.)
         if (!isPublic) {
           return '/login';
         }
@@ -133,6 +200,11 @@ class AppRouter {
           path: '/register',
           name: 'register',
           builder: (context, state) => const RegisterScreen(),
+        ),
+        GoRoute(
+          path: kPendingApprovalRoute,
+          name: 'pending-approval',
+          builder: (context, state) => const PendingApprovalScreen(),
         ),
         GoRoute(
           path: '/profile/:id',
@@ -176,20 +248,20 @@ class AppRouter {
             key: state.pageKey,
             child: AppShell(key: ValueKey(state.matchedLocation), child: child),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              // Fade + slight upward slide on entry (the "entry animation").
-              final slide = Tween<Offset>(
-                begin: const Offset(0, 0.04),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOutCubic,
-              ));
-              return FadeTransition(
-                opacity: animation,
-                child: SlideTransition(position: slide, child: child),
-              );
+              // NOTE: this transition is purely decorative. It must never gate
+              // the shell from being *painted*: if the animation is interrupted
+              // or the incoming page is rebuilt mid-flight, the outgoing
+              // (login/splash) screen stays on top and the user sees a shell-less
+              // screen with no bottom navigation bar even though the URL and the
+              // matched route are correct.
+              //
+              // `FadeTransition` alone already keeps the new page in the tree
+              // from the first frame, so we drop the `SlideTransition` wrapper
+              // (which forced an extra `Tween<Offset>` animation to complete
+              // before the shell looked settled) and keep the shorter fade.
+              return FadeTransition(opacity: animation, child: child);
             },
-            transitionDuration: const Duration(milliseconds: 350),
+            transitionDuration: const Duration(milliseconds: 200),
           ),
           routes: [
             GoRoute(
@@ -399,9 +471,6 @@ class GoRouterRefreshStream extends ChangeNotifier {
       notifyListeners();
     });
     ref.listen(currentAppUserProvider, (previous, next) {
-      notifyListeners();
-    });
-    ref.listen(guestSessionProvider, (previous, next) {
       notifyListeners();
     });
   }

@@ -3,7 +3,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
@@ -18,6 +17,7 @@ import '../../announcements/models/announcement_models.dart';
 import '../../announcements/providers/announcement_providers.dart';
 import '../../notifications/providers/notification_providers.dart';
 import '../../team/providers/team_providers.dart';
+import '../../../core/utils/safe_date.dart';
 
 Color announcementStatusColor(String status) {
   return switch (status) {
@@ -123,8 +123,7 @@ class AnnouncementCard extends ConsumerWidget {
                             size: 13, color: AppColors.textSecondary),
                         const SizedBox(width: 4),
                         Text(
-                          DateFormat('dd MMM yyyy', 'tr_TR')
-                              .format(announcement.eventDate!),
+                          SafeDate.dayShortMonthYear(announcement.eventDate!),
                           style: TextStyle(
                               color: AppColors.textSecondary, fontSize: 12),
                         ),
@@ -150,8 +149,7 @@ class AnnouncementCard extends ConsumerWidget {
                       ),
                       const Spacer(),
                       Text(
-                        DateFormat('dd MMM yyyy', 'tr_TR')
-                            .format(announcement.createdAt),
+                        SafeDate.dayShortMonthYear(announcement.createdAt),
                         style: TextStyle(
                             color:
                                 AppColors.textSecondary.withValues(alpha: 0.7),
@@ -184,7 +182,7 @@ class AnnouncementCard extends ConsumerWidget {
 
   static void openAnnouncementDetail(
       BuildContext context, WidgetRef ref, Announcement announcement) {
-    final uid = ref.read(authStateProvider).value?.uid;
+    final uid = ref.read(authStateProvider).valueOrNull?.uid;
     final isAdminUser = ref.read(isAdminProvider);
 
     bool canComment = isAdminUser;
@@ -328,7 +326,7 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
     }
     setState(() => _loading = true);
     try {
-      final user = ref.read(authStateProvider).value;
+      final user = ref.read(authStateProvider).valueOrNull;
       final repo = ref.read(announcementRepositoryProvider);
       String? imageUrl = widget.existing?.imageUrl;
       if (_pickedImage != null) {
@@ -419,8 +417,7 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                       icon: const Icon(Icons.event_outlined, size: 18),
                       label: Text(
                         _eventDate != null
-                            ? DateFormat('dd MMM yyyy', 'tr_TR')
-                                .format(_eventDate!)
+                            ? SafeDate.dayShortMonthYear(_eventDate!)
                             : 'Etkinlik Tarihi',
                       ),
                     ),
@@ -657,7 +654,7 @@ class _AnnouncementDetailSheetState
     super.initState();
     _presenceService = ref.read(presenceServiceProvider);
     _presenceService.setActiveThread(_threadKey);
-    final uid = ref.read(authStateProvider).value?.uid;
+    final uid = ref.read(authStateProvider).valueOrNull?.uid;
     if (uid != null) {
       ref.read(notificationServiceProvider).resetThread(
             uid,
@@ -678,7 +675,7 @@ class _AnnouncementDetailSheetState
     final text = _commentCtrl.text.trim();
     if (text.isEmpty && _commentImages.isEmpty) return;
 
-    final user = ref.read(authStateProvider).value;
+    final user = ref.read(authStateProvider).valueOrNull;
     final uid = user?.uid ?? '';
     final name = user?.displayName ?? 'Kullanıcı';
     final isAdmin = ref.read(isAdminProvider);
@@ -852,8 +849,7 @@ class _AnnouncementDetailSheetState
                           size: 13, color: AppColors.textSecondary),
                       const SizedBox(width: 4),
                       Text(
-                        DateFormat('dd MMM yyyy, HH:mm', 'tr_TR')
-                            .format(announcement.createdAt),
+                        SafeDate.dayShortMonthYearTime(announcement.createdAt),
                         style: TextStyle(
                             color:
                                 AppColors.textSecondary.withValues(alpha: 0.7),
@@ -869,7 +865,7 @@ class _AnnouncementDetailSheetState
                             size: 13, color: AppColors.panelBlue),
                         const SizedBox(width: 4),
                         Text(
-                          'Etkinlik: ${DateFormat('dd MMM yyyy', 'tr_TR').format(announcement.eventDate!)}',
+                          'Etkinlik: ${SafeDate.dayShortMonthYear(announcement.eventDate!)}',
                           style: const TextStyle(
                               color: AppColors.panelBlue, fontSize: 12),
                         ),
@@ -918,7 +914,7 @@ class _AnnouncementDetailSheetState
                   ),
                   AnnouncementCommentsList(
                     announcementId: announcement.id,
-                    currentUid: ref.read(authStateProvider).value?.uid,
+                    currentUid: ref.read(authStateProvider).valueOrNull?.uid,
                     pendingComments: _pendingComments,
                     onRetryPending: (pending) =>
                         _persistPendingComment(pending),

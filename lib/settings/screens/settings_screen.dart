@@ -17,7 +17,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
-    final appUser = ref.watch(currentAppUserProvider).value;
+    final appUser = ref.watch(currentAppUserProvider).valueOrNull;
 
     return Scaffold(
       backgroundColor: AppColors.background,

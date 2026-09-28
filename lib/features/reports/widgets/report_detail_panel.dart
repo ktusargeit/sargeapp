@@ -3,7 +3,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/image_utils.dart';
@@ -12,6 +11,7 @@ import '../../../core/widgets/pending_message.dart';
 import '../../../core/widgets/platform_image.dart';
 import '../../notifications/providers/notification_providers.dart';
 import '../../team/models/team_models.dart';
+import '../../../core/utils/safe_date.dart';
 
 void showReportImageFullScreen(BuildContext context, String url) {
   Navigator.push(
@@ -93,7 +93,7 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
         .snapshots();
     _presenceService = ref.read(presenceServiceProvider);
     _presenceService.setActiveThread(_threadKey);
-    final uid = ref.read(authStateProvider).value?.uid;
+    final uid = ref.read(authStateProvider).valueOrNull?.uid;
     if (uid != null) {
       ref.read(notificationServiceProvider).resetThread(
             uid,
@@ -112,8 +112,8 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
 
   Future<void> _updateStatus(BugReport report, String newStatus) async {
     final firestore = ref.read(firestoreProvider);
-    final currentUser = ref.read(authStateProvider).value;
-    final currentName = ref.read(currentAppUserProvider).value?.displayName ??
+    final currentUser = ref.read(authStateProvider).valueOrNull;
+    final currentName = ref.read(currentAppUserProvider).valueOrNull?.displayName ??
         currentUser?.displayName ??
         '';
     final uid = currentUser?.uid;
@@ -166,7 +166,7 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
     final text = _msgCtrl.text.trim();
     if (text.isEmpty && _msgImage == null) return;
 
-    final currentUser = ref.read(authStateProvider).value;
+    final currentUser = ref.read(authStateProvider).valueOrNull;
     final currentName = currentUser?.displayName ?? 'Kullanıcı';
     final uid = currentUser?.uid ?? '';
     final replyTo = _replyTo;
@@ -276,7 +276,7 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
         }
         final report = BugReport.fromDoc(snapshot.data!);
         final messages = report.messages;
-        final currentUid = ref.read(authStateProvider).value?.uid;
+        final currentUid = ref.read(authStateProvider).valueOrNull?.uid;
 
         final msgCount = messages.length + _pendingMessages.length;
         if (msgCount > _lastMsgCount) {
@@ -396,8 +396,7 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
                                     .withValues(alpha: 0.7)),
                             const SizedBox(width: 2),
                             Text(
-                              DateFormat('dd MMM yyyy, HH:mm', 'tr_TR')
-                                  .format(report.createdAt!),
+                              SafeDate.dayShortMonthYearTime(report.createdAt!),
                               style: TextStyle(
                                   color: AppColors.textSecondary
                                       .withValues(alpha: 0.7),
@@ -478,7 +477,7 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
                         if (report.resolvedAt != null) ...[
                           const SizedBox(height: 2),
                           Text(
-                            'Çözüm: ${DateFormat('dd MMMM yyyy, HH:mm', 'tr_TR').format(report.resolvedAt!)}',
+                            'Çözüm: ${SafeDate.dayMonthYearTime(report.resolvedAt!)}',
                             style: TextStyle(
                                 color: AppColors.textSecondary
                                     .withValues(alpha: 0.7),

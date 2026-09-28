@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/app_user.dart';
+import '../../../core/models/user_profile_models.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/safe_network_image.dart';
 import '../../admin/screens/user_title_management_sheet.dart';
+import '../../admin/services/user_title_service.dart';
 import '../models/team_models.dart';
 import '../providers/team_providers.dart';
 
@@ -28,22 +30,22 @@ class TeamMembersTab extends ConsumerStatefulWidget {
 class _TeamMembersTabState extends ConsumerState<TeamMembersTab> {
   String? _filterUnitId;
 
-  bool _matchesUnitFilter(
-      List<String> responsibilities, List<Map<String, dynamic>>? units) {
-    if (responsibilities.isEmpty) return false;
+  /// A member matches the selected unit filter when they are that unit's lead
+  /// (`units/{id}.unitLeadUid`) OR a member of it (`units/{id}.memberUids`).
+  ///
+  /// The legacy free-text `users/{uid}.unitResponsibilities` array was removed
+  /// (AŞAMA 3): unit membership now lives in ONE source of truth — the `units`
+  /// collection — so the filter reads the document directly.
+  bool _matchesUnitFilter(AppUser user, List<Map<String, dynamic>>? units) {
+    if (_filterUnitId == null) return true;
     if (units == null || units.isEmpty) return false;
-    for (final r in responsibilities) {
-      final matches = units.any((u) {
-        final name = u['name'];
-        final id = u['id'];
-        return name is String &&
-            id is String &&
-            name == r &&
-            id == _filterUnitId;
-      });
-      if (matches) return true;
-    }
-    return false;
+    return units.any((u) {
+      if (u['id'] != _filterUnitId) return false;
+      final leadUid = u['unitLeadUid'];
+      if (leadUid is String && leadUid == user.uid) return true;
+      final memberUids = u['memberUids'];
+      return memberUids is List && memberUids.contains(user.uid);
+    });
   }
 
   void _showAddMemberDialog(BuildContext context) {
@@ -182,10 +184,8 @@ class _TeamMembersTabState extends ConsumerState<TeamMembersTab> {
                     child: Column(
                       children: members.asMap().entries.map((e) {
                         final user = e.value;
-                        if (_filterUnitId != null &&
-                            !_matchesUnitFilter(
-                                user.unitResponsibilities,
-                                unitsAsync.valueOrNull)) {
+                        if (!_matchesUnitFilter(
+                            user, unitsAsync.valueOrNull)) {
                           return const SizedBox.shrink();
                         }
                         return TeamMemberRow(
@@ -275,12 +275,6 @@ class TeamMemberRow extends ConsumerWidget {
                           ],
                         ],
                       ),
-                      if (user.unitResponsibilities.isNotEmpty)
-                        Text(
-                          user.unitResponsibilities.join(', '),
-                          style: TextStyle(
-                              color: AppColors.textSecondary, fontSize: 11),
-                        ),
                       if (user.roleLabel.isNotEmpty)
                         Text(user.roleLabel,
                             style: TextStyle(
@@ -445,20 +439,26 @@ class TeamMemberRow extends ConsumerWidget {
                             : null,
                         onTap: () async {
                           Navigator.pop(ctx);
-                          final userRef = ref
+                          // AŞAMA 3: yazma kaynağı artık `units/{id}.unitLeadUid`.
+                          // `users.unitResponsibilities` (serbest metin) kaldırıldı;
+                          // birim sorumluluğu tek doğru kaynaktan (units koleksiyonu)
+                          // okunur — team_screen filtresi ve profil görünümü de
+                          // aynı alanı kullanır.
+                          await ref
                               .read(firestoreProvider)
-                              .collection('users')
-                              .doc(user.uid);
-                          final userDoc = await userRef.get();
-                          final current =
-                              (userDoc.data()?['unitResponsibilities'] as List?) ??
-                                  <String>[];
-                          final updated = <String>{
-                            ...current.map((e) => e.toString()),
-                            name
-                          }.toList();
-                          await userRef.update(
-                              {'unitResponsibilities': updated});
+                              .collection('units')
+                              .doc(u['id'] as String)
+                              .update({'unitLeadUid': user.uid});
+                          try {
+                            await ref.read(userTitleServiceProvider).addTitle(
+                                  uid: user.uid,
+                                  titleType: TitleType.unitLead,
+                                  unitName: name,
+                                );
+                          } catch (_) {
+                            // Best-effort unvan senkronu; birim ataması yine geçerli.
+                          }
+                          ref.invalidate(teamUnitsProvider(team.id));
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                 content: Text(

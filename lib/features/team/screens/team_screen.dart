@@ -1,3 +1,4 @@
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
@@ -8,11 +9,13 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/app_user.dart';
+import '../../../core/models/user_profile_models.dart';
 import '../../../core/permissions/permission_system.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/utils/image_utils.dart';
 import '../../../core/utils/operation_feedback.dart';
 import '../../../core/widgets/platform_image.dart';
+import '../../../core/widgets/safe_network_image.dart';
 import '../../notifications/providers/notification_providers.dart';
 import '../models/team_models.dart';
 import '../providers/team_providers.dart';
@@ -25,17 +28,37 @@ class TeamScreen extends ConsumerStatefulWidget {
 
 class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProviderStateMixin {
   late TabController _tabCtrl;
+  int _tabIndex = 0;
   @override
-  void initState() { super.initState(); _tabCtrl = TabController(length: 2, vsync: this); }
+  void initState() {
+    super.initState();
+    _tabCtrl = TabController(length: 2, vsync: this);
+    _tabCtrl.addListener(_onTabChanged);
+  }
+
+  void _onTabChanged() {
+    if (_tabCtrl.index != _tabIndex) {
+      setState(() => _tabIndex = _tabCtrl.index);
+    }
+  }
+
   @override
-  void dispose() { _tabCtrl.dispose(); super.dispose(); }
+  void dispose() {
+    _tabCtrl.removeListener(_onTabChanged);
+    _tabCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final isAdmin = ref.watch(isAdminProvider);
-    final currentUser = ref.watch(currentAppUserProvider).value;
+    final currentUser = ref.watch(currentAppUserProvider).valueOrNull;
     final teamsAsync = ref.watch(clubTeamsProvider);
     final isBoard = _isBoardAppUser(currentUser);
+    // AŞAMA 1.2: The gold "Yönetim Kurulu" card belongs to the TEAMS tab only.
+    // While the "Başvurular" tab is active it must not be rendered at all —
+    // otherwise it leaks into the applications screen (UI bug).
+    final showBoardCard = isBoard && (!isAdmin || _tabIndex == 0);
 
     return Scaffold(
       backgroundColor: AppColors.teamBg,
@@ -50,7 +73,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
       ),
       body: Column(
         children: [
-          if (isBoard) const _YonetimKuruluCard(),
+          if (showBoardCard) const _YonetimKuruluCard(),
           Expanded(
             child: isAdmin
                 ? TabBarView(controller: _tabCtrl, children: [_buildTeamList(teamsAsync, isAdmin, currentUser), _ApplicationsTab()])
@@ -61,11 +84,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
     );
   }
 
-  static bool _isBoardAppUser(AppUser? user) {
-    if (user == null) return false;
-    final roles = effectiveRoleCodes(user);
-    return roles.contains('board_member') || roles.contains('board_president');
-  }
+  static bool _isBoardAppUser(AppUser? user) => userIsBoard(user);
 
   Widget _buildTeamList(AsyncValue<List<ClubTeam>> teamsAsync, bool isAdmin, AppUser? currentUser) {
     return teamsAsync.when(
@@ -212,7 +231,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
                           }
                           photoUrl = await storageRef.getDownloadURL();
                         }
-                        final creatorUid = ref.read(authStateProvider).value?.uid;
+                        final creatorUid = ref.read(authStateProvider).valueOrNull?.uid;
                         await ref
                             .read(firestoreProvider)
                             .collection('teams')
@@ -253,7 +272,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
   }
 
   Future<void> _showApplyDialog(BuildContext context, List<ClubTeam> teams) async {
-    final currentUser = ref.read(currentAppUserProvider).value;
+    final currentUser = ref.read(currentAppUserProvider).valueOrNull;
     if (currentUser == null) return;
 
     // Check for ANY pending application first (spam prevention)
@@ -420,42 +439,59 @@ class _TeamScreenState extends ConsumerState<TeamScreen> with SingleTickerProvid
 // YÖNETİM KURULU (gold-themed, board-only)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Altın temalı "Yönetim Kurulu" kartı. Sadece `board_member` / `board_president`
-/// rolüne sahip kullanıcılara render edilir (üst seviyede koşullu gösterilir).
+/// Altın temalı "Yönetim Kurulu" kartı. Sadece `board_member` /
+/// `board_vice_president` / `board_president` rolüne sahip kullanıcılara render
+/// edilir (üst seviyede koşullu gösterilir) VE yalnızca "Takımlar" sekmesi
+/// aktifken görünür.
+///
+/// Üye isimleri kartın üzerinde ALT ALTA LİSTELENMEZ. Kart sadece başlık +
+/// üye sayısı gösterir; tıklandığında isimler modal bir dialog'da açılır.
 class _YonetimKuruluCard extends ConsumerWidget {
   const _YonetimKuruluCard();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final membersAsync = ref.watch(boardMembersProvider);
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.goldDark,
-            AppColors.gold,
-            AppColors.goldLight,
-          ],
-        ),
+    final members = membersAsync.valueOrNull ?? const <AppUser>[];
+
+    final subtitle = membersAsync.isLoading
+        ? 'Yükleniyor...'
+        : membersAsync.hasError
+            ? 'Liste yüklenemedi'
+            : members.isEmpty
+                ? 'Yönetim kurulu üyesi bulunamadı'
+                : '${members.length} üye — görüntülemek için dokun';
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showBoardMembersDialog(context, members),
         borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-        border: Border.all(color: AppColors.goldLight, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.gold.withValues(alpha: 0.45),
-            blurRadius: 18,
-            spreadRadius: 2,
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.goldDark,
+                AppColors.gold,
+                AppColors.goldLight,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+            border: Border.all(color: AppColors.goldLight, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.gold.withValues(alpha: 0.45),
+                blurRadius: 18,
+                spreadRadius: 2,
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+          child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
@@ -482,85 +518,119 @@ class _YonetimKuruluCard extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Yönetim Kurulu Üyeleri',
+                      subtitle,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.85),
+                        color: Colors.white.withValues(alpha: 0.9),
                         fontSize: 12,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.star, color: Colors.white, size: 22),
+              const SizedBox(width: 8),
+              const Icon(Icons.star, color: Colors.white, size: 20),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right, color: Colors.white, size: 22),
             ],
           ),
-          const SizedBox(height: 12),
-          membersAsync.when(
-            data: (members) {
-              if (members.isEmpty) {
-                return Text(
-                  'Yönetim kurulu üyesi bulunamadı.',
-                  style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontSize: 13),
-                );
-              }
-              return Column(
-                children: members.map((m) {
-                  final label = _boardMemberLabel(m);
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 3),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.person, size: 15, color: Colors.white),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            m.displayName,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        Text(
-                          label,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              );
-            },
-            loading: () => const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Center(
-                child: SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white)),
+        ),
+      ),
+    );
+  }
+
+  /// AŞAMA 1.1: kişi isimleri SADECE bu modal dialog'da gösterilir; kart
+  /// üzerinde alt alta listelenmez.
+  ///
+  /// Her satır TIKLANABİLİRDİR: dokunulduğunda dialog kapanır ve ilgili üyenin
+  /// profil ekranı açılır (`/profile/:uid` — root navigator üzerinde).
+  void _showBoardMembersDialog(BuildContext context, List<AppUser> members) {
+    final router = GoRouter.of(context);
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Row(
+          children: [
+            const Icon(Icons.workspace_premium,
+                color: AppColors.gold, size: 22),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Yönetim Kurulu',
+                style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700),
               ),
             ),
-            error: (_, __) => Text(
-              'Yönetim kurulu listesi yüklenemedi.',
-              style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.9), fontSize: 13),
-            ),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: members.isEmpty
+              ? Text(
+                  'Yönetim kurulu üyesi bulunamadı.',
+                  style:
+                      TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                )
+              : ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: members.length,
+                  separatorBuilder: (_, __) =>
+                      Divider(height: 1, color: AppColors.border),
+                  itemBuilder: (_, i) {
+                    final m = members[i];
+                    return ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: SafeAvatar(url: m.photoUrl, radius: 18),
+                      title: Text(
+                        m.displayName,
+                        style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                        boardMemberLabel(m),
+                        style: TextStyle(
+                            color: AppColors.textSecondary, fontSize: 12),
+                      ),
+                      trailing: Icon(Icons.chevron_right,
+                          color: AppColors.textSecondary, size: 20),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        router.push('/profile/${m.uid}');
+                      },
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Kapat'),
           ),
         ],
       ),
     );
   }
+}
 
-  String _boardMemberLabel(AppUser member) {
-    if (member.role == 'board_president') return 'Başkan';
-    return 'Üye';
+/// Turkish role label for a Yönetim Kurulu member (Başkan / Başkan Yardımcısı /
+/// Üye), honoring both the legacy `role` field and the active `titles` array.
+String boardMemberLabel(AppUser member) {
+  if (member.role == TitleType.boardPresident ||
+      member.activeTitles
+          .any((t) => t.titleType == TitleType.boardPresident)) {
+    return 'Başkan';
   }
+  if (member.role == TitleType.boardVicePresident ||
+      member.activeTitles
+          .any((t) => t.titleType == TitleType.boardVicePresident)) {
+    return 'Başkan Yardımcısı';
+  }
+  return 'Üye';
 }
 
 /// Inline display of a team's "birimler" (units) inside the Takımım list.

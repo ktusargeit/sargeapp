@@ -5,7 +5,7 @@ import '../../team/providers/team_providers.dart';
 
 /// Whether the current user is the captain (leadUid) of at least one team.
 final isCaptainOfAnyTeamProvider = Provider<bool>((ref) {
-  final appUser = ref.watch(currentAppUserProvider).value;
+  final appUser = ref.watch(currentAppUserProvider).valueOrNull;
   final teams = ref.watch(clubTeamsProvider).valueOrNull;
   if (appUser == null || teams == null) return false;
   return teams.any((t) => t.leadUid == appUser.uid);
@@ -16,12 +16,13 @@ final isCaptainOfAnyTeamProvider = Provider<bool>((ref) {
 /// team captain. Mirrors the spirit of the "kaptan/admin" requirement while
 /// staying consistent with the app's existing RBAC sources.
 final cleaningManagerProvider = Provider<bool>((ref) {
-  final appUser = ref.watch(currentAppUserProvider).value;
+  final appUser = ref.watch(currentAppUserProvider).valueOrNull;
   if (appUser == null) return false;
   if (appUser.isAdmin) return true;
   final roles = effectiveRoleCodes(appUser);
   if (roles.contains('unit_lead') ||
       roles.contains('board_president') ||
+      roles.contains('board_vice_president') ||
       roles.contains('board_member')) {
     return true;
   }

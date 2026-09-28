@@ -20,7 +20,7 @@ class CleaningWeekScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scheduleAsync = ref.watch(cleaningScheduleProvider(weekKey));
     final isManager = ref.watch(cleaningManagerProvider);
-    final currentUser = ref.watch(currentAppUserProvider).value;
+    final currentUser = ref.watch(currentAppUserProvider).valueOrNull;
 
     return Scaffold(
       backgroundColor: AppColors.background,

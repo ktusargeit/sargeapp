@@ -18,10 +18,12 @@ service cloud.firestore {
     }
 
     // Board members (Yönetim Kurulu) are identified by their primary role field.
+    // Başkan (president), Başkan Yardımcısı (vice president) and Üye (member)
+    // all carry the SAME privileges; only their display label differs.
     function isBoardMember() {
       return isSignedIn() &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['board_president', 'board_member'];
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['board_president', 'board_vice_president', 'board_member'];
     }
 
     // Yönetim Kurulu Başkanı — denetim amaçlı tüm görevleri görebilir.
@@ -52,6 +54,8 @@ service cloud.firestore {
       return (role == 'admin' || role == 'board_president') ||
         (role == 'board_member' &&
           perm in ['viewAdminPanel','manageTitles','manageAnnouncements','reviewApplications','editClubStory','editTeamStory','addHonoraryMember','manageStore']) ||
+        (role == 'board_vice_president' &&
+          perm in ['viewAdminPanel','manageTitles','manageAnnouncements','reviewApplications','editClubStory','editTeamStory','addHonoraryMember','manageStore']) ||
         (role == 'captain' &&
           perm in ['createTasks','approveTasks','deleteTasks','manageUnits','manageAnnouncements','reviewApplications','editTeamStory','manageStore']) ||
         (role == 'unit_lead' &&
@@ -73,10 +77,55 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'board_president'];
     }
 
+    // ---------- REGISTRATION APPROVAL (v4.4.0) ----------
+    //
+    // New sign-ups are written with `approvalStatus: 'pending'` and may not use
+    // the app until an admin approves them. Documents that predate this field
+    // have NO `approvalStatus` — those are existing members, so a missing value
+    // must be treated as approved (mirrors `AppUser.fromDoc`).
+    //
+    // NOTE: guest login was removed in the same version; every client is a
+    // signed-in Firebase Auth user from here on.
+    function approvalStatusOf(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.get('approvalStatus', 'approved');
+    }
+
+    function isApproved(uid) {
+      return isSignedIn() &&
+        request.auth.uid == uid &&
+        exists(/databases/$(database)/documents/users/$(uid)) &&
+        approvalStatusOf(uid) == 'approved';
+    }
+
+    /// A signed-in user whose registration is still pending (or was rejected).
+    /// These users are allowed to read the queue of pending registrations and
+    /// nothing else (see the `users` list below).
+    function isWaitingForApproval() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        approvalStatusOf(request.auth.uid) != 'approved';
+    }
+
     // ---------- USERS ----------
     match /users/{uid} {
-      allow read: if true; // Public profiles - anyone can view
-      allow create: if isOwner(uid) && request.resource.data.role == 'member';
+      // Public profiles — anyone may view them (needed for the pending list,
+      // team rosters, board cards and profile pages).
+      allow read: if true;
+
+      // A brand-new sign-up may only create its own document, only as a plain
+      // member, and it must declare its approval status. The two permitted
+      // values are:
+      //   * 'pending'  — the normal registration flow (waits for an admin), or
+      //   * 'approved' — a bootstrap account used to create the very first
+      //                  admin when the collection is still empty. Without this
+      //                  an empty database could never be administered at all.
+      // Rules cannot run a "does an admin exist yet?" query, so this branch
+      // cannot be narrowed further. The real protection is the update rule
+      // below, which stops any non-admin from CHANGING a status on an existing
+      // document.
+      allow create: if isOwner(uid) &&
+        request.resource.data.role == 'member' &&
+        request.resource.data.approvalStatus in ['pending', 'approved'];
       allow update: if isAdmin() || (
         // Role managers (admin + board president) may change the `role` field
         // only. This is the server-side enforcement of the `changeRoles`
@@ -85,10 +134,15 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
       ) || (
         isOwner(uid) &&
+        // An unapproved user may not lift their own gate: any self-update is
+        // only allowed while the approval status stays exactly as it is. The
+        // only writer that may CHANGE it is an admin (branch above), and the
+        // only writer that sets it on a fresh document is `allow create`.
+        request.resource.data.approvalStatus == resource.data.get('approvalStatus', 'approved') &&
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['displayName', 'photoUrl', 'bio', 'department', 'className',
                     'teamIds', 'pastTeams', 'pastTeamIds', 'links', 'activeTeamId', 'activeTeamName',
-                    'unitResponsibilities', 'clubRoles', 'awards', 'inWorkshop',
+                    'pastExperiences', 'awards', 'inWorkshop',
                     'weeklyPoints', 'prevWeeklyPoints', 'points', 'fcmToken',
                     'coverPhotoUrl'])
       ) || (

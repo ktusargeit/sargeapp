@@ -329,7 +329,7 @@ class TaskCard extends ConsumerWidget {
 
   Future<void> _approveTask(
       BuildContext ctx, WidgetRef ref, bool approve) async {
-    final uid = ref.read(authStateProvider).value?.uid;
+    final uid = ref.read(authStateProvider).valueOrNull?.uid;
     try {
       if (approve) {
         final taskDoc = await ref

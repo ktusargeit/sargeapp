@@ -2,10 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/safe_date.dart';
 import '../../team/models/team_models.dart';
 import '../../team/providers/team_providers.dart';
 import '../../tasks/models/task_models.dart';
@@ -21,7 +21,10 @@ class DashboardHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final now = DateTime.now();
-    final formatted = DateFormat('d MMMM yyyy, EEEE', 'tr_TR').format(now);
+    // SafeDate: `DateFormat(..., 'tr_TR')` throws LocaleDataException when the
+    // locale data is missing — which used to abort the AppShell Scaffold build
+    // and make the bottom navigation bar vanish.
+    final formatted = SafeDate.longWithWeekday(now);
     final firstName = userName?.split(' ').first;
 
     return Container(
@@ -61,7 +64,7 @@ class DashboardHeader extends ConsumerWidget {
           ),
           GestureDetector(
             onTap: () {
-              final uid = ref.read(authStateProvider).value?.uid;
+              final uid = ref.read(authStateProvider).valueOrNull?.uid;
               if (uid != null) context.push('/profile/$uid');
             },
             child: Icon(Icons.person_outline,
@@ -78,7 +81,7 @@ class DashboardMyTasksCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final uid = ref.watch(authStateProvider).value?.uid;
+    final uid = ref.watch(authStateProvider).valueOrNull?.uid;
     if (uid == null) return const SizedBox.shrink();
 
     final tasksAsync = ref.watch(myActiveTasksProvider(uid));
@@ -293,11 +296,16 @@ class DashboardJoinCtaCard extends StatelessWidget {
               const Icon(Icons.emoji_events_outlined,
                   color: AppColors.panelBlue, size: 20),
               const SizedBox(width: 8),
-              Text('SARGE Topluluğuna Katıl',
-                  style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700)),
+              // Flexible + ellipsis: this Row has no other flexible child, so a
+              // long title on a narrow phone would overflow horizontally.
+              Flexible(
+                child: Text('SARGE Topluluğuna Katıl',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700)),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -344,8 +352,7 @@ class _DashboardLeaderboardCardState
     final monday = DateTime(
         int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
     final sunday = monday.add(const Duration(days: 6));
-    final f = DateFormat('d MMMM', 'tr_TR');
-    return '${f.format(monday)} – ${f.format(sunday)}';
+    return '${SafeDate.dayMonth(monday)} – ${SafeDate.dayMonth(sunday)}';
   }
 
   @override
@@ -356,7 +363,7 @@ class _DashboardLeaderboardCardState
     final teamsAsync = ref.watch(clubTeamsProvider);
     final archiveWeeksAsync = ref.watch(weeklyArchiveWeeksProvider);
     final metaAsync = ref.watch(weeklyMetaProvider);
-    final currentUid = ref.watch(currentAppUserProvider).value?.uid;
+    final currentUid = ref.watch(currentAppUserProvider).valueOrNull?.uid;
     final allTeams = teamsAsync.valueOrNull ?? [];
     final teams = currentUid == null
         ? const <ClubTeam>[]
@@ -376,7 +383,7 @@ class _DashboardLeaderboardCardState
     String? resetText;
     final lastReset = meta['lastResetAt'];
     if (lastReset is Timestamp) {
-      final dt = DateFormat('d MMMM, HH:mm', 'tr_TR').format(lastReset.toDate());
+      final dt = SafeDate.dayMonthCommaTime(lastReset.toDate());
       resetText = "Bu hafta: $dt'de sıfırlandı";
     }
 

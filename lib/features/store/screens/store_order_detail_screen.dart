@@ -85,7 +85,7 @@ class _StoreOrderDetailScreenState
     final allOrdersAsync = ref.watch(allOrdersProvider);
     final myOrdersAsync = ref.watch(myOrdersProvider);
     final canManage = ref.watch(currentUserCanProvider(Permissions.manageStore));
-    final authUid = ref.watch(authStateProvider).value?.uid;
+    final authUid = ref.watch(authStateProvider).valueOrNull?.uid;
 
     return Scaffold(
       backgroundColor: AppColors.background,

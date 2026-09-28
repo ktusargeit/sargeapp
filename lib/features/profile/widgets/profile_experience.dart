@@ -70,42 +70,19 @@ List<ProfileExperienceEntry> buildProfileTimeline(AppUser user) {
     ));
   }
 
-  for (final t in user.pastTeams) {
-    final role = (t['role'] as String?)?.trim();
-    final teamName = (t['teamName'] as String?)?.trim() ?? '';
-    final startYear = (t['startYear'] as num?)?.toInt() ?? 0;
-    final endYear = (t['endYear'] as num?)?.toInt();
-    final title = role != null && role.isNotEmpty
-        ? '$role — $teamName'
-        : teamName;
-    final range =
-        endYear != null ? '$startYear - $endYear' : '$startYear - Devam ediyor';
-    entries.add(ProfileExperienceEntry(
-      icon: Icons.groups_outlined,
-      color: AppColors.teamAccent,
-      title: title,
-      subtitle: range,
-      sortMillis: DateTime(startYear).millisecondsSinceEpoch,
-    ));
-  }
+  // NOTE: Eski serbest metin "Geçmiş Takımlar" kaynağı (`users.pastTeams`)
+  // UI'dan kaldırıldı — geçmiş deneyim artık TEK kaynaktan, yapısal
+  // `pastExperiences` array'inden okunur (aşağıdaki döngü).
 
-  for (final r in user.clubRoles) {
-    final roleName = (r['roleName'] as String?)?.trim();
-    if (roleName == null || roleName.isEmpty) continue;
-    final teamName = (r['teamName'] as String?)?.trim();
-    final startYear = (r['startYear'] as num?)?.toInt() ?? 0;
-    final endYear = (r['endYear'] as num?)?.toInt();
-    final title = teamName != null && teamName.isNotEmpty
-        ? '$roleName — $teamName'
-        : roleName;
-    final range =
-        endYear != null ? '$startYear - $endYear' : '$startYear - Devam ediyor';
+  // AŞAMA 4.3 — user-authored structured entries (`pastExperiences`), merged
+  // with the automatically retired titles above into one timeline.
+  for (final e in user.pastExperiences) {
     entries.add(ProfileExperienceEntry(
-      icon: Icons.badge_outlined,
-      color: AppColors.primaryGreen,
-      title: title,
-      subtitle: range,
-      sortMillis: DateTime(startYear).millisecondsSinceEpoch,
+      icon: e.isBoard ? Icons.workspace_premium_outlined : Icons.groups_outlined,
+      color: e.isBoard ? AppColors.sargeGold : AppColors.teamAccent,
+      title: e.headline,
+      subtitle: e.periodLabel,
+      sortMillis: DateTime(e.startYear).millisecondsSinceEpoch,
     ));
   }
 

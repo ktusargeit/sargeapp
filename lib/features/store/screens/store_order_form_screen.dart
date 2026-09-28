@@ -52,7 +52,7 @@ class _StoreOrderFormScreenState extends ConsumerState<StoreOrderFormScreen> {
 
     setState(() => _loading = true);
     try {
-      final user = ref.read(authStateProvider).value;
+      final user = ref.read(authStateProvider).valueOrNull;
       if (user == null) return;
 
       final orderId = await ref.read(storeRepositoryProvider).createOrder(

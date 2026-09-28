@@ -68,5 +68,5 @@ class AdminCapabilities {
 /// to keep member detail / admin panel wiring stable. For a live, override-aware
 /// check prefer [currentUserCanProvider].
 final adminCapabilitiesProvider = Provider<AdminCapabilities>((ref) {
-  return AdminCapabilities.forUser(ref.watch(currentAppUserProvider).value);
+  return AdminCapabilities.forUser(ref.watch(currentAppUserProvider).valueOrNull);
 });

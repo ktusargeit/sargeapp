@@ -41,7 +41,7 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
   @override
   Widget build(BuildContext context) {
     final teamsAsync = ref.watch(clubTeamsProvider);
-    final appUser = ref.watch(currentAppUserProvider).value;
+    final appUser = ref.watch(currentAppUserProvider).valueOrNull;
     final isAdmin = appUser?.isAdmin ?? false;
     final currentUid = appUser?.uid;
 
@@ -55,7 +55,9 @@ class _TeamDetailScreenState extends ConsumerState<TeamDetailScreen>
             PopupMenuButton<String>(
               icon: Icon(Icons.more_vert, color: AppColors.textSecondary),
               onSelected: (action) {
-                final teams = ref.read(clubTeamsProvider).value ?? [];
+                // `.valueOrNull` — `.value` rethrows on a provider error and
+                // would cancel this Scaffold's build.
+                final teams = ref.read(clubTeamsProvider).valueOrNull ?? [];
                 ClubTeam? team;
                 try {
                   team = teams.firstWhere((t) => t.id == widget.teamId);

@@ -1,23 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/app_user.dart';
-import '../../../core/models/user_profile_models.dart';
-import '../../../core/permissions/permission_system.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/operation_feedback.dart';
 import '../admin_permissions.dart';
 import '../widgets/admin_member_multi_role_sheet.dart';
 import '../widgets/admin_member_widgets.dart';
-import 'user_title_management_sheet.dart';
 
 /// Detail / management screen for a single member.
 ///
 /// Consolidates the per-member admin actions in one place:
-///  * title add / retire / remove (via [UserTitleService])
-///  * role change (admin yap / çıkar + full role dropdown)
+///  * role management (global + captain + unit lead) via the multi-role sheet,
+///    which is the SINGLE entry point for role assignment. It writes to the
+///    `titles` array and lets [UserTitleService.reconcileRole] keep the legacy
+///    `role` string in sync (see `admin_member_multi_role_sheet.dart`).
 ///  * manual points add / remove (with an explanation)
 ///  * suspend / delete account (with confirmation dialogs)
+///
+/// NOTE: the old single-`role` dropdown / "Admin Yap" path was removed
+/// (Çakışma #1) because it left `titles` orphaned.
 class AdminMemberDetailScreen extends ConsumerStatefulWidget {
   final String userId;
   final AppUser? initialUser;
@@ -35,8 +37,6 @@ class AdminMemberDetailScreen extends ConsumerStatefulWidget {
 
 class _AdminMemberDetailScreenState
     extends ConsumerState<AdminMemberDetailScreen> {
-  String? _savingRole;
-
   @override
   Widget build(BuildContext context) {
     final caps = ref.watch(adminCapabilitiesProvider);
@@ -75,56 +75,18 @@ class _AdminMemberDetailScreenState
     AppUser user,
     AdminCapabilities caps,
   ) {
-    final activeTitles = user.activeTitles;
-    final formerTitles = user.formerTitles;
-
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         AdminMemberHeaderCard(user: user),
         const SizedBox(height: 16),
 
-        // ── Ünvanlar ────────────────────────────────────────────────────────
-        AdminMemberSectionTitle(
-          icon: Icons.workspace_premium_outlined,
-          title: 'Ünvanlar',
-          trailing: caps.canManageTitles
-              ? TextButton.icon(
-                  onPressed: () =>
-                      showUserTitleManagementSheet(context, ref, user),
-                  icon: const Icon(Icons.tune, size: 16),
-                  label: const Text('Yönet'),
-                )
-              : null,
-        ),
-        if (activeTitles.isEmpty)
-          _muted('Güncel ünvan yok.')
-        else
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: activeTitles
-                .map((t) => _titleBadge(t, isActive: true))
-                .toList(),
-          ),
-        if (formerTitles.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(
-            'Geçmiş ünvanlar',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
-          ),
-          const SizedBox(height: 4),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: formerTitles
-                .map((t) => _titleBadge(t, isActive: false))
-                .toList(),
-          ),
-        ],
-        const SizedBox(height: 20),
-
         // ── Roller ──────────────────────────────────────────────────────────
+        // Tek kaynak: `user.activeTitles`. (Eski "Ünvanlar" bölümü aynı listeyi
+        // ikinci kez gösterdiği için kaldırıldı — Çakışma #5.)
+        // Rol atamaları SADECE buradan (çoklu rol sheet) yapılır; böylece
+        // `titles` dizisi ile legacy `role` string'i tek merkezden senkron
+        // kalır. (Çakışma #1.)
         AdminMemberSectionTitle(
           icon: Icons.badge_outlined,
           title: 'Roller',
@@ -153,7 +115,7 @@ class _AdminMemberDetailScreenState
                       ),
                       child: Text(
                         t.displayLabel,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: AppColors.sargeGold,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -237,26 +199,6 @@ class _AdminMemberDetailScreenState
     );
   }
 
-  Widget _titleBadge(UserTitle t, {required bool isActive}) {
-    final color = isActive ? AppColors.sargeGold : AppColors.textSecondary;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Text(
-        t.displayLabel,
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
   Widget _muted(String text) {
     return Text(
       text,
@@ -264,30 +206,12 @@ class _AdminMemberDetailScreenState
     );
   }
 
-  Future<void> _changeRole(AppUser user, String newRole) async {
-    if (user.role == newRole) return;
-    setState(() => _savingRole = user.uid);
-    try {
-      await ref
-          .read(permissionServiceProvider)
-          .updateRole(targetUid: user.uid, newRole: newRole);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${user.displayName} → ${roleLabel(newRole)}'),
-          backgroundColor: AppColors.success,
-        ));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Rol güncellenemedi: $e'),
-          backgroundColor: AppColors.error,
-        ));
-      }
-    } finally {
-      if (mounted) setState(() => _savingRole = null);
-    }
-  }
+  // NOT: Eski `_changeRole` metodu (yalnızca `users/{uid}.role` string'ini
+  // güncelleyip `titles` dizisini yetim bırakan dropdown yolu) KALDIRILDI
+  // — Çakışma #1. Tüm rol/yetki atamaları artık tek merkezden, `titles`
+  // dizisini güncelleyen çoklu rol sheet'i (`_openMultiRoleSheet` →
+  // `showUserTitleManagementSheet` / `_setGlobalRole`) üzerinden yapılır;
+  // `role` string'i `UserTitleService.reconcileRole` ile otomatik senkronlanır.
 
   Future<void> _toggleSuspend(AppUser user) async {
     final targetActive = !user.isSuspended;

@@ -35,6 +35,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             email: _emailCtrl.text,
             password: _passwordCtrl.text,
           );
+      // Wait until `authStateChanges()` actually reports the signed-in user.
+      // Navigating on the line right after `signIn` runs before Riverpod sees
+      // the new auth state, so the router's redirect still evaluated the user as
+      // "signed out" and bounced them straight back to /login — a silent
+      // sign-in loop that left the user on a screen without a bottom nav bar.
+      await _awaitAuthUser();
       if (mounted) context.go('/dashboard');
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -43,6 +49,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// Polls [authStateProvider] until it reports a user (or times out).
+  ///
+  /// The timeout keeps a slow/offline token refresh from blocking the UI
+  /// forever; on timeout the navigation is still attempted, and the router's
+  /// redirect honours shell routes for an inconclusive auth state.
+  Future<void> _awaitAuthUser() async {
+    for (var i = 0; i < 20; i++) {
+      if (!mounted) return;
+      if (ref.read(authStateProvider).valueOrNull != null) return;
+      await Future<void>.delayed(const Duration(milliseconds: 50));
     }
   }
 
@@ -191,14 +210,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ],
                       ),
                       const SizedBox(height: AppConstants.spacingLg),
-                      TextButton(
-                        onPressed: () async {
-                          ref.read(guestSessionProvider.notifier).state = true;
-                          if (mounted) context.go('/dashboard');
-                        },
-                        child:  Text('Misafir olarak devam et',
-                            style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                      ),
+                      // NOTE: "Misafir olarak devam et" (guest login) was
+                      // REMOVED in v4.4.0. Only registered users whose
+                      // registration has been APPROVED by an admin may enter
+                      // the app — see PendingApprovalScreen and the router's
+                      // approval guard in app_router.dart.
                     ],
                   ),
                 ),

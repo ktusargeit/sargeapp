@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
+import '../../../core/utils/safe_date.dart';
 
 /// Assignment types for a cleaning-rotation slot.
 class CleaningAssignmentType {
@@ -73,7 +73,7 @@ class CleaningDates {
     final end = weekStart.add(const Duration(days: 6));
     // Turkish month names: "17 Ağustos - 23 Ağustos". `Intl.defaultLocale`
     // is set to 'tr_TR' on app startup (see main.dart).
-    String fmt(DateTime d) => DateFormat('d MMMM', 'tr_TR').format(d);
+    String fmt(DateTime d) => SafeDate.dayMonth(d);
     return '${fmt(weekStart)} - ${fmt(end)}';
   }
 }

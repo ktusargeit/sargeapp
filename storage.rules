@@ -30,6 +30,7 @@ service firebase.storage {
 
     function defaultHasStore(role) {
       return role == 'admin' || role == 'board_president' ||
+        role == 'board_vice_president' ||
         role == 'board_member' || role == 'captain' || role == 'unit_lead';
     }
 
@@ -55,7 +56,8 @@ service firebase.storage {
     }
 
     function defaultHasClubStory(role) {
-      return role == 'admin' || role == 'board_president' || role == 'board_member';
+      return role == 'admin' || role == 'board_president' ||
+        role == 'board_vice_president' || role == 'board_member';
     }
 
     function isClubStoryEditor() {
@@ -80,7 +82,8 @@ service firebase.storage {
     }
 
     function defaultHasHonorary(role) {
-      return role == 'admin' || role == 'board_president' || role == 'board_member';
+      return role == 'admin' || role == 'board_president' ||
+        role == 'board_vice_president' || role == 'board_member';
     }
 
     function isHonoraryEditor() {

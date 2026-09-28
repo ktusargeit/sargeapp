@@ -28,7 +28,10 @@ String notificationDocIdFor(
 /// Only one `where` clause so no composite index is required.
 final unreadNotificationCountProvider = StreamProvider<int>((ref) {
   final authState = ref.watch(authStateProvider);
-  final uid = authState.value?.uid;
+  // `.valueOrNull` — `.value` RETHROWS on error state, and this provider is
+  // read by `_NotificationBell` inside the AppShell's AppBar, so a throw would
+  // take down the whole Scaffold (bottom navigation bar included).
+  final uid = authState.valueOrNull?.uid;
   if (uid == null) return Stream.value(0);
   final firestore = ref.watch(firestoreProvider);
   return firestore
@@ -43,7 +46,8 @@ final unreadNotificationCountProvider = StreamProvider<int>((ref) {
 /// Sorted client‑side to avoid requiring a composite index.
 final userNotificationsProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   final authState = ref.watch(authStateProvider);
-  final uid = authState.value?.uid;
+  // `.valueOrNull` — see `unreadNotificationCountProvider` above.
+  final uid = authState.valueOrNull?.uid;
   if (uid == null) return Stream.value([]);
   final firestore = ref.watch(firestoreProvider);
   return firestore

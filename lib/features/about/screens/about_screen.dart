@@ -1449,7 +1449,7 @@ class _AddArchivedTeamSheetState extends ConsumerState<_AddArchivedTeamSheet> {
     setState(() => _saving = true);
     try {
       final repo = ref.read(clubInfoRepositoryProvider);
-      final addedBy = ref.read(currentAppUserProvider).value?.uid ?? '';
+      final addedBy = ref.read(currentAppUserProvider).valueOrNull?.uid ?? '';
       await repo.createArchivedTeam(
         name: _nameCtrl.text.trim(),
         period: _periodCtrl.text.trim(),

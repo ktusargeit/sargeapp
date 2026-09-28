@@ -3,6 +3,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../core/models/app_user.dart';
+import '../../../core/models/user_profile_models.dart';
 import '../../../core/permissions/permission_system.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
@@ -11,6 +13,7 @@ import '../../../core/widgets/platform_image.dart';
 import '../../notifications/providers/notification_providers.dart';
 import '../../team/models/team_models.dart';
 import '../../team/providers/team_providers.dart';
+import '../../team/screens/team_screen.dart' show boardMemberLabel;
 
 // ═══════════════════════════════════════════════════════════════════════
 // ADD TASK DIALOG — Takım → Birim → Kişi (+ görsel)
@@ -38,6 +41,13 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
   bool _loading = false;
   TaskAssignmentMode _mode = TaskAssignmentMode.single;
 
+  /// Yönetim Kurulu modu: `true` ise görev TÜM kurula atanır; `false` ise
+  /// `_selectedBoardUids` içinde seçilen kişilere atanır.
+  bool _boardAll = true;
+
+  /// "Kuruldan Belirli Kişileri Seç" tercihinde seçilen kurul üyelerinin uid'leri.
+  final Set<String> _selectedBoardUids = <String>{};
+
   @override
   void dispose() {
     _titleCtrl.dispose();
@@ -52,8 +62,8 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
   }
 
   List<ClubTeam> _visibleTeams(List<ClubTeam> teams) {
-    final uid = ref.read(authStateProvider).value?.uid;
-    final appUser = ref.read(currentAppUserProvider).value;
+    final uid = ref.read(authStateProvider).valueOrNull?.uid;
+    final appUser = ref.read(currentAppUserProvider).valueOrNull;
     if (appUser?.isAdmin ?? false) return teams;
     if (uid == null) return const [];
 
@@ -70,13 +80,13 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
 
   /// Whether the current user may create "Yönetim Kurulu" (board) tasks.
   bool get _isBoardCreator {
-    final appUser = ref.read(currentAppUserProvider).value;
+    final appUser = ref.read(currentAppUserProvider).valueOrNull;
     return appUser != null && (userIsBoard(appUser) || appUser.isAdmin);
   }
 
   Set<String> _allowedUnitIdsFor(String teamId) {
-    final uid = ref.read(authStateProvider).value?.uid;
-    final appUser = ref.read(currentAppUserProvider).value;
+    final uid = ref.read(authStateProvider).valueOrNull?.uid;
+    final appUser = ref.read(currentAppUserProvider).valueOrNull;
     final allUnits = ref.read(teamUnitListProvider).valueOrNull ?? const [];
     final teamScoped =
         allUnits.where((u) => u['teamId'] == teamId).toList();
@@ -97,6 +107,132 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
         .where((u) => u['unitLeadUid'] == uid)
         .map((u) => u['id'] as String)
         .toSet();
+  }
+
+  /// Yönetim Kurulu görevinde kapsam tercihi: "Tüm Yönetim Kurulu" (varsayılan)
+  /// veya "Kuruldan Belirli Kişileri Seç" (çoklu seçim, checkbox listesi).
+  Widget _buildBoardScopeSelector() {
+    final membersAsync = ref.watch(boardMembersProvider);
+    final members = membersAsync.valueOrNull ?? const <AppUser>[];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Kime atanacak?',
+          style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 6),
+        SegmentedButton<bool>(
+          segments: const [
+            ButtonSegment(
+              value: true,
+              label: Text('Tüm Yönetim Kurulu'),
+              icon: Icon(Icons.groups, size: 16),
+            ),
+            ButtonSegment(
+              value: false,
+              label: Text('Kuruldan Belirli Kişileri Seç'),
+              icon: Icon(Icons.checklist, size: 16),
+            ),
+          ],
+          selected: {_boardAll},
+          showSelectedIcon: false,
+          onSelectionChanged: (s) => setState(() {
+            _boardAll = s.first;
+            if (_boardAll) _selectedBoardUids.clear();
+          }),
+          style: ButtonStyle(
+            visualDensity: VisualDensity.compact,
+            textStyle: WidgetStatePropertyAll(
+              TextStyle(fontSize: 12, color: AppColors.textPrimary),
+            ),
+          ),
+        ),
+        if (!_boardAll) ...[
+          const SizedBox(height: 8),
+          if (membersAsync.isLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (membersAsync.hasError)
+            const Text('Yönetim Kurulu listesi yüklenemedi',
+                style: TextStyle(color: AppColors.error, fontSize: 13))
+          else if (members.isEmpty)
+            Text('Yönetim Kurulu üyesi bulunamadı.',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13))
+          else
+            // CRITICAL: this list MUST have a bounded height.
+            //
+            // The old version used `Container(maxHeight: 220)` +
+            // `ListView(shrinkWrap: true)`. Inside an `AlertDialog` that
+            // combination throws:
+            //   "RenderShrinkWrappingViewport does not support returning
+            //    intrinsic dimensions."
+            // because the dialog lays its content out with intrinsic
+            // measurements and a shrink-wrapping viewport cannot report them.
+            //
+            // Fix: give the viewport a FINITE height (`SizedBox(height: 250)`)
+            // and let the ListView scroll normally (NO `shrinkWrap`). The
+            // dialog then never needs an intrinsic pass through the viewport.
+            SizedBox(
+              width: double.maxFinite,
+              height: 250,
+              child: Material(
+                // CRITICAL: opaque bir `Container` arkaplanı, `CheckboxListTile`
+                // ink splash'ini görünmez kılar ve Flutter debug modda
+                //   "ListTile background color or ink splashes may be invisible."
+                // assertion'ını fırlatır. Bu yüzden kutu bir `Material`'a
+                // çevrildi: hem arkaplanı (rengi/köşe/border'ı) hem de ink
+                // katmanını aynı widget sağlar. `Material` ALTINDAKI
+                // `CheckboxListTile`'a dokunma — ink katmanı ondan gelir.
+                color: AppColors.surface2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: BorderSide(color: AppColors.border),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: ListView.builder(
+                  padding: EdgeInsets.zero,
+                  itemCount: members.length,
+                  itemBuilder: (context, index) {
+                    final m = members[index];
+                    return CheckboxListTile(
+                      dense: true,
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 8),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      activeColor: AppColors.sargeGold,
+                      value: _selectedBoardUids.contains(m.uid),
+                      title: Text(
+                        m.displayName,
+                        style: TextStyle(
+                            color: AppColors.textPrimary, fontSize: 13),
+                      ),
+                      subtitle: Text(
+                        boardMemberLabel(m),
+                        style: TextStyle(
+                            color: AppColors.textSecondary, fontSize: 11),
+                      ),
+                      onChanged: (v) => setState(() {
+                        if (v ?? false) {
+                          _selectedBoardUids.add(m.uid);
+                        } else {
+                          _selectedBoardUids.remove(m.uid);
+                        }
+                      }),
+                    );
+                  },
+                ),
+              ),
+            ),
+        ],
+      ],
+    );
   }
 
   @override
@@ -176,6 +312,8 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
                   _selectedUid = null;
                   _selectedName = null;
                   _selectedUnit = null;
+                  _boardAll = true;
+                  _selectedBoardUids.clear();
                   if (_mode == TaskAssignmentMode.board) {
                     _selectedTeam = null;
                   }
@@ -216,6 +354,8 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 12),
+                _buildBoardScopeSelector(),
               ],
               const SizedBox(height: 12),
               if (_selectedTeam != null && _mode == TaskAssignmentMode.single)
@@ -332,6 +472,12 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
             backgroundColor: AppColors.error));
         return;
       }
+      if (!_boardAll && _selectedBoardUids.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('En az bir Yönetim Kurulu üyesi seçmelisiniz'),
+            backgroundColor: AppColors.error));
+        return;
+      }
     } else {
       if (title.isEmpty || (_selectedTeam == null) || requiresPerson) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -349,7 +495,7 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
 
     setState(() => _loading = true);
     try {
-      final user = ref.read(authStateProvider).value;
+      final user = ref.read(authStateProvider).valueOrNull;
       final firestore = ref.read(firestoreProvider);
       final notifService = ref.read(notificationServiceProvider);
       final points = int.tryParse(_pointsCtrl.text.trim()) ?? 10;
@@ -358,7 +504,12 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
        if (isBoardMode) {
          final boardSnap = await firestore
              .collection('users')
-             .where('role', whereIn: ['board_president', 'board_member'])
+             .where('role',
+                 whereIn: [
+                   'board_president',
+                   'board_vice_president',
+                   'board_member',
+                 ])
              .get();
          for (final doc in boardSnap.docs) {
            recipients.add((
@@ -373,9 +524,10 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
          for (final doc in titlesSnap.docs) {
            final titles = (doc.data()['titles'] as List?) ?? [];
            final hasBoard = titles.any((t) {
-             final titleType = (t as Map)['titleType'] as String?;
-             final isActive = (t as Map)['isActive'] as bool? ?? true;
-             return isActive && (titleType == 'board_president' || titleType == 'board_member');
+             final map = t as Map;
+             final titleType = map['titleType'] as String?;
+             final isActive = map['isActive'] as bool? ?? true;
+             return isActive && TitleType.isBoardTitle(titleType);
            });
            if (hasBoard && !recipients.any((r) => r.uid == doc.id)) {
              recipients.add((
@@ -384,11 +536,17 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
              ));
            }
          }
+         // "Kuruldan Belirli Kişileri Seç" tercihinde yalnızca seçilenlere ata.
+         if (!_boardAll) {
+           recipients.removeWhere((r) => !_selectedBoardUids.contains(r.uid));
+         }
          if (recipients.isEmpty) {
            setState(() => _loading = false);
            if (mounted) {
-             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                 content: Text('Yönetim Kurulu üyesi bulunamadı.'),
+             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                 content: Text(_boardAll
+                     ? 'Yönetim Kurulu üyesi bulunamadı.'
+                     : 'Seçilen kişiler Yönetim Kurulu üyesi olarak bulunamadı.'),
                  backgroundColor: AppColors.warning));
            }
            return;

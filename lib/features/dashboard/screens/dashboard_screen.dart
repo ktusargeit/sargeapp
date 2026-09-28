@@ -49,10 +49,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final announcements = ref.watch(announcementsProvider);
-    final appUser = ref.watch(currentAppUserProvider).value;
+    final appUser = ref.watch(currentAppUserProvider).valueOrNull;
     final isAdmin = appUser?.isAdmin ?? false;
     final authState = ref.watch(authStateProvider);
-    final isGuest = authState.value == null;
+    // CRITICAL: `.valueOrNull`, never `.value`.
+    //
+    // `DashboardScreen` is the body of the `ShellRoute`. When the auth provider
+    // is in an ERROR state, `AsyncError.value` RETHROWS (riverpod
+    // common.dart:495). Throwing here aborts the whole `AppShell` Scaffold build
+    // — including its `bottomNavigationBar` — so the bottom navigation bar
+    // silently disappears. `.valueOrNull` degrades to "not signed in".
+    final isGuest = authState.valueOrNull == null;
 
     return Scaffold(
       backgroundColor: AppColors.panelBg,

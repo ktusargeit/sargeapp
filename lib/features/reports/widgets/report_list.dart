@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/auth_providers.dart';
 import '../../../core/theme/app_colors.dart';
@@ -10,6 +9,7 @@ import '../../../core/widgets/custom_delete_button.dart';
 import '../../team/models/team_models.dart';
 import '../../team/providers/team_providers.dart';
 import 'report_detail_panel.dart';
+import '../../../core/utils/safe_date.dart';
 
 /// Type selector option (Hata / Öneri).
 class ReportTypeOption extends StatelessWidget {
@@ -252,7 +252,7 @@ class ReportCard extends ConsumerWidget {
     final replyCount = report.messageCount;
     final statusLabel = report.statusLabel;
     final hasReplyBadge = replyCount > 0;
-    final currentUid = ref.read(authStateProvider).value?.uid;
+    final currentUid = ref.read(authStateProvider).valueOrNull?.uid;
     final isOwner = currentUid != null && report.submittedBy == currentUid;
     final canEdit = isOwner;
     final canDelete = isAdmin || isOwner;
@@ -378,8 +378,7 @@ class ReportCard extends ConsumerWidget {
                       if (report.createdAt != null) ...[
                         const SizedBox(height: 2),
                         Text(
-                          DateFormat('dd MMM yyyy, HH:mm', 'tr_TR')
-                              .format(report.createdAt!),
+                          SafeDate.dayShortMonthYearTime(report.createdAt!),
                           style: TextStyle(
                               color: AppColors.textSecondary
                                   .withValues(alpha: 0.7),
@@ -407,8 +406,7 @@ class ReportCard extends ConsumerWidget {
                     if (report.resolvedAt != null) ...[
                       const SizedBox(width: 6),
                       Text(
-                        DateFormat('dd MMM HH:mm', 'tr_TR')
-                            .format(report.resolvedAt!),
+                        SafeDate.dayShortMonthTime(report.resolvedAt!),
                         style: TextStyle(
                             color:
                                 AppColors.textSecondary.withValues(alpha: 0.7),

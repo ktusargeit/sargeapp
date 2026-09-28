@@ -95,9 +95,11 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authUser = ref.watch(authStateProvider).value;
+    final authUser = ref.watch(authStateProvider).valueOrNull;
     final appUserAsync = ref.watch(currentAppUserProvider);
-    final appUser = appUserAsync.value;
+    // `.valueOrNull` — `.value` rethrows when the profile stream errors and
+    // would cancel this Scaffold's build (shell survives, screen goes blank).
+    final appUser = appUserAsync.valueOrNull;
     final isAdmin = ref.watch(isAdminProvider);
     final currentUid = authUser?.uid ?? appUser?.uid;
     final profileStillLoading = authUser != null && appUser == null;

@@ -102,7 +102,7 @@ final tasksScreenProvider =
   // Resolve the current user's board president flag and current team
   // membership reactively. Membership comes from `teams/{id}.memberIds`
   // (NOT `users.teamIds`, which is not kept in sync on all join/leave paths).
-  final appUser = ref.watch(currentAppUserProvider).value;
+  final appUser = ref.watch(currentAppUserProvider).valueOrNull;
   final isBoardPresident = userIsBoardPresident(appUser);
   final teams = ref.watch(clubTeamsProvider).valueOrNull ?? const <ClubTeam>[];
   final myTeamIds = teams

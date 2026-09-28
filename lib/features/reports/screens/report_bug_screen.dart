@@ -75,7 +75,7 @@ class _ReportBugScreenState extends ConsumerState<ReportBugScreen>
     setState(() => _sending = true);
     try {
       final repo = ref.read(teamRepositoryProvider);
-      final user = ref.read(authStateProvider).value;
+      final user = ref.read(authStateProvider).valueOrNull;
       String? imageUrl;
       if (_pickedImage != null) {
         final tempId = DateTime.now().millisecondsSinceEpoch.toString();

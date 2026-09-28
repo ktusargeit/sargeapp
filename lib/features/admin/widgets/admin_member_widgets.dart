@@ -200,88 +200,13 @@ class AdminMemberSectionTitle extends StatelessWidget {
   }
 }
 
-class AdminMemberRoleEditor extends ConsumerWidget {
-  final AppUser user;
-  final bool saving;
-  final ValueChanged<String> onChanged;
-
-  const AdminMemberRoleEditor({
-    super.key,
-    required this.user,
-    required this.saving,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (saving) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(8),
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: DropdownButton<String>(
-            value: user.role,
-            isExpanded: true,
-            underline: const SizedBox.shrink(),
-            dropdownColor: AppColors.surface2,
-            style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
-            items: allRoles
-                .map((r) => DropdownMenuItem(
-                      value: r,
-                      child: Text(roleLabel(r)),
-                    ))
-                .toList(),
-            onChanged: (v) {
-              if (v != null) onChanged(v);
-            },
-          ),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            if (user.role != 'admin')
-              OutlinedButton.icon(
-                onPressed: () => onChanged('admin'),
-                icon: const Icon(Icons.arrow_upward, size: 16),
-                label: const Text('Admin Yap'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.sargeGold,
-                  side: BorderSide(
-                      color: AppColors.sargeGold.withValues(alpha: 0.5)),
-                ),
-              ),
-            if (user.role == 'admin')
-              OutlinedButton.icon(
-                onPressed: () => onChanged('member'),
-                icon: const Icon(Icons.arrow_downward, size: 16),
-                label: const Text('Adminlıktan Çıkar'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.warning,
-                  side: BorderSide(
-                      color: AppColors.warning.withValues(alpha: 0.5)),
-                ),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-}
+// NOT: Eski `AdminMemberRoleEditor` widget'ı (yalnızca `users/{uid}.role`
+// string'ini değiştiren dropdown + "Admin Yap/Çıkar" butonları) KALDIRILDI
+// — Çakışma #1. Bu yol `titles` dizisini güncellemediği için ünvanları yetim
+// bırakıyordu. Yerine tek merkez: `AdminMemberMultiRoleSheet`
+// (`_setGlobalRole` + `showUserTitleManagementSheet`), çünkü onlar hem
+// `titles` dizisini günceller hem de `UserTitleService.reconcileRole` ile
+// `role` string'ini senkronlar.
 
 class AdminMemberPointsEditor extends ConsumerStatefulWidget {
   final AppUser user;
@@ -409,7 +334,7 @@ class _AdminMemberPointsEditorState
 
     setState(() => _busy = true);
     try {
-      final currentUid = ref.read(authStateProvider).value?.uid;
+      final currentUid = ref.read(authStateProvider).valueOrNull?.uid;
       try {
         await ref.read(firestoreProvider).collection('points_history').add({
           'targetUid': widget.user.uid,

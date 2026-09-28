@@ -201,7 +201,7 @@ class _HonoraryAddSheetState extends ConsumerState<HonoraryAddSheet> {
 
     if (note == null) return;
 
-    final addedBy = ref.read(currentAppUserProvider).value?.uid;
+    final addedBy = ref.read(currentAppUserProvider).valueOrNull?.uid;
     final repo = ref.read(clubInfoRepositoryProvider);
     try {
       await repo.addHonoraryMember(

@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/auth_providers.dart';
-import '../../../core/permissions/permission_system.dart';
 import '../../notifications/providers/notification_providers.dart';
 
 class AppShell extends ConsumerWidget {
@@ -14,22 +12,12 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final width = MediaQuery.of(context).size.width;
-    final isDesktop = width >= AppConstants.breakpointTablet;
-
-    if (isDesktop) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        body: Row(
-          children: [
-            const _SidebarNav(),
-            Container(width: 1, color: AppColors.border),
-            Expanded(child: child),
-          ],
-        ),
-      );
-    }
-
+    // NOTE: deliberately NOT responsive. The shell always uses the compact
+    // layout (AppBar + AppDrawer + `_BottomNav`), no matter how wide the
+    // viewport is. The old `width >= breakpointTablet` branch swapped the
+    // 4-tab bar for a left `NavigationRail`-style sidebar on desktop/web,
+    // which is unwanted: the 4 navigation entries must ALWAYS live in the
+    // `bottomNavigationBar` slot, i.e. pinned to the bottom edge of the screen.
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -60,8 +48,8 @@ class AppDrawer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
-    final isLoggedIn = authState.value != null;
-    final appUser = ref.watch(currentAppUserProvider).value;
+    final isLoggedIn = authState.valueOrNull != null;
+    final appUser = ref.watch(currentAppUserProvider).valueOrNull;
     // The gold "Admin Kontrol Paneli" entry is intentionally Admin-only
     // (stricter than `viewAdminPanel`, which also admits board_president).
     final isAdmin = ref.watch(isAdminProvider);
@@ -121,7 +109,7 @@ class AppDrawer extends ConsumerWidget {
                 label: 'Profilim',
                 onTap: () {
                   Navigator.pop(context);
-                  final uid = ref.read(authStateProvider).value?.uid;
+                  final uid = ref.read(authStateProvider).valueOrNull?.uid;
                   if (uid != null) context.push('/profile/$uid');
                 },
               ),
@@ -180,7 +168,6 @@ class AppDrawer extends ConsumerWidget {
                 isDestructive: true,
                 onTap: () async {
                   Navigator.pop(context);
-                  ref.read(guestSessionProvider.notifier).state = false;
                   await ref.read(authControllerProvider).signOut();
                   if (context.mounted) context.go('/login');
                 },
@@ -207,7 +194,13 @@ class _NotificationBell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final unread = ref.watch(unreadNotificationCountProvider).value ?? 0;
+    // NOTE: must be `.valueOrNull`, NOT `.value`.
+    // `AsyncValue.value` RE-THROWS the error when the provider is in an error
+    // state (see riverpod's `AsyncError.value` → `throwErrorWithCombinedStackTrace`).
+    // This widget sits in the AppShell's AppBar actions, so a thrown error
+    // aborts the whole Scaffold build and the bottom navigation bar silently
+    // disappears (no crash in the logs, just a blank/error shell).
+    final unread = ref.watch(unreadNotificationCountProvider).valueOrNull ?? 0;
     return IconButton(
       icon: Stack(
         clipBehavior: Clip.none,
@@ -303,220 +296,6 @@ class _AdminPanelDrawerItem extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SidebarNav extends ConsumerWidget {
-  const _SidebarNav();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final location = GoRouterState.of(context).matchedLocation;
-    final authState = ref.watch(authStateProvider);
-    final isLoggedIn = authState.value != null;
-    final isAdmin = ref.watch(isAdminProvider);
-    // "Yönetim" paneli: yalnızca `viewAdminPanel` yetkisine sahip roller görsün.
-    final canViewAdmin =
-        ref.watch(currentUserCanProvider(Permissions.viewAdminPanel));
-    final appUser = ref.watch(currentAppUserProvider).value;
-
-    return Container(
-      width: AppConstants.sidebarWidth,
-      color: AppColors.surface,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: GestureDetector(
-              onTap: () {
-                if (isLoggedIn && appUser != null) {
-                  context.push('/profile/${appUser.uid}');
-                }
-              },
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.asset(
-                      'assets/images/sarge_logo.png',
-                      width: 28,
-                      height: 28,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'SARGE',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 28),
-          _NavItem(
-            icon: Icons.grid_view_rounded,
-            label: 'Panel',
-            route: '/dashboard',
-            isActive: location == '/dashboard',
-            accentColor: AppColors.panelBlue,
-          ),
-          _NavItem(
-            icon: Icons.groups_2_outlined,
-            label: 'KULÜP',
-            route: '/club',
-            isActive: location.startsWith('/club') ||
-                location.startsWith('/inventory') ||
-                location.startsWith('/locations') ||
-                location.startsWith('/cleaning'),
-            accentColor: AppColors.depoRed,
-          ),
-          _NavItem(
-            icon: Icons.groups_outlined,
-            label: 'Takımım',
-            route: '/team',
-            isActive: location.startsWith('/team'),
-            accentColor: AppColors.teamOrange,
-          ),
-          _NavItem(
-            icon: Icons.task_alt,
-            label: 'Tüm Görevler',
-            route: '/tasks',
-            isActive: location.startsWith('/tasks'),
-            accentColor: AppColors.tasksGreen,
-          ),
-          const SizedBox(height: 8),
-          if (canViewAdmin)
-            _NavItem(
-              icon: Icons.admin_panel_settings_outlined,
-              label: 'Yönetim',
-              route: '/admin',
-              isActive: location.startsWith('/admin'),
-              accentColor: AppColors.sargeGold,
-            ),
-          const Spacer(),
-          if (isAdmin)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.darkGreen,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.3)),
-                ),
-                child: const Text('ADMIN',
-                    style: TextStyle(
-                        color: AppColors.primaryGreen,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1)),
-              ),
-            ),
-          if (isLoggedIn)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              child: _NavAction(
-                icon: Icons.logout,
-                label: 'Çıkış Yap',
-                onTap: () async {
-                  ref.read(guestSessionProvider.notifier).state = false;
-                  await ref.read(authControllerProvider).signOut();
-                  if (context.mounted) context.go('/login');
-                },
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              'v${AppConstants.appVersion}',
-              style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.5), fontSize: 11),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String route;
-  final bool isActive;
-  final Color accentColor;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.route,
-    required this.isActive,
-    required this.accentColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => context.go(route),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-        decoration: BoxDecoration(
-          color: isActive ? accentColor.withValues(alpha: 0.12) : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-          border: isActive ? Border.all(color: accentColor.withValues(alpha: 0.3)) : null,
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: isActive ? accentColor : AppColors.textSecondary),
-            const SizedBox(width: 10),
-            Text(
-              label,
-              style: TextStyle(
-                color: isActive ? AppColors.textPrimary : AppColors.textSecondary,
-                fontSize: 13,
-                fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NavAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _NavAction({required this.icon, required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: AppColors.error),
-            const SizedBox(width: 10),
-            Text(label,
-                style: const TextStyle(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w500)),
-          ],
         ),
       ),
     );

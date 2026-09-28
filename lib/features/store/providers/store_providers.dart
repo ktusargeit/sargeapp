@@ -51,7 +51,9 @@ final allOrdersProvider = StreamProvider<List<StoreOrder>>((ref) {
 /// Stream of the current user's orders only.
 final myOrdersProvider = StreamProvider<List<StoreOrder>>((ref) {
   final authState = ref.watch(authStateProvider);
-  final uid = authState.value?.uid;
+  // `.valueOrNull` — `.value` RETHROWS on error state and would abort the
+  // build of whatever widget reads this provider.
+  final uid = authState.valueOrNull?.uid;
   if (uid == null) return Stream.value(const <StoreOrder>[]);
   final firestore = ref.watch(firestoreProvider);
   return firestore
@@ -328,11 +330,13 @@ class StoreNotifier {
     for (final doc in snap.docs) {
       final data = doc.data();
       final role = data['role'] as String? ?? 'member';
-      // Default manageStore roles: admin, board_president, board_member,
-      // captain, unit_lead. (Member lacks it by default.)
+      // Default manageStore roles: admin, board_president,
+      // board_vice_president, board_member, captain, unit_lead.
+      // (Member lacks it by default.)
       if (const {
         'admin',
         'board_president',
+        'board_vice_president',
         'board_member',
         'captain',
         'unit_lead',

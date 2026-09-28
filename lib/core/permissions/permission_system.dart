@@ -101,6 +101,17 @@ class Permissions {
       addHonoraryMember,
       manageStore,
     },
+    // Başkan Yardımcısı has exactly the same privileges as a board member.
+    'board_vice_president': {
+      viewAdminPanel,
+      manageTitles,
+      manageAnnouncements,
+      reviewApplications,
+      editClubStory,
+      editTeamStory,
+      addHonoraryMember,
+      manageStore,
+    },
     'captain': {
       createTasks,
       approveTasks,
@@ -135,6 +146,8 @@ String titleTypeToRoleCode(String titleType) {
       return 'admin';
     case TitleType.boardPresident:
       return 'board_president';
+    case TitleType.boardVicePresident:
+      return 'board_vice_president';
     case TitleType.boardMember:
       return 'board_member';
     case TitleType.captain:
@@ -159,11 +172,14 @@ Set<String> effectiveRoleCodes(AppUser? user) {
   return roles;
 }
 
-/// Whether [user] is a Yönetim Kurulu member (`board_member` or
-/// `board_president`), honoring both the legacy `role` field and active titles.
+/// Whether [user] is a Yönetim Kurulu member (`board_member`,
+/// `board_vice_president` or `board_president`), honoring both the legacy
+/// `role` field and active titles.
 bool userIsBoard(AppUser? user) {
   final roles = effectiveRoleCodes(user);
-  return roles.contains('board_member') || roles.contains('board_president');
+  return roles.contains('board_member') ||
+      roles.contains('board_vice_president') ||
+      roles.contains('board_president');
 }
 
 /// Whether [user] is the Yönetim Kurulu Başkanı (`board_president`).
@@ -178,6 +194,8 @@ String roleLabel(String role) {
       return 'Admin';
     case 'board_president':
       return 'Başkan';
+    case 'board_vice_president':
+      return 'Başkan Yardımcısı';
     case 'board_member':
       return 'Yönetim Kurulu Üyesi';
     case 'captain':
@@ -193,6 +211,7 @@ String roleLabel(String role) {
 const List<String> allRoles = [
   'admin',
   'board_president',
+  'board_vice_president',
   'board_member',
   'captain',
   'unit_lead',
@@ -310,13 +329,13 @@ final rolePermissionsProvider = StreamProvider<Map<String, Set<String>>>((ref) {
 
 /// Convenience provider: current user's role.
 final currentRoleProvider = Provider<String>((ref) {
-  return ref.watch(currentAppUserProvider).value?.role ?? 'member';
+  return ref.watch(currentAppUserProvider).valueOrNull?.role ?? 'member';
 });
 
 /// Convenience provider: resolves a permission for the current user, honoring
 /// any `role_permissions` overrides.
 final currentUserCanProvider = Provider.family<bool, String>((ref, permission) {
-  final user = ref.watch(currentAppUserProvider).value;
+  final user = ref.watch(currentAppUserProvider).valueOrNull;
   final rolePerms =
       ref.watch(rolePermissionsProvider).valueOrNull ?? Permissions.defaultRolePermissions;
   return userHasPermission(user, rolePerms, permission);

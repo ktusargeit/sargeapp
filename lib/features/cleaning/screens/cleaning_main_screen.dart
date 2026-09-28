@@ -21,7 +21,7 @@ class CleaningMainScreen extends ConsumerWidget {
     final weekStart = CleaningDates.parseKey(weekKey);
     final scheduleAsync = ref.watch(cleaningScheduleProvider(weekKey));
     final isManager = ref.watch(cleaningManagerProvider);
-    final currentUser = ref.watch(currentAppUserProvider).value;
+    final currentUser = ref.watch(currentAppUserProvider).valueOrNull;
 
     return Scaffold(
       backgroundColor: AppColors.background,

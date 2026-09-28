@@ -12,6 +12,7 @@ const _uuid = Uuid();
 const List<String> _rolePriority = [
   TitleType.admin,
   TitleType.boardPresident,
+  TitleType.boardVicePresident,
   TitleType.boardMember,
   TitleType.captain,
   TitleType.unitLead,
@@ -42,6 +43,7 @@ class UserTitleService {
   /// A stable, ordered list of selectable titles for the admin UI.
   static const List<Map<String, String>> titleOptions = [
     {'type': TitleType.boardPresident, 'label': 'Yönetim Kurulu Başkanı'},
+    {'type': TitleType.boardVicePresident, 'label': 'Yönetim Kurulu Başkan Yardımcısı'},
     {'type': TitleType.boardMember, 'label': 'Yönetim Kurulu Üyesi'},
     {'type': TitleType.captain, 'label': 'Kaptan'},
     {'type': TitleType.unitLead, 'label': 'Birim Sorumlusu'},
@@ -151,6 +153,112 @@ class UserTitleService {
     return retired;
   }
 
+  /// Retires the active `captain` title for a specific [teamName].
+  ///
+  /// Mirror of [retireUnitLeadTitle] for the team-captain role: when a user is
+  /// removed as the lead of a team, only the matching active title is retired
+  /// (kept as "Eski Kaptan") instead of deleting it — so a user who captains
+  /// several teams keeps the other teams' active captain titles. Returns true
+  /// if a title was retired.
+  Future<bool> retireCaptainTitle({
+    required String uid,
+    required String teamName,
+  }) async {
+    final userRef = _users().doc(uid);
+    var retired = false;
+    await _firestore.runTransaction((txn) async {
+      final snap = await txn.get(userRef);
+      if (!snap.exists) return;
+      final data = snap.data()!;
+      final titles = _titlesFromData(data);
+      var changed = false;
+      final updated = titles.map((t) {
+        if (t.isActive &&
+            t.titleType == TitleType.captain &&
+            t.unitName == teamName) {
+          changed = true;
+          return t.copyWith(
+            isActive: false,
+            endDate: DateTime.now(),
+          );
+        }
+        return t;
+      }).map((t) => t.toMap()).toList();
+      if (changed) {
+        retired = true;
+        txn.update(userRef, {'titles': updated});
+      }
+    });
+    await reconcileRole(uid);
+    return retired;
+  }
+
+  /// Assigns the SINGLE active `board_president` (Yönetim Kurulu Başkanı) title
+  /// to [uid] and retires any other user's active presidency.
+  ///
+  /// Business rule: the club can only have ONE active Yönetim Kurulu Başkanı at
+  /// a time. Exactly like team captaincy (`teams/{id}.leadUid` is unique), the
+  /// previously active president is retired (`isActive: false` + `endDate`) so
+  /// their title remains visible in their history as \"Eski Yönetim Kurulu
+  /// Başkanı\".
+  ///
+  /// Steps:
+  ///  1. Query every user holding an ACTIVE `board_president` title.
+  ///  2. Retire those titles (skipping [uid] itself, to avoid churning the new
+  ///     president's own record).
+  ///  3. Add a fresh active `board_president` title for [uid].
+  ///  4. Reconcile the legacy `role` field for every affected user.
+  ///
+  /// Returns the newly created title.
+  Future<UserTitle> grantPresidentTitle({
+    required String uid,
+    DateTime? startDate,
+  }) async {
+    // 1. Find the currently active president(s). `titles` is an array of maps,
+    //    so the equality query narrows the candidates and the final filter is
+    //    done client-side.
+    final snapshot = await _users()
+        .where('titles', arrayContains: {
+          'titleType': TitleType.boardPresident,
+          'isActive': true,
+        })
+        .get()
+        .catchError((_) async => _users().get());
+
+    final affected = <String>{};
+    for (final doc in snapshot.docs) {
+      if (doc.id == uid) continue;
+      final titles = _titlesFromData(doc.data());
+      final hasActivePresidency = titles.any(
+        (t) => t.isActive && t.titleType == TitleType.boardPresident,
+      );
+      if (!hasActivePresidency) continue;
+
+      final updated = titles.map((t) {
+        if (t.isActive && t.titleType == TitleType.boardPresident) {
+          return t.copyWith(isActive: false, endDate: DateTime.now()).toMap();
+        }
+        return t.toMap();
+      }).toList();
+      await _users().doc(doc.id).update({'titles': updated});
+      affected.add(doc.id);
+    }
+
+    // 3. Grant the new presidency.
+    final title = await addTitle(
+      uid: uid,
+      titleType: TitleType.boardPresident,
+      startDate: startDate,
+    );
+
+    // 4. Re-sync the retired presidents' legacy `role`.
+    for (final otherUid in affected) {
+      await reconcileRole(otherUid);
+    }
+
+    return title;
+  }
+
   /// Retires all active titles of [titleType] for [uid].
   ///
   /// Used when a global role (e.g. admin, board president, board member) is
@@ -205,36 +313,36 @@ class UserTitleService {
     await reconcileRole(uid);
   }
 
-  /// Re-syncs the legacy `users/{uid}.role` field to the user's highest active
-  /// privileged title. Firestore and Storage rules resolve authorization from
-  /// this single `role` field, so without this sync a title-granted privilege
-  /// would show in the UI but be denied server-side with `permission-denied` /
+  /// Re-syncs the legacy `users/{uid}.role` field to the user's highest-priority
+  /// active title. Firestore and Storage rules resolve authorization from this
+  /// single `role` field, so without this sync a title change would show in the
+  /// UI but be denied server-side with `permission-denied` /
   /// `firebase_storage/unauthorized`.
   ///
-  /// This is intentionally a best-effort, upgrade-only operation:
-  ///  * It never downgrades an already-privileged role.
-  ///  * If the caller previously wrote `role: 'member'` (e.g. when a global
-  ///    title is removed), the remaining privileged titles are re-promoted.
-  ///  * Failures are swallowed so a title mutation is never blocked by a role
-  ///    write the caller might not be authorized to perform.
+  /// The computation is authoritative in BOTH directions (Çakışma #4 fix):
+  ///  * It looks at `activeTitles` (isActive == true) and picks the role with
+  ///    the highest priority in [_rolePriority] — admin > board_president >
+  ///    board_member > captain > unit_lead > member.
+  ///  * It then writes that role unconditionally (`role` is set EXACTLY to the
+  ///    computed value). Retiring/removing a title therefore DOWNGRADES `role`
+  ///    just as reliably as adding one upgrades it, so the backend rules always
+  ///    see the true highest active role.
+  ///  * If the user has no privileged active title left, `role` becomes
+  ///    `member`.
   ///
   /// Public so the multi-role editor can call it AFTER writing `role: 'member'`
-  /// when a global title is removed, letting the remaining privileged titles
-  /// (e.g. `board_member` staying while `admin` is removed) re-promote `role`.
+  /// when a global title is removed: the remaining privileged titles (e.g. a
+  /// `board_member` title staying while `admin` is removed) then re-promote
+  /// `role` to the correct value.
+  ///
+  /// Note: `honorary_member` has no entry in [_rolePriority] (it grants no
+  /// privileges), so it never raises `role`.
   Future<void> reconcileRole(String uid) async {
     try {
       final snap = await _users().doc(uid).get();
       if (!snap.exists) return;
       final data = snap.data()!;
-      final currentRole = data['role'] as String? ?? 'member';
-      const privileged = {
-        TitleType.admin,
-        TitleType.boardPresident,
-        TitleType.boardMember,
-        TitleType.captain,
-        TitleType.unitLead,
-      };
-      if (privileged.contains(currentRole)) return;
+      final currentRole = data['role'] as String? ?? TitleType.member;
 
       final activeTitles = _titlesFromData(data).where((t) => t.isActive);
       var newRole = TitleType.member;
@@ -245,7 +353,8 @@ class UserTitleService {
         }
       }
 
-      if (newRole != TitleType.member && newRole != currentRole) {
+      // Enforce the computed role in both directions (upgrade AND downgrade).
+      if (newRole != currentRole) {
         await _users().doc(uid).update({'role': newRole});
       }
     } catch (_) {

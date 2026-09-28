@@ -114,12 +114,176 @@ class Award {
 /// These values are persisted in Firestore under `users/{uid}/titles`.
 class TitleType {
   static const boardPresident = 'board_president';
+  static const boardVicePresident = 'board_vice_president';
   static const boardMember = 'board_member';
   static const captain = 'captain';
   static const unitLead = 'unit_lead';
   static const admin = 'admin';
   static const member = 'member';
   static const honoraryMember = 'honorary_member';
+
+  /// Yönetim Kurulu (board) titles — Başkan, Başkan Yardımcısı and Üye.
+  /// All three carry the same server-side privileges (see firestore.rules
+  /// `isBoardMember()`), but they are displayed with distinct labels.
+  static const List<String> boardTitleTypes = [
+    boardPresident,
+    boardVicePresident,
+    boardMember,
+  ];
+
+  /// Whether [titleType] is a Yönetim Kurulu title.
+  static bool isBoardTitle(String? titleType) =>
+      titleType != null && boardTitleTypes.contains(titleType);
+}
+
+/// A structured, user-authored entry from the user's past (previous years).
+///
+/// Stored in Firestore under `users/{uid}.pastExperiences` as an array of maps.
+///
+/// Two flavours exist, discriminated by [kind]:
+///  * [kindBoard]   — a Yönetim Kurulu experience; [roleType] holds
+///                    `board_president` / `board_vice_president` /
+///                    `board_member`.
+///  * [kindTeam]    — a team experience; [teamId]/[teamName]/[unitName] and
+///                    [roleType] (`unit_lead` = Birim Sorumlusu or
+///                    `member` = Takım Üyesi) describe it.
+///
+/// The profile \"Deneyim\" timeline merges these entries with the automatically
+/// retired (`isActive: false`) entries of the `titles` array.
+class PastExperience {
+  /// Board (Yönetim Kurulu) experience kind.
+  static const kindBoard = 'board';
+
+  /// Team experience kind.
+  static const kindTeam = 'team';
+
+  /// Roles selectable inside a board experience.
+  static const List<String> boardRoleTypes = [
+    TitleType.boardPresident,
+    TitleType.boardVicePresident,
+    TitleType.boardMember,
+  ];
+
+  /// Roles selectable inside a team experience (Kaptan / Birim Sorumlusu /
+  /// Takım Üyesi). `captain` entries never carry a unit name.
+  static const List<String> teamRoleTypes = [
+    TitleType.captain,
+    TitleType.unitLead,
+    TitleType.member,
+  ];
+
+  final String id;
+
+  /// Either [kindBoard] or [kindTeam].
+  final String kind;
+
+  /// `board_president` / `board_vice_president` / `board_member` for board
+  /// entries; `unit_lead` / `member` for team entries.
+  final String roleType;
+
+  final String? teamId;
+  final String? teamName;
+  final String? unitName;
+
+  final int startYear;
+  final int? endYear;
+
+  const PastExperience({
+    required this.id,
+    required this.kind,
+    required this.roleType,
+    this.teamId,
+    this.teamName,
+    this.unitName,
+    required this.startYear,
+    this.endYear,
+  });
+
+  bool get isBoard => kind == kindBoard;
+
+  /// Turkish display label, e.g. \"Başkan Yardımcısı\" or \"Birim Sorumlusu\".
+  String get roleLabel {
+    switch (roleType) {
+      case TitleType.boardPresident:
+        return 'Başkan';
+      case TitleType.boardVicePresident:
+        return 'Başkan Yardımcısı';
+      case TitleType.boardMember:
+        return 'Üye';
+      case TitleType.captain:
+        return 'Takım Kaptanı';
+      case TitleType.unitLead:
+        return 'Birim Sorumlusu';
+      case TitleType.member:
+        return 'Takım Üyesi';
+      default:
+        return roleType;
+    }
+  }
+
+  /// Short \"Başkan Yardımcısı — Roket\" style headline for the timeline.
+  String get headline {
+    if (isBoard) return 'Yönetim Kurulu — $roleLabel';
+    final team = (teamName ?? '').trim();
+    final unit = (unitName ?? '').trim();
+    final parts = [
+      if (team.isNotEmpty) team,
+      if (unit.isNotEmpty && unit != team) unit,
+    ];
+    final where = parts.isEmpty ? 'Takım' : parts.join(' / ');
+    return '$where — $roleLabel';
+  }
+
+  /// \"2023 - 2024\" or \"2023 - Devam ediyor\".
+  String get periodLabel =>
+      endYear != null ? '$startYear - $endYear' : '$startYear - Devam ediyor';
+
+  factory PastExperience.fromMap(Map<String, dynamic> map) {
+    return PastExperience(
+      id: map['id'] as String? ?? '',
+      kind: map['kind'] as String? ?? kindTeam,
+      roleType: map['roleType'] as String? ?? TitleType.member,
+      teamId: map['teamId'] as String?,
+      teamName: map['teamName'] as String?,
+      unitName: map['unitName'] as String?,
+      startYear: (map['startYear'] as num?)?.toInt() ??
+          DateTime.now().year,
+      endYear: (map['endYear'] as num?)?.toInt(),
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'kind': kind,
+        'roleType': roleType,
+        'teamId': teamId,
+        'teamName': teamName,
+        'unitName': unitName,
+        'startYear': startYear,
+        'endYear': endYear,
+      };
+
+  PastExperience copyWith({
+    String? id,
+    String? kind,
+    String? roleType,
+    String? teamId,
+    String? teamName,
+    String? unitName,
+    int? startYear,
+    int? endYear,
+  }) {
+    return PastExperience(
+      id: id ?? this.id,
+      kind: kind ?? this.kind,
+      roleType: roleType ?? this.roleType,
+      teamId: teamId ?? this.teamId,
+      teamName: teamName ?? this.teamName,
+      unitName: unitName ?? this.unitName,
+      startYear: startYear ?? this.startYear,
+      endYear: endYear ?? this.endYear,
+    );
+  }
 }
 
 /// A single title/role grant for a user.
@@ -150,6 +314,8 @@ class UserTitle {
     switch (titleType) {
       case TitleType.boardPresident:
         return 'Yönetim Kurulu Başkanı';
+      case TitleType.boardVicePresident:
+        return 'Yönetim Kurulu Başkan Yardımcısı';
       case TitleType.boardMember:
         return 'Yönetim Kurulu Üyesi';
       case TitleType.captain:

@@ -228,7 +228,7 @@ Future<void> showAdminTeamDialog(BuildContext context, WidgetRef ref,
                     try {
                       if (team == null) {
                         final creatorUid =
-                            ref.read(authStateProvider).value?.uid;
+                            ref.read(authStateProvider).valueOrNull?.uid;
                         await ref
                             .read(firestoreProvider)
                             .collection('teams')

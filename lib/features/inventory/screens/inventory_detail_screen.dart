@@ -58,7 +58,7 @@ class _InventoryDetailScreenState extends ConsumerState<InventoryDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final itemsAsync = ref.watch(inventoryItemsProvider);
-    final currentUser = ref.watch(currentAppUserProvider).value;
+    final currentUser = ref.watch(currentAppUserProvider).valueOrNull;
 
     return Scaffold(
       backgroundColor: AppColors.background,

@@ -110,20 +110,29 @@ final clubTeamsProvider = StreamProvider<List<ClubTeam>>((ref) {
 });
 
 /// Stream of Yönetim Kurulu (board) members — users whose `role` is
-/// `board_president` or `board_member`. Used exclusively by the gold-themed
-/// "Yönetim Kurulu" card on the Takımım screen.
+/// `board_president`, `board_vice_president` or `board_member`. Used
+/// exclusively by the gold-themed "Yönetim Kurulu" card on the Takımım screen.
 final boardMembersProvider = StreamProvider<List<AppUser>>((ref) {
   final firestore = ref.watch(firestoreProvider);
   return firestore
       .collection('users')
-      .where('role', whereIn: ['board_president', 'board_member'])
+      .where('role',
+          whereIn: [
+            'board_president',
+            'board_vice_president',
+            'board_member',
+          ])
       .snapshots()
       .map((snap) {
         final members = snap.docs.map((d) => AppUser.fromDoc(d)).toList();
+        // Başkan > Başkan Yardımcısı > Üye, sonra isme göre.
+        int rank(AppUser u) {
+          if (u.role == 'board_president') return 0;
+          if (u.role == 'board_vice_president') return 1;
+          return 2;
+        }
+
         members.sort((a, b) {
-          // Başkan en üstte, sonra isme göre.
-          int rank(AppUser u) =>
-              u.role == 'board_president' ? 0 : 1;
           final r = rank(a).compareTo(rank(b));
           if (r != 0) return r;
           return a.displayName.compareTo(b.displayName);

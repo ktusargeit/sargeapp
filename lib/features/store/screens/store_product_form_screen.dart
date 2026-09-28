@@ -139,7 +139,7 @@ class _StoreProductFormScreenState
 
     setState(() => _loading = true);
     try {
-      final user = ref.read(authStateProvider).value;
+      final user = ref.read(authStateProvider).valueOrNull;
       final repo = ref.read(storeRepositoryProvider);
 
       if (_isEditing) {

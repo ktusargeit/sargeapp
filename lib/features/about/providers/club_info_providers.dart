@@ -147,7 +147,8 @@ final pastTeamLinkServiceProvider = Provider<PastTeamLinkService>((ref) {
   return PastTeamLinkService(ref.watch(firestoreProvider));
 });
 
-/// Stream of archived (former) teams for the "Geçmiş Takımlarım" profile picker.
+/// Stream of archived (former) teams, used by the "Hakkımızda → Geçmiş
+/// Takımlar" archive view (the profile-side picker was removed).
 ///
 /// Equality-only query; ordering/filtering happens client-side.
 final archivedTeamsProvider = StreamProvider<List<dynamic>>((ref) {

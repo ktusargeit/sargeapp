@@ -8,7 +8,6 @@ import '../widgets/profile_connections.dart';
 import '../widgets/profile_edit_screen.dart';
 import '../widgets/profile_experience.dart';
 import '../widgets/profile_teams_roles.dart';
-import '../widgets/profile_titles.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -43,7 +42,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   @override
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(userProfileProvider(widget.userId));
-    final currentUser = ref.watch(currentAppUserProvider).value;
+    final currentUser = ref.watch(currentAppUserProvider).valueOrNull;
     final isOwnProfile = currentUser?.uid == widget.userId;
 
     return Scaffold(
@@ -141,7 +140,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   }
 }
 
-/// "Hakkında" tab: basic info + current teams & roles + titles.
+/// "Hakkında" tab: basic info + current teams & roles.
 class ProfileAboutTab extends StatelessWidget {
   final AppUser user;
   const ProfileAboutTab({super.key, required this.user});
@@ -156,8 +155,6 @@ class ProfileAboutTab extends StatelessWidget {
           ProfileBasicInfoSection(user: user),
           const SizedBox(height: 16),
           ProfileTeamsRolesSection(user: user),
-          const SizedBox(height: 16),
-          ProfileTitlesSection(user: user),
         ],
       ),
     );

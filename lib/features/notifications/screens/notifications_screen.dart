@@ -11,7 +11,7 @@ class NotificationsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final uid = ref.read(authStateProvider).value?.uid;
+    final uid = ref.read(authStateProvider).valueOrNull?.uid;
     final notificationsAsync = ref.watch(userNotificationsProvider);
 
     return Scaffold(

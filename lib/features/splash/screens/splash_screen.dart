@@ -18,22 +18,64 @@ class SplashScreen extends ConsumerStatefulWidget {
 class _SplashScreenState extends ConsumerState<SplashScreen> {
   Timer? _animTimer;
 
+  /// How many times we re-checked the auth state while it was still loading.
+  int _resolveAttempts = 0;
+
   @override
   void initState() {
     super.initState();
-    _animTimer = Timer(const Duration(milliseconds: 2000), () {
-      if (!mounted) return;
-      final authUser = ref.read(authStateProvider).value;
-      final isGuest = ref.read(isGuestProvider);
+    _animTimer = Timer(const Duration(milliseconds: 2000), _routeFromSplash);
+  }
 
-      if (authUser != null) {
-        _navigateAfterStartup();
-      } else if (isGuest) {
-        _navigateAfterStartup();
-      } else {
-        context.go('/login');
-      }
-    });
+  /// Decides where to go after the splash animation.
+  ///
+  /// CRITICAL: this used to check the auth state exactly once, at the 2000ms
+  /// mark. When the persisted session (or `authStateChanges()`'s first
+  /// emission) had not settled yet — offline, slow token refresh, Firebase still
+  /// booting — `authUser` was `null` and the user was sent to `/login`. The
+  /// redirect then kept them there because the auth state was still
+  /// inconclusive, so a perfectly valid session ended up on a screen that has
+  /// no bottom navigation bar.
+  ///
+  /// Now we wait for the auth state to become conclusive (with a bounded
+  /// number of retries) before deciding, and we never route a *pending*
+  /// session to `/login`.
+  void _routeFromSplash() {
+    if (!mounted) return;
+    final authState = ref.read(authStateProvider);
+
+    // Auth still resolving: give it a short, bounded grace period instead of
+    // assuming "signed out" (which is what used to send valid sessions to
+    // /login). 6 x 150ms = 900ms.
+    if (authState.isLoading && _resolveAttempts < 6) {
+      _resolveAttempts++;
+      _animTimer = Timer(const Duration(milliseconds: 150), _routeFromSplash);
+      return;
+    }
+
+    final authUser = authState.valueOrNull;
+
+    // NOTE: guest sessions were REMOVED in v4.4.0 — there is no `isGuest`
+    // branch any more. A signed-in user without a profile document (or with
+    // `approvalStatus: 'pending'`) is routed to /pending-approval by the
+    // router's guard, so splash only has to answer "is anyone signed in?".
+    if (authUser != null) {
+      _navigateAfterStartup();
+      return;
+    }
+
+    // Either auth ended in an error state (offline / permission-denied) or it is
+    // STILL loading after the grace period. Both cases go to the shell: the
+    // dashboard renders fine for an unknown session, and — critically — the
+    // shell is the only place the bottom navigation bar exists. Sending an
+    // unresolved session to /login is what stranded users on a bar-less screen.
+    if (authState.isLoading || authState.hasError) {
+      _navigateAfterStartup();
+      return;
+    }
+
+    // Conclusively signed out with no guest session -> login is correct.
+    context.go('/login');
   }
 
   void _navigateAfterStartup() {
