@@ -1,0 +1,221 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Store managers. The Firestore side uses `can('manageStore')`, which honors
+    // BOTH a role's default permission set AND any `role_permissions/{role}`
+    // override from the admin panel. Storage rules must mirror that so a role
+    // granted "Mağaza Ürünü Ekleyebilir/Düzenleyebilir" at runtime can actually
+    // upload product images — otherwise the Firestore write succeeds but the
+    // storage upload fails with `firebase_storage/unauthorized`.
+    function storeRole() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function roleHasStore(role) {
+      return firestore.exists(/databases/(default)/documents/role_permissions/$(role)) &&
+        'manageStore' in firestore.get(/databases/(default)/documents/role_permissions/$(role)).data.permissions;
+    }
+
+    function defaultHasStore(role) {
+      return role == 'admin' || role == 'board_president' ||
+        role == 'board_vice_president' ||
+        role == 'board_member' || role == 'captain' || role == 'unit_lead';
+    }
+
+    function isStoreManager() {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        (storeRole() == 'admin' ||
+         roleHasStore(storeRole()) ||
+         (!firestore.exists(/databases/(default)/documents/role_permissions/$(storeRole())) &&
+          defaultHasStore(storeRole())));
+    }
+
+    // Club story editors. Mirrors the Firestore `can('editClubStory')` check so a
+    // role granted "Kulüp Hikayesi Düzenleyebilir" at runtime can also upload
+    // gallery images (`club_info/gallery/...`) without `firebase_storage/unauthorized`.
+    function clubStoryRole() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function roleHasClubStory(role) {
+      return firestore.exists(/databases/(default)/documents/role_permissions/$(role)) &&
+        'editClubStory' in firestore.get(/databases/(default)/documents/role_permissions/$(role)).data.permissions;
+    }
+
+    function defaultHasClubStory(role) {
+      return role == 'admin' || role == 'board_president' ||
+        role == 'board_vice_president' || role == 'board_member';
+    }
+
+    function isClubStoryEditor() {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        (roleHasClubStory(clubStoryRole()) ||
+         (!firestore.exists(/databases/(default)/documents/role_permissions/$(clubStoryRole())) &&
+          defaultHasClubStory(clubStoryRole())));
+    }
+
+    // Honorary member gallery editors. Mirrors the Firestore
+    // `can('addHonoraryMember')` check so a role granted "Onursal Üye
+    // Ekleyebilir" at runtime can also upload gallery images to
+    // `honorary_members/...`.
+    function honoraryRole() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function roleHasHonorary(role) {
+      return firestore.exists(/databases/(default)/documents/role_permissions/$(role)) &&
+        'addHonoraryMember' in firestore.get(/databases/(default)/documents/role_permissions/$(role)).data.permissions;
+    }
+
+    function defaultHasHonorary(role) {
+      return role == 'admin' || role == 'board_president' ||
+        role == 'board_vice_president' || role == 'board_member';
+    }
+
+    function isHonoraryEditor() {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        (roleHasHonorary(honoraryRole()) ||
+         (!firestore.exists(/databases/(default)/documents/role_permissions/$(honoraryRole())) &&
+          defaultHasHonorary(honoraryRole())));
+    }
+
+    // Helper: admin or unit lead (team lead).
+    function isAdminOrYetkili() {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['admin', 'unit_lead'];
+    }
+
+    // Users can upload their own profile photos. Readable by anyone.
+    // Upload path is always profile_photos/{uid}.jpg — match exactly.
+    match /profile_photos/{photoFile} {
+      allow read: if true;
+      allow write: if isSignedIn() && photoFile == request.auth.uid + '.jpg';
+    }
+
+    // Users can upload their own cover photos. Readable by anyone.
+    match /cover_photos/{photoFile} {
+      allow read: if true;
+      allow write: if isSignedIn() && photoFile == request.auth.uid + '.jpg';
+    }
+
+    // Depo products - any signed-in user can upload product images. Readable by anyone.
+    match /depo_urunler/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // Depo location images - readable by anyone, write admin only.
+    match /depo_lokasyonlar/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Announcements - public read, admin/yetkili write.
+    match /announcements/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdminOrYetkili();
+    }
+
+    // Images attached to comments on announcements.
+    // Any signed-in user can comment, so any signed-in user can upload here.
+    match /announcement_comments/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // About section member photos - public read, admin write.
+    match /about_members/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Team photos - public read, signed-in write.
+    match /team_photos/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // Reports (bug reports / suggestions) — signed-in users can upload their own
+    // report images. Reading must also be allowed for any signed-in user so that
+    // a non-admin member can view the photo they attached to their own
+    // report/suggestion (previously read was admin-only, which surfaced as
+    // `firebase_storage/unauthorized` for normal users).
+    match /reports/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    // Images attached to replies/messages inside a report thread.
+    // Signed-in users can reply to their own reports and admins reply to anyone.
+    match /report_messages/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    // Task header images - created by admin when assigning a task.
+    match /tasks/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Images attached to task comments. Any signed-in user can comment on a task.
+    match /task_comments/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // Store product images — readable by all, writable by manageStore holders.
+    match /store_products/{allPaths=**} {
+      allow read: if true;
+      allow write: if isStoreManager();
+    }
+
+    // Store receipt PDFs (dekonte — any signed-in user can upload their own
+    // order receipt. Readable by all (the admin needs to view them).
+    match /store_receipts/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // Club story gallery images (uploaded by the "Kulüp Hikayesi" editor).
+    match /club_info/{allPaths=**} {
+      allow read: if true;
+      allow write: if isClubStoryEditor();
+    }
+
+    // Honorary member gallery images (uploaded by "Onursal Üye" editors).
+    match /honorary_members/{allPaths=**} {
+      allow read: if true;
+      allow write: if isHonoraryEditor();
+    }
+
+    // Default: read for everyone. Write is intentionally left un-granted here.
+    //
+    // Cloud Storage rules use AND semantics across overlapping `match` blocks,
+    // so a catch-all `allow write: if isAdmin()` would ALSO apply to the more
+    // specific signed-in-only write rules above (task_comments, report_messages,
+    // announcement_comments, depo_urunler, reports, team_photos, ...) and block
+    // non-admin members with `firebase_storage/unauthorized`. Removing the
+    // catch-all write means unmatched paths simply default to "deny" (secure),
+    // while every actual upload path above keeps its own explicit write rule.
+    match /{allPaths=**} {
+      allow read: if true;
+    }
+  }
+}

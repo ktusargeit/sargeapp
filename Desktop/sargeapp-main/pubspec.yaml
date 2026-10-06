@@ -1,0 +1,56 @@
+name: sarge_depo_app
+description: SARGE Club Warehouse (Depo) Management Application
+publish_to: 'none'
+version: 5.1.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  go_router: ^13.0.0
+  provider: ^6.1.2
+  intl: ^0.19.0
+  uuid: ^4.3.3
+  flutter_svg: ^2.0.10+1
+  cached_network_image: ^3.3.1
+  google_fonts: ^6.3.1
+  firebase_core: ^4.7.0
+  firebase_auth: ^6.4.0
+  cloud_firestore: ^6.3.0
+  firebase_messaging: ^16.2.0
+  flutter_local_notifications: ^17.2.4
+  google_sign_in: ^6.2.2
+  flutter_riverpod: ^2.6.1
+  image_picker: ^1.2.3
+  image: ^4.2.0
+  url_launcher: ^6.3.1
+  share_plus: ^10.1.2
+  path_provider: ^2.1.5
+  shared_preferences: ^2.3.0
+  file_picker: ^8.1.2
+  top_snackbar_flutter: ^3.4.0
+  flutter_dotenv: ^6.0.1
+  http: ^1.6.0
+  cupertino_icons: ^2.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  image_path: "assets/images/launcher_icon.png"
+  android: true
+  ios: true
+  adaptive_icon_background: "#111111"
+  adaptive_icon_foreground: "assets/images/launcher_icon_foreground.png"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/
+    - .env

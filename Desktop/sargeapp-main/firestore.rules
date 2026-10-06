@@ -1,0 +1,576 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Board members (Yönetim Kurulu) are identified by their primary role field.
+    // Başkan (president), Başkan Yardımcısı (vice president) and Üye (member)
+    // all carry the SAME privileges; only their display label differs.
+    function isBoardMember() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['board_president', 'board_vice_president', 'board_member'];
+    }
+
+    // Yönetim Kurulu Başkanı — denetim amaçlı tüm görevleri görebilir.
+    function isBoardPresident() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'board_president';
+    }
+
+    function isAdminOrUnitLead() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'unit_lead'];
+    }
+
+    // ---- permission-based helpers (mirrors permission_system.dart) ----
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function hasPermission(role, perm) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/role_permissions/$(role)) &&
+        perm in get(/databases/$(database)/documents/role_permissions/$(role)).data.permissions;
+    }
+
+    function defaultHas(role, perm) {
+      return (role == 'admin' || role == 'board_president') ||
+        (role in ['board_member', 'board_vice_president'] &&
+          perm in ['viewAdminPanel','manageTitles','manageAnnouncements','reviewApplications','editClubStory','editTeamStory','addHonoraryMember','manageStore','createTasks','approveTasks','deleteTasks','manageUnits','manageReports','awardPoints']) ||
+        (role == 'captain' &&
+          perm in ['createTasks','approveTasks','deleteTasks','manageUnits','manageAnnouncements','reviewApplications','editTeamStory','manageStore','manageReports','awardPoints']) ||
+        (role == 'unit_lead' &&
+          perm in ['manageAnnouncements','createTasks','approveTasks','manageReports','awardPoints','reviewApplications','manageStore']);
+    }
+
+    function can(perm) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        (hasPermission(userRole(), perm) ||
+         (!exists(/databases/$(database)/documents/role_permissions/$(userRole())) && defaultHas(userRole(), perm)));
+    }
+
+    // Role managers (can change another user's `role`). Mirrors the central
+    // `changeRoles` permission in the app's permission system.
+    function isRoleManager() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'board_president'];
+    }
+
+    // ---------- REGISTRATION APPROVAL (v4.4.0) ----------
+    //
+    // New sign-ups are written with `approvalStatus: 'pending'` and may not use
+    // the app until an admin approves them. Documents that predate this field
+    // have NO `approvalStatus` — those are existing members, so a missing value
+    // must be treated as approved (mirrors `AppUser.fromDoc`).
+    //
+    // NOTE: guest login was removed in the same version; every client is a
+    // signed-in Firebase Auth user from here on.
+    function approvalStatusOf(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.get('approvalStatus', 'approved');
+    }
+
+    function isApproved(uid) {
+      return isSignedIn() &&
+        request.auth.uid == uid &&
+        exists(/databases/$(database)/documents/users/$(uid)) &&
+        approvalStatusOf(uid) == 'approved';
+    }
+
+    /// A signed-in user whose registration is still pending (or was rejected).
+    /// These users are allowed to read the queue of pending registrations and
+    /// nothing else (see the `users` list below).
+    function isWaitingForApproval() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        approvalStatusOf(request.auth.uid) != 'approved';
+    }
+
+    // ---------- USERS ----------
+    match /users/{uid} {
+      // Public profiles — anyone may view them (needed for the pending list,
+      // team rosters, board cards and profile pages).
+      allow read: if true;
+
+      // A brand-new sign-up may only create its own document, only as a plain
+      // member, and it must declare its approval status. The two permitted
+      // values are:
+      //   * 'pending'  — the normal registration flow (waits for an admin), or
+      //   * 'approved' — a bootstrap account used to create the very first
+      //                  admin when the collection is still empty. Without this
+      //                  an empty database could never be administered at all.
+      // Rules cannot run a "does an admin exist yet?" query, so this branch
+      // cannot be narrowed further. The real protection is the update rule
+      // below, which stops any non-admin from CHANGING a status on an existing
+      // document.
+      allow create: if isOwner(uid) &&
+        request.resource.data.role == 'member' &&
+        request.resource.data.approvalStatus in ['pending', 'approved'];
+      allow update: if isAdmin() || (
+        // Role managers (admin + board president) may change the `role` field
+        // only. This is the server-side enforcement of the `changeRoles`
+        // permission, so the UI is never the only line of defense.
+        isRoleManager() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
+      ) || (
+        isOwner(uid) &&
+        // An unapproved user may not lift their own gate: any self-update is
+        // only allowed while the approval status stays exactly as it is. The
+        // only writer that may CHANGE it is an admin (branch above), and the
+        // only writer that sets it on a fresh document is `allow create`.
+        request.resource.data.approvalStatus == resource.data.get('approvalStatus', 'approved') &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['displayName', 'photoUrl', 'bio', 'department', 'className',
+                    'teamIds', 'pastTeams', 'pastTeamIds', 'links', 'activeTeamId', 'activeTeamName',
+                    'pastExperiences', 'awards', 'inWorkshop',
+                    'weeklyPoints', 'prevWeeklyPoints', 'points', 'fcmToken',
+                    'coverPhotoUrl'])
+      ) || (
+        // Board members may only manage the `titles` array.
+        isBoardMember() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['titles'])
+      ) || (
+        // Admins and unit leads can award points (e.g. after approving a task).
+        isAdminOrUnitLead() &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['points', 'weeklyPoints', 'prevWeeklyPoints', 'teamPoints'])
+      );
+      allow delete: if isAdmin() || isOwner(uid);
+    }
+
+    // ---------- DEPO (inventory) ----------
+    // These names mirror what the app actually uses (depo_providers.dart).
+    // Older rules referenced legacy names (depo_birimler, depo_kategoriler,
+    // depo_unitler, depo_lokasyon_options) that no longer exist, which caused
+    // `permission-denied` for normal users (e.g. the location picker sheet).
+    match /depo_lokasyonlar/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /inventory_categories/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /inventory_statuses/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /depo_urunler/{id} {
+      allow read: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    // Club "manager" roles allowed to administer cleaning rotation + location
+    // categories: admin, board president/member, and unit leads. (Team captains
+    // are additionally checked client-side via teams.leadUid; rules cannot query
+    // "any team where I am lead" without a document read.)
+    function isCleaningManager() {
+      return isAdminOrUnitLead() || isBoardMember();
+    }
+
+    // ---------- LOCATION CATEGORIES ----------
+    // Fixed warehouse categories (Toplantı Salonu / Atölye / Depo, extensible).
+    match /location_categories/{id} {
+      allow read: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if isCleaningManager();
+    }
+
+    // ---------- CLEANING (Temizlik) ----------
+    // Rotation definition + config + realized schedule.
+    // Mirror the existing `depo_urunler` convention: any signed-in user may
+    // create/update (the admin/kaptan restriction is enforced in the UI), and
+    // only club managers may delete.
+    match /cleaning_rotation/{id} {
+      allow read: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if isCleaningManager();
+    }
+
+    match /cleaning_meta/{id} {
+      allow read: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if isCleaningManager();
+    }
+
+    match /cleaning_schedule/{id} {
+      allow read: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if isCleaningManager();
+    }
+
+    // ---------- LOCATIONS BACKUP (pre-migration) ----------
+    // One-time backup written by LocationMigrationService before it reassigns
+    // existing `depo_lokasyonlar` into `location_categories`. Mirrors the
+    // cleaning collection convention so the migration never hits
+    // `permission-denied` when an admin/kaptan runs it.
+    match /locations_backup_pre_migration/{id} {
+      allow read: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if isCleaningManager();
+    }
+
+    // ---------- UNITS ----------
+    // A "birim" belongs to a team. Only the owning team's captain (leadUid)
+    // or an admin may create / update / delete units. Members may still read
+    // every unit so they can view their own team's structure.
+    match /units/{id} {
+      allow read: if true;
+
+      function isUnitTeamLead(teamId) {
+        return isSignedIn() &&
+          teamId is string &&
+          exists(/databases/$(database)/documents/teams/$(teamId)) &&
+          get(/databases/$(database)/documents/teams/$(teamId)).data.leadUid == request.auth.uid;
+      }
+
+      allow create: if isAdmin() ||
+        isUnitTeamLead(request.resource.data.teamId);
+
+      allow update, delete: if isAdmin() ||
+        isUnitTeamLead(resource.data.teamId);
+
+      // Self-removal (account deletion cleanup, formerly a Cloud Function).
+      allow update: if isSignedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids', 'unitLeadUid']) &&
+        request.resource.data.get('memberUids', []).toSet() ==
+          resource.data.get('memberUids', []).toSet().difference([request.auth.uid].toSet()) &&
+        (request.resource.data.get('unitLeadUid', null) == resource.data.get('unitLeadUid', null) ||
+          (resource.data.get('unitLeadUid', null) == request.auth.uid &&
+           request.resource.data.get('unitLeadUid', null) == null));
+    }
+
+    // ---------- TEAM APPLICATIONS ----------
+    match /teamApplications/{id} {
+      allow read: if isAdminOrUnitLead();
+      allow create: if isSignedIn() && request.resource.data.applicantUid == request.auth.uid;
+      allow update: if isAdminOrUnitLead();
+      allow delete: if isAdmin();
+    }
+
+    // ---------- POINTS HISTORY ----------
+    match /points_history/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------- WEEKLY LEADERBOARD ARCHIVE + META ----------
+    // Written by the `resetWeeklyPoints` scheduled Cloud Function (Admin SDK)
+    // and read by the dashboard weekly leaderboard week-selector. Reads are
+    // public; writes/updates/delete are admin-only (the Cloud Function bypasses
+    // these rules entirely).
+    match /weekly_leaderboard_archive/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /weekly_meta/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------- NOTIFICATIONS ----------
+    match /notifications/{id} {
+      // Users can only see their own notifications; admin can see all.
+      allow read: if isSignedIn() && (
+        resource.data.recipientId == request.auth.uid || isAdmin()
+      );
+      // Any signed-in user can create a notification (to notify about their own
+      // activity: comments, reports, suggestions, task submissions, etc).
+      allow create: if isSignedIn() && request.resource.data.senderUid == request.auth.uid;
+      // Recipient (or admin) can mark a notification as read and reset its
+      // grouped-thread counter.
+      allow update: if isSignedIn() && ((
+        resource.data.recipientId == request.auth.uid || isAdmin()
+      ) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead', 'count']) || (
+        // Grouped thread: the commenter bumps the counter of an existing
+        // per-thread notification (formerly done by Cloud Functions).
+        request.resource.data.senderUid == request.auth.uid &&
+        request.resource.data.recipientId == resource.data.recipientId &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['senderUid', 'senderName', 'title', 'body', 'type', 'relatedId', 'count', 'isRead', 'updatedAt'])
+      ));
+      allow delete: if isAdmin();
+    }
+
+    // ---------- PRESENCE (active thread, for notification suppression) ----------
+    // Stores a user's currently-open conversation `activeThreadId` so the
+    // sender (and the Cloud Function before pushing) can skip notifications for
+    // a thread the user is already viewing. Only the owner writes their own
+    // presence; any signed-in user may read it (it only exposes activeThreadId).
+    match /presence/{uid} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isOwner(uid);
+    }
+
+    // ---------- FCM TOKENS (for push notifications) ----------
+    // Tokens are stored in a dedicated collection (doc id == user uid) so they
+    // are NOT exposed via the publicly-readable `users` document. Only the
+    // device owner can write/delete their own token; the Cloud Function uses
+    // the Admin SDK to read tokens and therefore bypasses these rules.
+    match /fcm_tokens/{uid} {
+      allow read: if false;
+      allow create, update, delete: if isSignedIn() && uid == request.auth.uid;
+    }
+
+    // ---------- REPORTS ----------
+    match /reports/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.submittedBy == request.auth.uid;
+      // Any signed-in user may append a reply message (only the `messages`
+      // array changes) so members can comment on each other's reports.
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['messages'])
+      ) || (
+        // The report author can edit their own title/message.
+        isSignedIn() &&
+        resource.data.submittedBy == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'message'])
+      );
+      // Admin can delete any report; the author can delete their own.
+      allow delete: if isAdmin() || (
+        isSignedIn() &&
+        resource.data.submittedBy == request.auth.uid
+      );
+    }
+
+    // ---------- ABOUT ----------
+    // Collection names mirror the app (about_providers.dart): aboutSections
+    // and aboutMembers (previously about_us / about_members → denied reads).
+    match /aboutSections/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /aboutMembers/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------- CONTACT ----------
+    // Public read, admin-only edit.
+    match /contact/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------- TEAMS ----------
+    match /teams/{id} {
+      allow read: if true;
+      // Archived ("past") teams can be created directly from the About screen by
+      // roles holding `editTeamStory` / `manageTeams` (e.g. "+ Geçmiş Takım Ekle");
+      // otherwise only admins create teams.
+      allow create: if can('editTeamStory') || can('manageTeams');
+      // `editTeamStory` / `manageTeams` granted roles can update; only admin deletes.
+      // Any signed-in user may also update ONLY `pastMemberIds` — the two-way
+      // "Geçmiş Takımlarım" link written by PastTeamLinkService.
+      allow update: if isAdmin() || can('editTeamStory') || can('manageTeams') || (
+        isSignedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pastMemberIds'])
+      ) || (
+        // Self-removal (account deletion cleanup, formerly a Cloud Function).
+        isSignedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds', 'leadUid']) &&
+        request.resource.data.get('memberIds', []).toSet() ==
+          resource.data.get('memberIds', []).toSet().difference([request.auth.uid].toSet()) &&
+        (request.resource.data.get('leadUid', null) == resource.data.get('leadUid', null) ||
+          (resource.data.get('leadUid', null) == request.auth.uid &&
+           request.resource.data.get('leadUid', null) == null))
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ---------- CLUB INFO (story + gallery + contact) ----------
+    match /club_info/{id} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if can('editClubStory');
+    }
+
+    // ---------- HONORARY MEMBERS ----------
+    match /honorary_members/{id} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if can('addHonoraryMember');
+    }
+
+    // ---------- ROLE PERMISSIONS (runtime RBAC overrides) ----------
+    // Writing these runtime RBAC overrides is restricted to role managers
+    // (admin / board_president). Reading must be allowed for every signed-in
+    // user because the client's `rolePermissionsProvider` resolves
+    // `currentUserCan(...)` (e.g. "can this user open/manage the store?") by
+    // reading this collection. Restricting reads to role managers caused
+    // non-manager roles to surface `permission-denied` on screens that perform
+    // permission checks (the store being the prominent example). The permission
+    // SET itself is not sensitive data — only the ability to change it is.
+    match /role_permissions/{role} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isRoleManager();
+    }
+
+    // ---------- STORE (Mağaza) ----------
+    // Products are readable by everyone, writes by manageStore-permission holders.
+    match /store_products/{id} {
+      allow read: if true;
+      allow create, update, delete: if can('manageStore');
+    }
+
+    // Orders: owner can read/write their own, managers can read/write all.
+    match /orders/{id} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || can('manageStore')
+      );
+      allow create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid;
+      // Managers (and the owner for their own order) can update the status.
+      allow update: if isSignedIn() && (
+        can('manageStore') ||
+        (resource.data.userId == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+      );
+      allow delete: if can('manageStore');
+    }
+
+    // Store settings (IBAN list): readable by all, writable by managers.
+    match /store_meta/{id} {
+      allow read: if true;
+      allow create, update, delete: if can('manageStore');
+    }
+
+    // ---------- ANNOUNCEMENTS ----------
+    match /announcements/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdminOrUnitLead();
+
+      // Comments on announcements.
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn() && request.resource.data.senderUid == request.auth.uid;
+        allow update, delete: if isSignedIn() && (
+          resource.data.senderUid == request.auth.uid || isAdmin()
+        );
+      }
+    }
+
+    // ---------- TASKS ----------
+    match /tasks/{id} {
+      function isTeamLeadApprover() {
+        return isSignedIn() &&
+          resource.data.teamId != null &&
+          exists(/databases/$(database)/documents/teams/$(resource.data.teamId)) &&
+          get(/databases/$(database)/documents/teams/$(resource.data.teamId)).data.leadUid == request.auth.uid;
+      }
+
+      function canApproveTask() {
+        return isAdmin() ||
+          isTeamLeadApprover() ||
+          (isSignedIn() && resource.data.unitId != null && exists(/databases/$(database)/documents/units/$(resource.data.unitId)) && get(/databases/$(database)/documents/units/$(resource.data.unitId)).data.unitLeadUid == request.auth.uid) ||
+          (isBoardMember() && resource.data.assignmentMode == 'board');
+      }
+
+      // Captain is determined by `teams/{teamId}.leadUid` (NOT a global role
+      // field), so a captain may create a task in any team they lead.
+      function isCaptainOfTeam(teamId) {
+        return isSignedIn() &&
+          teamId is string &&
+          exists(/databases/$(database)/documents/teams/$(teamId)) &&
+          get(/databases/$(database)/documents/teams/$(teamId)).data.leadUid == request.auth.uid;
+      }
+
+      // A unit lead may only create a task whose unitId points at a unit they
+      // explicitly lead (`units/{unitId}.unitLeadUid`), which is the precise
+      // source of truth (a single user can lead multiple units).
+      function isUnitLeadOfUnit(unitId) {
+        return isSignedIn() &&
+          unitId is string &&
+          exists(/databases/$(database)/documents/units/$(unitId)) &&
+          get(/databases/$(database)/documents/units/$(unitId)).data.unitLeadUid == request.auth.uid;
+      }
+
+      // Takım bazlı görev izolasyonu (okuma): bir kullanıcı yalnızca kendisine
+      // atanmış görevleri veya ÜYESİ olduğu takımın görevlerini okuyabilir. Bu,
+      // başka bir takımın görevini doğrudan API ile bile okuyamaması anlamına
+      // gelir. Admin ve Yönetim Kurulu Başkanı denetim amaçlı tüm görevleri görebilir.
+      // Aynı takım üyeliği, toplu görev yorum bildirimlerinde ilgililerin (bulk
+      // grubundaki diğer üyeler) ve takım kaptanının ilgili görev dokümanını
+      // okuyabilmesini de sağlar (composite query/index gerektirmez).
+      function isTeamMemberCanRead() {
+        return isSignedIn() &&
+          resource.data.teamId is string &&
+          exists(/databases/$(database)/documents/teams/$(resource.data.teamId)) &&
+          request.auth.uid in get(/databases/$(database)/documents/teams/$(resource.data.teamId)).data.memberIds;
+      }
+
+      allow read: if isAdmin() ||
+        isBoardPresident() ||
+        (isSignedIn() && resource.data.assignedTo == request.auth.uid) ||
+        isTeamMemberCanRead() ||
+        isTeamLeadApprover();
+
+      // Admin → anything.
+      // Captain → only tasks in teams they lead (with or without a unitId).
+      // Unit lead → only tasks whose unitId is a unit they lead.
+      // Board member/president → only "Yönetim Kurulu" (board) tasks.
+      // Everyone else → denied.
+      allow create: if isAdmin() ||
+        isCaptainOfTeam(request.resource.data.teamId) ||
+        isUnitLeadOfUnit(request.resource.data.unitId) ||
+        (isBoardMember() && request.resource.data.assignmentMode == 'board');
+
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        request.auth.uid == resource.data.assignedTo &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'completedAt', 'updatedAt']) &&
+        request.resource.data.status in ['assigned', 'inProgress', 'in_progress', 'pendingApproval', 'completed', 'rejected', 'cancelled']
+      ) || (
+        // Team lead, Unit lead, Board, veya admin onayı: durum + onay alanları.
+        canApproveTask() &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'approvedBy', 'pointsAwarded', 'completedAt', 'updatedAt'])
+      );
+
+      allow delete: if isAdmin() || (
+        isSignedIn() &&
+        resource.data.assignedBy == request.auth.uid
+      );
+
+      // Comments on tasks.
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn() && request.resource.data.senderUid == request.auth.uid;
+        // The task creator (assignedBy) may delete a comment as part of the
+        // cascade batch-delete when removing the task itself (the comment
+        // subcollection no longer becomes orphaned data).
+        allow update: if isSignedIn() && (
+          resource.data.senderUid == request.auth.uid || isAdmin()
+        );
+        allow delete: if isSignedIn() && (
+          resource.data.senderUid == request.auth.uid ||
+          isAdmin() ||
+          get(/databases/$(database)/documents/tasks/$(id)).data.assignedBy == request.auth.uid
+        );
+      }
+    }
+  }
+}

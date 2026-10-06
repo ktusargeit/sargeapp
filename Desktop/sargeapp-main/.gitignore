@@ -1,0 +1,26 @@
+# Kullanılmayan/pasif platform klasörleri
+/linux/
+/macos/
+/windows/
+
+# Derleme/geçici dosyalar
+/build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDE dosyaları
+.vscode/
+.idea/
+*.iml
+
+# Sistem dosyaları
+.DS_Store
+Thumbs.db
+
+# pubspec.lock, .metadata, android/, ios/, web/ KALSIN
+# Gizli Dosyalar (Guvenlik)
+.env
+android/key.properties
+*.jks
+*.keystore

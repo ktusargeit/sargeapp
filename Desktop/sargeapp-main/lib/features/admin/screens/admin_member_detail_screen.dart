@@ -1,0 +1,319 @@
+import 'package:flutter/material.dart';
+import 'package:sarge_depo_app/core/utils/snackbar_utils.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/models/app_user.dart';
+import '../../../core/providers/auth_providers.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/operation_feedback.dart';
+import '../admin_permissions.dart';
+import '../widgets/admin_member_multi_role_sheet.dart';
+import '../widgets/admin_member_widgets.dart';
+
+/// Detail / management screen for a single member.
+///
+/// Consolidates the per-member admin actions in one place:
+///  * role management (global + captain + unit lead) via the multi-role sheet,
+///    which is the SINGLE entry point for role assignment. It writes to the
+///    `titles` array and lets [UserTitleService.reconcileRole] keep the legacy
+///    `role` string in sync (see `admin_member_multi_role_sheet.dart`).
+///  * manual points add / remove (with an explanation)
+///  * suspend / delete account (with confirmation dialogs)
+///
+/// NOTE: the old single-`role` dropdown / "Admin Yap" path was removed
+/// (Çakışma #1) because it left `titles` orphaned.
+class AdminMemberDetailScreen extends ConsumerStatefulWidget {
+  final String userId;
+  final AppUser? initialUser;
+
+  const AdminMemberDetailScreen({
+    super.key,
+    required this.userId,
+    this.initialUser,
+  });
+
+  @override
+  ConsumerState<AdminMemberDetailScreen> createState() =>
+      _AdminMemberDetailScreenState();
+}
+
+class _AdminMemberDetailScreenState
+    extends ConsumerState<AdminMemberDetailScreen> {
+  @override
+  Widget build(BuildContext context) {
+    final caps = ref.watch(adminCapabilitiesProvider);
+    final profileAsync = ref.watch(userProfileProvider(widget.userId));
+    final user = profileAsync.valueOrNull ?? widget.initialUser;
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text(user?.displayName ?? 'Üye Yönetimi'),
+        backgroundColor: AppColors.surface,
+      ),
+      body: profileAsync.when(
+        data: (u) {
+          if (u == null) {
+            return Center(
+              child: Text(
+                'Kullanıcı bulunamadı.',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            );
+          }
+          return _buildBody(context, u, caps);
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(
+          child:
+              Text('Hata: $e', style: const TextStyle(color: AppColors.error)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(
+    BuildContext context,
+    AppUser user,
+    AdminCapabilities caps,
+  ) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        AdminMemberHeaderCard(user: user),
+        const SizedBox(height: 16),
+
+        // ── Roller ──────────────────────────────────────────────────────────
+        // Tek kaynak: `user.activeTitles`. (Eski "Ünvanlar" bölümü aynı listeyi
+        // ikinci kez gösterdiği için kaldırıldı — Çakışma #5.)
+        // Rol atamaları SADECE buradan (çoklu rol sheet) yapılır; böylece
+        // `titles` dizisi ile legacy `role` string'i tek merkezden senkron
+        // kalır. (Çakışma #1.)
+        AdminMemberSectionTitle(
+          icon: Icons.badge_outlined,
+          title: 'Roller',
+          trailing: caps.canChangeRoles
+              ? TextButton.icon(
+                  onPressed: () => _openMultiRoleSheet(user),
+                  icon: const Icon(Icons.edit, size: 16),
+                  label: const Text('Yönet'),
+                )
+              : null,
+        ),
+        const SizedBox(height: 8),
+        if (user.activeTitles.isEmpty)
+          _muted('Güncel rol yok.')
+        else
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: user.activeTitles
+                .map((t) => Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: AppColors.sargeGold.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: AppColors.sargeGold.withValues(alpha: 0.4)),
+                      ),
+                      child: Text(
+                        t.displayLabel,
+                        style: const TextStyle(
+                          color: AppColors.sargeGold,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ))
+                .toList(),
+          ),
+        const SizedBox(height: 20),
+
+        // ── Puan ────────────────────────────────────────────────────────────
+        const AdminMemberSectionTitle(
+            icon: Icons.stars_outlined, title: 'Puan'),
+        const SizedBox(height: 8),
+        AdminMemberPointsEditor(user: user, canEdit: caps.canEditPoints),
+        const SizedBox(height: 20),
+
+        // ── Hesap (tehlike bölgesi) ─────────────────────────────────────────
+        const AdminMemberSectionTitle(
+          icon: Icons.shield_outlined,
+          title: 'Hesap Yönetimi',
+          color: AppColors.error,
+        ),
+        if (caps.canSuspendMembers || caps.canDeleteMembers) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Tehlike bölgesi',
+                  style: TextStyle(
+                    color: AppColors.error,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (caps.canSuspendMembers)
+                  OutlinedButton.icon(
+                    onPressed: () => _toggleSuspend(user),
+                    icon: Icon(
+                      user.isSuspended
+                          ? Icons.lock_open_outlined
+                          : Icons.block_outlined,
+                      size: 18,
+                    ),
+                    label: Text(user.isSuspended
+                        ? 'Hesabı Tekrar Aktifleştir'
+                        : 'Hesabı Askıya Al'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.warning,
+                      side: BorderSide(
+                          color: AppColors.warning.withValues(alpha: 0.5)),
+                    ),
+                  ),
+                if (caps.canSuspendMembers) const SizedBox(height: 8),
+                if (caps.canDeleteMembers)
+                  OutlinedButton.icon(
+                    onPressed: () => _deleteAccount(user),
+                    icon: const Icon(Icons.delete_forever_outlined, size: 18),
+                    label: const Text('Hesabı Sil'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: BorderSide(
+                          color: AppColors.error.withValues(alpha: 0.5)),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ] else
+          _muted('Hesap silme/askıya alma yetkisi yalnızca admin rolündedir.'),
+      ],
+    );
+  }
+
+  Widget _muted(String text) {
+    return Text(
+      text,
+      style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+    );
+  }
+
+  // NOT: Eski `_changeRole` metodu (yalnızca `users/{uid}.role` string'ini
+  // güncelleyip `titles` dizisini yetim bırakan dropdown yolu) KALDIRILDI
+  // — Çakışma #1. Tüm rol/yetki atamaları artık tek merkezden, `titles`
+  // dizisini güncelleyen çoklu rol sheet'i (`_openMultiRoleSheet` →
+  // `showUserTitleManagementSheet` / `_setGlobalRole`) üzerinden yapılır;
+  // `role` string'i `UserTitleService.reconcileRole` ile otomatik senkronlanır.
+
+  Future<void> _toggleSuspend(AppUser user) async {
+    final targetActive = !user.isSuspended;
+    final confirmed = await _confirm(
+      title: targetActive ? 'Hesabı Askıya Al' : 'Hesabı Aktifleştir',
+      message: targetActive
+          ? '"${user.displayName}" hesabını askıya almak istediğinize emin misiniz?'
+          : '"${user.displayName}" hesabını tekrar aktifleştirmek istediğinize emin misiniz?',
+      confirmLabel: targetActive ? 'Askıya Al' : 'Aktifleştir',
+    );
+    if (confirmed != true) return;
+
+    try {
+      await ref
+          .read(firestoreProvider)
+          .collection('users')
+          .doc(user.uid)
+          .update({'isSuspended': targetActive});
+      if (mounted) {
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+              content: Text(targetActive
+                  ? 'Hesap askıya alındı.'
+                  : 'Hesap aktifleştirildi.'),
+              backgroundColor: AppColors.success,
+            ));
+      }
+    } catch (e) {
+      if (mounted) {
+        TopSnackBar.showSnackBar(
+            context,
+            SnackBar(
+              content: Text('İşlem başarısız: $e'),
+              backgroundColor: AppColors.error,
+            ));
+      }
+    }
+  }
+
+  Future<void> _deleteAccount(AppUser user) async {
+    final confirmed = await _confirm(
+      title: 'Hesabı Sil',
+      message:
+          '"${user.displayName}" hesabı kalıcı olarak silinecek. Bu işlem geri alınamaz!',
+      confirmLabel: 'Sil',
+      destructive: true,
+    );
+    if (confirmed != true) return;
+    if (!mounted) return;
+
+    final ok = await runDeleteWithFeedback(
+      context: context,
+      successMessage: '${user.displayName} hesabı başarıyla silindi.',
+      operation: () => ref
+          .read(firestoreProvider)
+          .collection('users')
+          .doc(user.uid)
+          .delete(),
+    );
+    if (ok && mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  Future<bool?> _confirm({
+    required String title,
+    required String message,
+    required String confirmLabel,
+    bool destructive = false,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('İptal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: destructive ? AppColors.error : null,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openMultiRoleSheet(AppUser user) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      builder: (_) => AdminMemberMultiRoleSheet(user: user),
+    );
+  }
+}
